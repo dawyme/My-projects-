@@ -1035,3 +1035,11 @@ img {
         margin-bottom: 30px;
     }
 }
+
+@media (max-width:768px){
+.header-content{display:flex;justify-content:space-between;align-items:center;flex-wrap:nowrap;}
+.logo{width:auto;margin-bottom:0;text-align:left;}
+.main-nav{width:auto;}
+.nav-toggle{display:block;position:relative;z-index:1001;}
+.nav-menu{z-index:1000;}
+}
