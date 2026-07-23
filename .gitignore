@@ -47,7 +47,7 @@ Thumbs.db
 *.temp
 *.swp
 *.bak
-*.backup
+*backup*
 *~
 
 # SASS Compass output
@@ -156,3 +156,27 @@ typings/
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+# Claude-related
+.agents/
+.bash_history
+.bashrc
+.cache/
+.claude-flow/
+.claude.json
+.claude/
+.config/
+.copilot/
+.local/
+.mcp.json
+.npmrc
+.ollama/
+.profile
+.ruflo/
+.ruvector/
+.ssh/
+.swarm/
+CLAUDE.md
+__pycache__/
+
+# Backup files
+*backup*
