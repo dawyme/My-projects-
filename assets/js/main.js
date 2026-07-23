@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add active class to nav links based on scroll position
     const sections = document.querySelectorAll('section[id]');
-    const navLinks = document.querySelectorAll('.nav-menu a[href^="#"]');
+    const scrollNavLinks = document.querySelectorAll('.nav-menu a[href^="#"]');
 
     window.addEventListener('scroll', () => {
         let current = '';
@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        navLinks.forEach(link => {
+        scrollNavLinks.forEach(link => {
             link.classList.remove('active');
             if (link.getAttribute('href').substring(1) === current) {
                 link.classList.add('active');
