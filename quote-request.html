@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request a Quote - N&amp;D's Air Conditioning and Refrigeration</title>
+    <meta name="description" content="Get a personalized quote for your HVACR needs.">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&amp;family=Open+Sans:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="site-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo"><a href="../index.html"><img src="../assets/logo.png" alt="N&amp;D logo" class="site-logo"></a></div>
+                <nav class="main-nav">
+                    <button class="nav-toggle" aria-label="Toggle navigation" aria-controls="primary-menu" aria-expanded="false">
+                        <span class="hamburger"></span>
+                    </button>
+                    <ul class="nav-menu" id="primary-menu">
+                        <li><a href="../index.html">Home</a></li>
+                        <li><a href="../services.html">Services</a></li>
+                        <li><a href="../about.html">About Us</a></li>
+                        <li><a href="../booking.html">Book Service</a></li>
+                        <li><a href="../contact.html">Contact</a></li>
+                        <li><a href="quote-request.html" class="active">Request Quote</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Page Header -->
+    <section class="page-header">
+        <div class="container">
+            <h1>Request a Quote</h1>
+            <p>Get a personalized quote for your HVACR needs</p>
+        </div>
+    </section>
+
+    <!-- Quote Form -->
+    <section class="quote-section">
+        <div class="container">
+            <div class="quote-content">
+                <h2>Get Your Custom Quote</h2>
+                <p>Fill out the form below and one of our specialists will provide you with a detailed quote for your HVACR project.</p>
+
+                <form id="quoteForm">
+                    <div class="form-group">
+                        <label for="quoteName">Full Name</label>
+                        <input type="text" id="quoteName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="quotePhone">Phone Number</label>
+                        <input type="tel" id="quotePhone" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="quoteEmail">Email Address</label>
+                        <input type="email" id="quoteEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="quoteService">Service Required</label>
+                        <select id="quoteService" required>
+                            <option value="">Select a service</option>
+                            <option value="residential-ac">Residential AC</option>
+                            <option value="commercial-ac">Commercial AC</option>
+                            <option value="ac-installation">AC Installation</option>
+                            <option value="ac-repairs">AC Repairs</option>
+                            <option value="preventive-maintenance">Preventive Maintenance</option>
+                            <option value="refrigeration-repairs">Refrigeration Repairs</option>
+                            <option value="walkin-coolers">Walk-in Coolers</option>
+                            <option value="freezers">Freezers</option>
+                            <option value="cold-rooms">Cold Rooms</option>
+                            <option value="automotive-ac">Automotive AC</option>
+                            <option value="emergency-service">Emergency Service</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="quoteProduct">Product Required (Optional)</label>
+                        <select id="quoteProduct">
+                            <option value="">Select a product (optional)</option>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="quoteMessage">Message</label>
+                        <textarea id="quoteMessage" rows="5" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="quoteDate">Preferred Appointment Date</label>
+                        <input type="date" id="quoteDate" min="${new Date().toISOString().split('T')[0]}">
+                    </div>
+                    <button type="submit" class="btn-primary">Submit Quote Request</button>
+                </form>
+
+                <div id="quoteThankYou" style="display: none;">
+                    <h3>Thank You!</h3>
+                    <p>Your quote request has been submitted successfully. We will contact you shortly to discuss your needs.</p>
+                    <a href="../index.html" class="btn-primary">Return to Home</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Call to Action -->
+    <section class="cta-section">
+        <div class="container">
+            <h2>Need Immediate Assistance?</h2>
+            <p>Call us now for emergency service or to speak with a specialist.</p>
+            <a href="../services/emergency-service.html" class="btn-emergency">Emergency Service</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-column">
+                    <h3>N&amp;D's Air Conditioning and Refrigeration</h3>
+                    <p>Expert HVAC and refrigeration services for residential and commercial clients.</p>
+                </div>
+                <div class="footer-column">
+                    <h3>Quick Links</h3>
+                    <ul>
+                        <li><a href="../index.html">Home</a></li>
+                        <li><a href="../services.html">Services</a></li>
+                        <li><a href="../about.html">About Us</a></li>
+                        <li><a href="../booking.html">Book Service</a></li>
+                        <li><a href="../contact.html">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h3>Contact Info</h3>
+                    <p><i class="fas fa-phone"></i> (868) 707-4646</p>
+                    <p><i class="fas fa-envelope"></i> ndsairconditioning@gmail.com</p>
+                    <p><i class="fas fa-map-marker-alt"></i> Trinidad &amp; Tobago</p>
+                </div>
+                <div class="footer-column">
+                    <h3>Emergency Service</h3>
+                    <p>Available 24/7 for urgent HVAC needs</p>
+                    <a href="../services/emergency-service.html" class="btn-emergency">Call for Emergency Service</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2026 N&amp;D's Air Conditioning and Refrigeration. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../assets/js/main.js"></script>
+    <script src="../assets/js/quote-form.js"></script>
+</body>
+</html>
