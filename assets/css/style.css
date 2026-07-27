@@ -1035,14 +1035,4 @@ img {
         margin-bottom: 30px;
     }
 }
-@media (max-width:768px){
-.header-content{display:flex;justify-content:space-between;align-items:center;flex-wrap:nowrap;}
-.logo{width:auto;margin-bottom:0;text-align:left;flex:1;min-width:0;padding-right:12px;}
-.logo h1{font-size:clamp(1.5rem,6vw,2rem);line-height:1.15;word-break:normal;}
-.logo p{font-size:.85rem;}
-.main-nav{width:auto;}
-.nav-toggle{display:block;position:relative;z-index:1001;flex:0 0 auto;margin-left:auto;}
-.nav-menu{z-index:1000;}
-}
-
 .site-logo{max-height:70px;width:auto;display:block;}

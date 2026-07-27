@@ -17,10 +17,10 @@
             <div class="header-content">
                 <div class="logo"><a href="../index.html"><img src="../assets/logo.png" alt="N&amp;D logo" class="site-logo"></a></div>
                 <nav class="main-nav">
-                    <button class="nav-toggle" aria-label="Toggle navigation">
+                    <button class="nav-toggle" aria-label="Toggle navigation" aria-controls="primary-menu" aria-expanded="false">
                         <span class="hamburger"></span>
                     </button>
-                    <ul class="nav-menu">
+                    <ul class="nav-menu" id="primary-menu">
                         <li><a href="../index.html">Home</a></li>
                         <li><a href="../services.html">Services</a></li>
                         <li><a href="../about.html">About Us</a></li>
@@ -71,6 +71,10 @@
                         In stock only
                     </label>
                 </div>
+            </div>
+            <div class="filter-group">
+                <h3>Search</h3>
+                <input type="text" id="searchInput" placeholder="Search products...">
             </div>
             <div class="filters-actions">
                 <button id="applyFilters" class="btn-primary">Apply Filters</button>
