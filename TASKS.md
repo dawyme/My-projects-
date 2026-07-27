@@ -1,13 +1,13 @@
 # Project Tasks
 
 ## Phase 1: Audit and Fix Basics
-- [ ] Audit project structure and files
-- [ ] Fix broken HTML (validate all HTML files)
-- [ ] Fix CSS issues (validate CSS, fix responsiveness issues)
-- [ ] Fix JavaScript errors (test functionality, fix bugs)
-- [ ] Repair navigation (test mobile menu, fix broken links)
-- [ ] Repair mobile menu (ensure proper functionality on mobile devices)
-- [ ] Remove dead code (remove unused CSS, JS, or HTML)
+- [x] Audit project structure and files
+- [x] Fix broken HTML (validate all HTML files)
+- [x] Fix CSS issues (validate CSS, fix responsiveness issues)
+- [x] Fix JavaScript errors (test functionality, fix bugs)
+- [x] Repair navigation (test mobile menu, fix broken links)
+- [x] Repair mobile menu (ensure proper functionality on mobile devices)
+- [x] Remove dead code (remove unused CSS, JS, or HTML)
 
 ## Phase 2: Improvements
 - [ ] Improve responsive design (test on various screen sizes)

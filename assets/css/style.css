@@ -1006,45 +1006,15 @@ img {
         font-size: 1rem;
     }
 
-    .hero p {
-
-        font-size: 1rem;
-
-    }
-
-
-
     .hero .btn-primary,
-
     .hero .btn-secondary {
-
         display: block;
-
         margin: 10px auto;
-
         width: 80%;
-
         max-width: 300px;
-
     }
-
-
 
     .section-title {
-
-        font-size: 1.5rem;
-
-    }
-    }
-
-
-
-    .section-title {
-
-        font-size: 1.5rem;
-
-    }
-
         font-size: 1.5rem;
     }
 
@@ -1055,7 +1025,6 @@ img {
     .service-card h3 {
         font-size: 1.3rem;
     }
-}
 
     .footer-content {
         grid-template-columns: 1fr;
@@ -1063,7 +1032,8 @@ img {
     }
 
     .footer-column {
-}
+        margin-bottom: 30px;
+    }
 }
 @media (max-width:768px){
 .header-content{display:flex;justify-content:space-between;align-items:center;flex-wrap:nowrap;}
