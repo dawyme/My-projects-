@@ -3,11 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>N&D's Air Conditioning and Refrigeration - Expert HVAC Services</title>
-    <meta name="description" content="Professional air conditioning and refrigeration services. Expert repairs, installation, and maintenance for residential and commercial clients.">
-    <link rel="stylesheet" href="assets/css/style.css">
+    <!-- Primary Meta Tags -->
+    <title>N&D's Air Conditioning and Refrigeration - Expert HVAC Services in Trinidad & Tobago</title>
+    <meta name="description" content="Professional air conditioning and refrigeration services. Expert repairs, installation, maintenance, and emergency service for residential and commercial clients across Trinidad & Tobago. 24/7 availability.">
+
+    <!-- Performance Optimization -->
+    <meta http-equiv="Cache-Control" content="public, max-age=31536000">
+    <link rel="preload" href="assets/css/style.css" as="style">
+    <link rel="preload" href="assets/js/main.js" as="script">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://www.ndsairconditioning.com/">
+    <meta property="og:title" content="N&D's Air Conditioning and Refrigeration - Expert HVAC Services">
+    <meta property="og:description" content="Professional air conditioning and refrigeration services. Expert repairs, installation, maintenance, and emergency service for residential and commercial clients across Trinidad & Tobago. 24/7 availability.">
+    <meta property="og:image" content="https://www.ndsairconditioning.com/assets/images/og-image.jpg">
+    <meta property="og:locale" content="en_US">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://www.ndsairconditioning.com/">
+    <meta property="twitter:title" content="N&D's Air Conditioning and Refrigeration - Expert HVAC Services">
+    <meta property="twitter:description" content="Professional air conditioning and refrigeration services. Expert repairs, installation, maintenance, and emergency service for residential and commercial clients across Trinidad & Tobago. 24/7 availability.">
+    <meta property="twitter:image" content="https://www.ndsairconditioning.com/assets/images/og-image.jpg">
+
+    <!-- Structured Data - JSON-LD -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "LocalBusiness",
+      "name": "N&D's Air Conditioning and Refrigeration",
+      "image": "https://www.ndsairconditioning.com/assets/logo.png",
+      "@id": "https://www.ndsairconditioning.com/",
+      "url": "https://www.ndsairconditioning.com/",
+      "telephone": "+1-868-707-4646",
+      "priceRange": "$$$",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Trinidad & Tobago",
+        "addressRegion": "Caribbean"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": 10.6918,
+        "longitude": -61.2225
+      },
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday"
+          ],
+          "opens": "08:00",
+          "closes": "17:00"
+        },
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": [
+            "Saturday",
+            "Sunday"
+          ],
+          "opens": "00:00",
+          "closes": "23:59"
+        }
+      ],
+      "menu": "https://www.ndsairconditioning.com/services.html",
+      "hasOfferCatalog": {
+        "@type": "OfferCatalog",
+        "name": "Services",
+        "itemListElement": [
+          {
+            "@type": "Offer",
+            "name": "Air Conditioning Repair",
+            "description": "Fast, reliable AC repair services for all makes and models. Same-day service available."
+          },
+          {
+            "@type": "Offer",
+            "name": "AC Installation",
+            "description": "Professional installation of new air conditioning systems with proper sizing and efficiency."
+          },
+          {
+            "@type": "Offer",
+            "name": "Preventive Maintenance",
+            "description": "Regular maintenance plans to keep your system running efficiently year-round."
+          },
+          {
+            "@type": "Offer",
+            "name": "Refrigeration Services",
+            "description": "Commercial refrigeration repair and maintenance for restaurants, grocery stores, and more."
+          }
+        ]
+      }
+    }
+    </script>
+
+    <link rel="stylesheet" href="assets/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Open+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -15,13 +111,13 @@
     <header class="site-header">
         <div class="container">
             <div class="header-content">
-                <div class="logo"><a href="index.html"><img src="assets/logo.png" alt="N&D'S logo" class="site-logo"></a></div>
+                <div class="logo"><a href="index.html"><img src="assets/logo.png" alt="N&D'S logo" class="site-logo" loading="lazy"></a></div>
                 <nav class="main-nav">
-                    <button class="nav-toggle"aria-label="Toggle navigation">
+                    <button class="nav-toggle" aria-label="Toggle navigation">
                         <span class="hamburger"></span>
                     </button>
                     <ul class="nav-menu">
-                        <li><a href="index.html"class="active">Home</a></li>
+                        <li><a href="index.html" class="active">Home</a></li>
                         <li><a href="services.html">Services</a></li>
                         <li><a href="about.html">About Us</a></li>
                         <li><a href="booking.html">Book Service</a></li>
@@ -53,22 +149,22 @@
                 <div class="service-card">
                     <h3>Air Conditioning Repair</h3>
                     <p>Fast, reliable AC repair services for all makes and models. Same-day service available.</p>
-                    <a href="services.html#ac-repair" class="learn-more">Learn More</a>
+                    <a href="services/ac-repairs.html" class="learn-more">Learn More</a>
                 </div>
                 <div class="service-card">
                     <h3>AC Installation</h3>
                     <p>Professional installation of new air conditioning systems with proper sizing and efficiency.</p>
-                    <a href="services.html#ac-installation" class="learn-more">Learn More</a>
+                    <a href="services/ac-installation.html" class="learn-more">Learn More</a>
                 </div>
                 <div class="service-card">
                     <h3>Preventive Maintenance</h3>
                     <p>Regular maintenance plans to keep your system running efficiently year-round.</p>
-                    <a href="services.html#maintenance" class="learn-more">Learn More</a>
+                    <a href="services/preventive-maintenance.html" class="learn-more">Learn More</a>
                 </div>
                 <div class="service-card">
                     <h3>Refrigeration Services</h3>
                     <p>Commercial refrigeration repair and maintenance for restaurants, grocery stores, and more.</p>
-                    <a href="services.html#refrigeration" class="learn-more">Learn More</a>
+                    <a href="services/refrigeration-repairs.html" class="learn-more">Learn More</a>
                 </div>
             </div>
         </div>
@@ -84,7 +180,7 @@
             </div>
             <div class="about-image">
                 <!-- Placeholder for image -->
-                <img src="assets/images/about-us.svg" alt="About Us Image" class="placeholder-image">
+                <img src="assets/images/about-us.svg" alt="About Us Image" class="placeholder-image" loading="lazy">
             </div>
         </div>
     </section>
@@ -94,7 +190,7 @@
         <div class="container">
             <h2>Need Emergency Service?</h2>
             <p>We offer 24/7 emergency HVAC services for those unexpected breakdowns.</p>
-            <a href="tel:+18687074646" class="btn-primary">Call for Emergency Service</a>
+            <a href="services/emergency-service.html" class="btn-primary">Emergency Service</a>
         </div>
     </section>
 
@@ -109,10 +205,10 @@
                 <div class="footer-column">
                     <h3>Services</h3>
                     <ul>
-                        <li><a href="services.html#ac-repair">AC Repair</a></li>
-                        <li><a href="services.html#ac-installation">AC Installation</a></li>
-                        <li><a href="services.html#maintenance">Maintenance Plans</a></li>
-                        <li><a href="services.html#refrigeration">Refrigeration Services</a></li>
+                        <li><a href="services/ac-repairs.html">AC Repair</a></li>
+                        <li><a href="services/ac-installation.html">AC Installation</a></li>
+                        <li><a href="services/preventive-maintenance.html">Maintenance Plans</a></li>
+                        <li><a href="services/refrigeration-repairs.html">Refrigeration Services</a></li>
                     </ul>
                 </div>
                 <div class="footer-column">
@@ -124,7 +220,7 @@
                 <div class="footer-column">
                     <h3>Emergency Service</h3>
                     <p>Available 24/7 for urgent HVAC needs</p>
-                    <a href="tel:+18687074646" class="btn-footer">Call Now</a>
+                    <a href="services/emergency-service.html" class="btn-footer">Emergency Service</a>
                 </div>
             </div>
             <div class="footer-bottom">

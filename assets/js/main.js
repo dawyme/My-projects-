@@ -30,55 +30,64 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Form validation and submission
-    const contactForm = document.getElementById('contactForm');
-    if (contactForm) {
-        contactForm.addEventListener('submit', function(e) {
-            e.preventDefault();
 
-            // Simple validation
-            let isValid = true;
-            const inputs = contactForm.querySelectorAll('input[required], select[required], textarea[required]');
+    const formsToCheck = [
+        { id: "contactForm", selector: "contact.html" },
+        { id: "appointmentForm", selector: "contact.html" },
+        { id: "bookingForm", selector: "booking.html" }
+    ];
 
-            inputs.forEach(input => {
-                if (!input.value.trim()) {
-                    isValid = false;
-                    input.style.borderColor = '#e74c3c';
-                } else {
-                    input.style.borderColor = '#ddd';
+    formsToCheck.forEach(formInfo => {
+        const form = document.getElementById(formInfo.id);
+        if (form) {
+            form.addEventListener("submit", function(e) {
+                e.preventDefault();
+
+                // Simple validation
+                let isValid = true;
+                const inputs = form.querySelectorAll("input[required], select[required], textarea[required]");
+
+                inputs.forEach(input => {
+                    if (!input.value.trim()) {
+                        isValid = false;
+                        input.style.borderColor = "#e74c3c";
+                    } else {
+                        input.style.borderColor = "#ddd";
+                    }
+                });
+
+                if (!isValid) {
+                    alert("Please fill in all required fields.");
+                    return;
                 }
+
+                // Show loading state
+                const submitBtn = form.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                submitBtn.disabled = true;
+
+                // Simulate form submission (in real app, you'd use Formspree or similar)
+                setTimeout(() => {
+                    // Hide form
+                    form.style.display = "none";
+
+                    // Show thank you message
+                    const thankYouMessage = document.getElementById("thank-you-message");
+                    if (thankYouMessage) {
+                        thankYouMessage.style.display = "block";
+                    }
+
+                    // Reset button
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+
+                    // Reset form
+                    form.reset();
+                }, 1500);
             });
-
-            if (!isValid) {
-                alert('Please fill in all required fields.');
-                return;
-            }
-
-            // Show loading state
-            const submitBtn = contactForm.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-            submitBtn.disabled = true;
-
-            // Simulate form submission (in real app, you'd use Formspree or similar)
-            setTimeout(() => {
-                // Hide form
-                contactForm.style.display = 'none';
-
-                // Show thank you message
-                const thankYouMessage = document.getElementById('thank-you-message');
-                if (thankYouMessage) {
-                    thankYouMessage.style.display = 'block';
-                }
-
-                // Reset button
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-
-                // Reset form
-                contactForm.reset();
-            }, 1500);
-        });
-    }
+        }
+    });
 
     // Smooth scrolling for anchor links
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
@@ -122,7 +131,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize tooltips would go here if using a library
 
     // Add animation on scroll for elements
-    const animateElements = document.querySelectorAll('.service-card, .team-member, .value-item, .info-item');
+    const animateElements = document.querySelectorAll('.service-card, .team-member, .value-item, .info-item, .product-card, .gallery-item, .testimonial-slide');
 
     const observerOptions = {
         threshold: 0.1
@@ -138,6 +147,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }, observerOptions);
 
     animateElements.forEach(el => {
+        // Initialize state for animation
         el.style.opacity = '0';
         el.style.transform = 'translateY(30px)';
         el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
@@ -160,4 +170,35 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // Lazy loading for images
+    const lazyImages = document.querySelectorAll('img[loading="lazy"], img[data-src]');
+
+    if ('IntersectionObserver' in window) {
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    if (img.dataset.src) {
+                        img.src = img.dataset.src;
+                        img.removeAttribute('data-src');
+                    }
+                    img.classList.add('loaded');
+                    observer.unobserve(img);
+                }
+            });
+        });
+
+        lazyImages.forEach(img => {
+            imageObserver.observe(img);
+        });
+    } else {
+        // Fallback for browsers without IntersectionObserver
+        lazyImages.forEach(img => {
+            if (img.dataset.src) {
+                img.src = img.dataset.src;
+            }
+            img.classList.add('loaded');
+        });
+    }
 });
