@@ -247,7 +247,7 @@ document.addEventListener('DOMContentLoaded', function() {
         showToast(`${product.name} added to cart!`);
 
         // Update cart count in header if exists
-        updateCartCount();
+        window.updateCartCount();
     }
 
     // Show toast notification
@@ -277,7 +277,7 @@ document.addEventListener('DOMContentLoaded', function() {
         toast.style.transform = 'translateY(20px)';
         toast.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
 
-        document.body.appendChild(tooth);
+        document.body.appendChild(toast);
 
         // Trigger reflow to enable transition
         void toast.offsetWidth;
@@ -296,33 +296,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 3000);
     }
 
-    // Update cart count in header
-    function updateCartCount() {
-        const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-        const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-
-        let cartCountElement = document.querySelector('.cart-count');
-        if (!cartCountElement) {
-            // Create cart count element if it doesn't exist
-            const navItems = document.querySelector('.nav-menu');
-            if (navItems) {
-                const cartLink = document.createElement('li');
-                cartLink.innerHTML = `
-                    <a href="../cart.html" class="cart-link">
-                        <i class="fas fa-shopping-cart"></i>
-                        <span class="cart-count">${totalItems}</span>
-                    </a>
-                `;
-                navItems.appendChild(cartLink);
-                cartCountElement = cartLink.querySelector('.cart-count');
-            }
-        }
-
-        if (cartCountElement) {
-            cartCountElement.textContent = totalItems;
-            cartCheckElement.style.display = totalItems > 0 ? 'block' : 'none';
-        }
-    }
+    // Update cart count in header - using global function from main.js
+    // The updateCartCount function is defined globally in main.js
 
     // Previous page
     function previousPage() {
@@ -342,5 +317,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Initialize cart count on load
-    updateCartCount();
+    window.updateCartCount();
 });

@@ -201,4 +201,36 @@ document.addEventListener('DOMContentLoaded', function() {
             img.classList.add('loaded');
         });
     }
+
+    // Update cart count in header
+    window.updateCartCount = function() {
+        const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+        const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+        let cartCountElement = document.querySelector('.cart-count');
+        if (!cartCountElement) {
+            // Create cart count element if it doesn't exist
+            const navItems = document.querySelector('.nav-menu');
+            if (navItems) {
+                const cartLink = document.createElement('li');
+                cartLink.innerHTML = `
+                    <a href="../cart.html" class="cart-link">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span class="cart-count">${totalItems}</span>
+                    </a>
+                `;
+                navItems.appendChild(cartLink);
+                cartCountElement = cartLink.querySelector('.cart-count');
+            }
+        }
+
+        if (cartCountElement) {
+            cartCountElement.textContent = totalItems;
+            // Hide cart count if zero
+            cartCountElement.style.display = totalItems > 0 ? 'block' : 'none';
+        }
+    };
+
+    // Call updateCartCount on load
+    updateCartCount();
 });

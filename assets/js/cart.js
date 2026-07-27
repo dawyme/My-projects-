@@ -81,6 +81,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             cart[index].quantity = quantity;
             localStorage.setItem('cart', JSON.stringify(cart));
+            window.updateCartCount();
             loadCart(); // Reload to update totals
         }
     }
@@ -90,6 +91,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const cart = JSON.parse(localStorage.getItem('cart') || '[]');
         cart.splice(index, 1);
         localStorage.setItem('cart', JSON.stringify(cart));
+        window.updateCartCount();
         loadCart(); // Reload to update display
     }
 
