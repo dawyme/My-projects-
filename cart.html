@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopping Cart - N&D's Air Conditioning and Refrigeration</title>
+    <meta name="description" content="Review and manage items in your shopping cart.">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Open+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="site-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo"><a href="../index.html"><img src="../assets/logo.png" alt="N&D logo" class="site-logo"></a></div>
+                <nav class="main-nav">
+                    <button class="nav-toggle" aria-label="Toggle navigation">
+                        <span class="hamburger"></span>
+                    </button>
+                    <ul class="nav-menu">
+                        <li><a href="../index.html">Home</a></li>
+                        <li><a href="../services.html">Services</a></li>
+                        <li><a href="../about.html">About Us</a></li>
+                        <li><a href="../booking.html">Book Service</a></li>
+                        <li><a href="../contact.html">Contact</a></li>
+                        <li><a href="../products/index.html">Products</a></li>
+                        <li><a href="cart.html" class="active">Cart</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Page Header -->
+    <section class="page-header">
+        <div class="container">
+            <h1>Shopping Cart</h1>
+            <p>Review your selected items before checkout</p>
+        </div>
+    </section>
+
+    <!-- Cart Content -->
+    <section class="cart-section">
+        <div class="container">
+            <div class="cart-content">
+                <div class="cart-summary">
+                    <div id="cartItems">
+                        <!-- Cart items will be populated here -->
+                    </div>
+
+                    <div class="cart-actions">
+                        <a href="../products/index.html" class="btn-secondary">Continue Shopping</a>
+                        <button class="btn-primary" id="checkoutBtn">Proceed to Checkout</button>
+                    </div>
+                </div>
+
+                <div class="cart-sidebar">
+                    <div class="cart-totals">
+                        <h3>Cart Summary</h3>
+                        <div class="totals-row">
+                            <span>Subtotal:</span>
+                            <span id="subtotal">$0.00</span>
+                        </div>
+                        <div class="totals-row">
+                            <span>Tax (Estimated):</span>
+                            <span id="tax">$0.00</span>
+                        </div>
+                        <div class="totals-row total">
+                            <span>Total:</span>
+                            <span id="total">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-column">
+                    <h3>N&D's Air Conditioning and Refrigeration</h3>
+                    <p>Expert HVAC and refrigeration services for residential and commercial clients.</p>
+                </div>
+                <div class="footer-column">
+                    <h3>Quick Links</h3>
+                    <ul>
+                        <li><a href="../index.html">Home</a></li>
+                        <li><a href="../services.html">Services</a></li>
+                        <li><a href="../about.html">About Us</a></li>
+                        <li><a href="../booking.html">Book Service</a></li>
+                        <li><a href="../contact.html">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h3>Contact Info</h3>
+                    <p><i class="fas fa-phone"></i> (868) 707-4646</p>
+                    <p><i class="fas fa-envelope"></i> ndsairconditioning@gmail.com</p>
+                    <p><i class="fas fa-map-marker-alt"></i> Trinidad & Tobago</p>
+                </div>
+                <div class="footer-column">
+                    <h3>Emergency Service</h3>
+                    <p>Available 24/7 for urgent HVAC needs</p>
+                    <a href="../services/emergency-service.html" class="btn-emergency">Call for Emergency Service</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 N&D's Air Conditioning and Refrigeration. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../assets/js/main.js"></script>
+    <script src="../assets/js/cart.js"></script>
+</body>
+</html>

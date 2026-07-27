@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Installations Gallery - N&D's Air Conditioning and Refrigeration</title>
+    <meta name="description" content="View our installation projects gallery.">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Open+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="site-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo"><a href="../index.html"><img src="../assets/logo.png" alt="N&D logo" class="site-logo"></a></div>
+                <nav class="main-nav">
+                    <button class="nav-toggle" aria-label="Toggle navigation">
+                        <span class="hamburger"></span>
+                    </button>
+                    <ul class="nav-menu">
+                        <li><a href="../index.html">Home</a></li>
+                        <li><a href="../services.html">Services</a></li>
+                        <li><a href="../about.html">About Us</a></li>
+                        <li><a href="../booking.html">Book Service</a></li>
+                        <li><a href="../contact.html">Contact</a></li>
+                        <li><a href="../gallery/index.html">Gallery</a></li>
+                        <li><a href="installations.html" class="active">Installations</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Page Header -->
+    <section class="page-header">
+        <div class="container">
+            <h1>Installation Gallery</h1>
+            <p>Residential and commercial AC installation projects</p>
+        </div>
+    </section>
+
+    <!-- Gallery Grid -->
+    <section class="gallery-section">
+        <div class="container">
+            <div class="gallery-filters">
+                <h2>Installations</h2>
+                <div class="filter-tabs">
+                    <button class="filter-tab active" data-filter="all">All</button>
+                    <button class="filter-tab" data-filter="residential">Residential</button>
+                    <button class="filter-tab" data-filter="commercial">Commercial</button>
+                </div>
+            </div>
+            <div class="gallery-grid" id="galleryGrid">
+                <!-- Gallery items will be populated here -->
+                <div class="gallery-item" data-category="residential">
+                    <img src="../assets/images/placeholder-gallery.jpg" alt="Residential AC Installation" onerror="this.onerror=null;this.src='../assets/images/placeholder-gallery.jpg';">
+                    <div class="gallery-overlay">
+                        <h3>Residential Split System Installation</h3>
+                        <p>Port of Spain, Trinidad</p>
+                    </div>
+                </div>
+                <div class="gallery-item" data-category="commercial">
+                    <img src="../assets/images/placeholder-gallery.jpg" alt="Commercial Rooftop Unit Installation" onerror="this.onerror=null;this.src='../assets/images/placeholder-gallery.jpg';">
+                    <div class="gallery-overlay">
+                        <h3>Commercial Rooftop Unit Installation</h3>
+                        <p>Chaguanas, Trinidad</p>
+                    </div>
+                </div>
+                <div class="gallery-item" data-category="residential">
+                    <img src="../assets/images/placeholder-gallery.jpg" alt="Window Unit Installation" onerror="this.onerror=null;this.src='../assets/images/placeholder-gallery.jpg';">
+                    <div class="gallery-overlay">
+                        <h3>Window AC Unit Installation</h3>
+                        <p>San Fernando, Trinidad</p>
+                    </div>
+                </div>
+                <div class="gallery-item" data-category="commercial">
+                    <img src="../assets/images/placeholder-gallery.jpg" alt="Ductless Mini-Split Installation" onerror="this.onerror=null;this.src='../assets/images/placeholder-gallery.jpg';">
+                    <div class="gallery-overlay">
+                        <h3>Ductless Mini-Split Installation</h3>
+                        <p>Scarborough, Tobago</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Call to Action -->
+    <section class="cta-section">
+        <div class="container">
+            <h2>Need Professional Installation?</h2>
+            <p>Our certified technicians ensure proper installation for optimal performance and efficiency.</p>
+            <a href="../services/ac-installation.html" class="btn-primary">Learn About Installation Services</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-column">
+                    <h3>N&D's Air Conditioning and Refrigeration</h3>
+                    <p>Expert HVAC and refrigeration services for residential and commercial clients.</p>
+                </div>
+                <div class="footer-column">
+                    <h3>Quick Links</h3>
+                    <ul>
+                        <li><a href="../index.html">Home</a></li>
+                        <li><a href="../services.html">Services</a></li>
+                        <li><a href="../about.html">About Us</a></li>
+                        <li><a href="../booking.html">Book Service</a></li>
+                        <li><a href="../contact.html">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h3>Contact Info</h3>
+                    <p><i class="fas fa-phone"></i> (868) 707-4646</p>
+                    <p><i class="fas fa-envelope"></i> ndsairconditioning@gmail.com</p>
+                    <p><i class="fas fa-map-marker-alt"></i> Trinidad & Tobago</p>
+                </div>
+                <div class="footer-column">
+                    <h3>Emergency Service</h3>
+                    <p>Available 24/7 for urgent HVAC needs</p>
+                    <a href="../services/emergency-service.html" class="btn-emergency">Call for Emergency Service</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 N&D's Air Conditioning and Refrigeration. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../assets/js/main.js"></script>
+    <script src="../assets/js/gallery.js"></script>
+</body>
+</html>

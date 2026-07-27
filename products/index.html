@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Catalog - N&D's Air Conditioning and Refrigeration</title>
+    <meta name="description" content="Browse our extensive catalog of HVAC and refrigeration parts, equipment, and supplies. Find everything you need for your HVACR needs.">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Open+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="site-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo"><a href="../index.html"><img src="../assets/logo.png" alt="N&D logo" class="site-logo"></a></div>
+                <nav class="main-nav">
+                    <button class="nav-toggle" aria-label="Toggle navigation">
+                        <span class="hamburger"></span>
+                    </button>
+                    <ul class="nav-menu">
+                        <li><a href="../index.html">Home</a></li>
+                        <li><a href="../services.html">Services</a></li>
+                        <li><a href="../about.html">About Us</a></li>
+                        <li><a href="../booking.html">Book Service</a></li>
+                        <li><a href="../contact.html">Contact</a></li>
+                        <li><a href="index.html" class="active">Products</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Page Header -->
+    <section class="page-header">
+        <div class="container">
+            <h1>Product Catalog</h1>
+            <p>Quality HVACR parts and equipment for residential and commercial applications</p>
+        </div>
+    </section>
+
+    <!-- Product Filters -->
+    <section class="product-filters">
+        <div class="container">
+            <div class="filters-header">
+                <h2>Filter Products</h2>
+                <button id="clearFilters" class="btn-secondary">Clear Filters</button>
+            </div>
+            <div class="filters-content">
+                <div class="filter-group">
+                    <h3>Category</h3>
+                    <div class="filter-options" id="categoryFilters">
+                        <!-- Categories will be populated dynamically -->
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <h3>Price Range</h3>
+                    <div class="price-range">
+                        <input type="range" min="0" max="2000" value="2000" id="priceSlider">
+                        <div class="price-values">
+                            <span id="minPrice">$0</span> - <span id="maxPrice">$2000</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <h3>Availability</h3>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="inStockOnly">
+                        In stock only
+                    </label>
+                </div>
+            </div>
+            <div class="filters-actions">
+                <button id="applyFilters" class="btn-primary">Apply Filters</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Products Grid -->
+    <section class="products-section">
+        <div class="container">
+            <div class="products-header">
+                <h2>Products</h2>
+                <div class="products-sort">
+                    <label for="sortBy">Sort by:</label>
+                    <select id="sortBy">
+                        <option value="featured">Featured first</option>
+                        <option value="name-asc">Name (A-Z)</option>
+                        <option value="name-desc">Name (Z-A)</option>
+                        <option value="price-low">Price: Low to High</option>
+                        <option value="price-high">Price: High to Low</option>
+                        <option value="rating-high">Rating: High to Low</option>
+                    </select>
+                </div>
+            </div>
+            <div class="products-grid" id="productsGrid">
+                <!-- Products will be populated dynamically -->
+            </div>
+            <div class="products-pagination">
+                <button id="prevPage" class="btn-secondary">Previous</button>
+                <span id="pageInfo">Page 1 of 1</span>
+                <button id="nextPage" class="btn-secondary">Next</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Call to Action -->
+    <section class="cta-section">
+        <div class="container">
+            <h2>Need Help Finding the Right Part?</h2>
+            <p>Our experts are here to help you find the perfect component for your HVACR system. Contact us for personalized assistance.</p>
+            <a href="../contact.html" class="btn-primary">Contact Us</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-column">
+                    <h3>N&D's Air Conditioning and Refrigeration</h3>
+                    <p>Expert HVAC and refrigeration services for residential and commercial clients.</p>
+                </div>
+                <div class="footer-column">
+                    <h3>Quick Links</h3>
+                    <ul>
+                        <li><a href="../index.html">Home</a></li>
+                        <li><a href="../services.html">Services</a></li>
+                        <li><a href="../about.html">About Us</a></li>
+                        <li><a href="../booking.html">Book Service</a></li>
+                        <li><a href="../contact.html">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h3>Contact Info</h3>
+                    <p><i class="fas fa-phone"></i> (868) 707-4646</p>
+                    <p><i class="fas fa-envelope"></i> ndsairconditioning@gmail.com</p>
+                    <p><i class="fas fa-map-marker-alt"></i> Trinidad & Tobago</p>
+                </div>
+                <div class="footer-column">
+                    <h3>Emergency Service</h3>
+                    <p>Available 24/7 for urgent HVAC needs</p>
+                    <a href="../services/emergency-service.html" class="btn-emergency">Call for Emergency Service</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 N&D's Air Conditioning and Refrigeration. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Load Font Awesome for icons -->
+    <script src="https://kit.fontawesome.com/yourkitid.js" crossorigin="anonymous"></script>
+    <script src="../assets/js/main.js"></script>
+    <script src="../assets/js/product-catalog.js"></script>
+</body>
+</html>
