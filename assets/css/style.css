@@ -1167,9 +1167,9 @@ body.menu-open {
     }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 480px) {
     .container {
-        padding: 0 14px;
+        padding: 0 20px;
     }
 
     .logo img,
@@ -1179,12 +1179,56 @@ body.menu-open {
     }
 
     .nav-toggle {
-        top: 9px;
-        right: 10px;
+        top: calc((var(--header-height-mobile, 64px) - 40px) / 2);
+        right: clamp(16px, 4.5vw, 20px);
     }
 
     .hero {
         padding: 36px 0 36px;
+    }
+
+    .hero h1 {
+        font-size: 2rem;
+        margin-bottom: 12px;
+    }
+
+    .hero p {
+        margin-bottom: 20px;
+    }
+
+    .hero-buttons {
+        width: 90%;
+        margin: 0 auto;
+        gap: 12px !important;
+    }
+
+    .hero-stats {
+        margin-top: 16px;
+        gap: 12px;
+    }
+
+    .stat {
+        padding: 10px 12px;
+    }
+
+    .stat-number {
+        font-size: 1.4rem;
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+    }
+
+    .service-card {
+        padding: 24px 16px;
+    }
+
+    body {
+        padding-bottom: 80px;
+    }
+
+    .floating-action span {
+        display: none;
     }
 
     .btn-primary,
@@ -1192,20 +1236,6 @@ body.menu-open {
     .btn-emergency {
         padding-left: 18px;
         padding-right: 18px;
-    }
-}
-
-@media (max-width: 340px) {
-    .container {
-        padding: 0 12px;
-    }
-
-    .hero h1 {
-        font-size: 2rem;
-    }
-
-    .floating-action span {
-        display: none;
     }
 }
 
