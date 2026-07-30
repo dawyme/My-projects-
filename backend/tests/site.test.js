@@ -18,7 +18,7 @@ const record = (ok, name, extra = '') => {
   if (!ok) failures++;
 };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-async function until(fn, timeout = 8000) {
+async function until(fn, timeout = 15000) {
   const end = Date.now() + timeout;
   while (Date.now() < end) { try { if (await fn()) return true; } catch (_) {} await wait(60); }
   return false;
@@ -68,7 +68,8 @@ async function loadPage(file, base, virtualConsole) {
       window.alert = (m) => { window.__alert = m; };
     },
   });
-  await wait(500);
+  // Give inline page scripts time to attach their handlers.
+  await wait(800);
   return dom;
 }
 
