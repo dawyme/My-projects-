@@ -151,7 +151,7 @@ img {
 .main-nav {
     display: flex;
     align-items: center;
-    position: relative;
+    margin-left: auto;
 }
 
 .nav-menu {
@@ -215,6 +215,7 @@ img {
     cursor: pointer;
     padding: 8px;
     margin-left: auto;
+    flex-shrink: 0;
 }
 
 /* Hero */
