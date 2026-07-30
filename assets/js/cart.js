@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const cartItem = document.createElement('div');
             cartItem.className = 'cart-item';
             cartItem.innerHTML = `
-                <img src="${item.image}" alt="${item.name}" onerror="this.onerror=null;this.src='../assets/images/placeholder-product.jpg';">
+                <img src="${item.image}" alt="${item.name}" onerror="this.onerror=null;this.src='../assets/images/placeholder-product.svg';">
                 <div class="cart-item-details">
                     <h3>${item.name}</h3>
                     <p class="item-price">$${item.price.toFixed(2)}</p>

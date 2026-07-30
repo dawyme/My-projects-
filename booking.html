@@ -13,7 +13,7 @@
     <header class="site-header">
         <div class="container">
             <div class="header-content">
-                <div class="logo"><a href="index.html"><img src="assets/logo.png" alt="N&amp;D's" class="site-logo"></a></div>
+                <div class="logo"><a href="index.html"><img src="assets/logo.png" alt="N&amp;D's" class="site-logo" width="512" height="512"></a></div>
                 <nav class="main-nav">
                     <button class="nav-toggle"><span class="hamburger"></span></button>
                     <ul class="nav-menu" id="primary-menu">
@@ -116,7 +116,7 @@
     <footer class="site-footer">
         <div class="container">
             <div class="footer-content">
-                <div class="footer-column"><div class="footer-brand"><img src="assets/logo.png" alt="N&amp;D's" class="footer-logo"><h3>N&amp;D's</h3></div><p>Expert HVAC &amp; Refrigeration</p></div>
+                <div class="footer-column"><div class="footer-brand"><img src="assets/logo.png" alt="N&amp;D's" class="footer-logo" width="512" height="512"><h3>N&amp;D's</h3></div><p>Expert HVAC &amp; Refrigeration</p></div>
                 <div class="footer-column"><h3>Links</h3><ul><li><a href="services.html">Services</a></li><li><a href="products/index.html">Products</a></li></ul></div>
                 <div class="footer-column"><h3>Contact</h3><p>(868) 707-4646</p><p>ndsairconditioning@gmail.com</p></div>
             </div>
@@ -125,26 +125,5 @@
     </footer>
 
     <script src="assets/js/main.js"></script>
-    <script>
-        // Form handling
-        document.getElementById('bookingForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const form = this;
-            const btn = form.querySelector('button[type="submit"]');
-            const originalText = btn.innerHTML;
-            
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
-            btn.disabled = true;
-
-            // Simulate FormBold submission
-            setTimeout(() => {
-                form.style.display = 'none';
-                document.getElementById('thank-you-message').style.display = 'block';
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-                form.reset();
-            }, 1400);
-        });
-    </script>
 </body>
 </html>

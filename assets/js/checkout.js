@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
         cart.forEach(item => {
             html += `
                 <div class="order-item">
-                    <img src="${item.image}" alt="${item.name}" onerror="this.onerror=null;this.src='../assets/images/placeholder-product.jpg';" class="order-item-image">
+                    <img src="${item.image}" alt="${item.name}" onerror="this.onerror=null;this.src='../assets/images/placeholder-product.svg';" class="order-item-image">
                     <div class="order-item-details">
                         <h4>${item.name}</h4>
                         <p>Quantity: ${item.quantity} x $${item.price.toFixed(2)}</p>
