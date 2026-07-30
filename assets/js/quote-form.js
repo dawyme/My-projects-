@@ -66,20 +66,27 @@ document.addEventListener('DOMContentLoaded', function() {
         submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
         submitButton.disabled = true;
 
-        // Simulate form submission (in a real app, you would send this to a server)
-        setTimeout(() => {
-            // Hide form
-            quoteForm.style.display = 'none';
+        // Submit the quote request to the admin backend inbox.
+        const details = [
+            'Service required: ' + service,
+            product ? 'Product of interest: ' + product : '',
+            date ? 'Preferred date: ' + date : '',
+            '',
+            message,
+        ].filter(Boolean).join('\n');
 
-            // Show thank you message
-            quoteThankYou.style.display = 'block';
-
-            // Reset button
-            submitButton.innerHTML = originalText;
-            submitButton.disabled = false;
-
-            // Reset form
-            quoteForm.reset();
-        }, 1500);
+        window.CoolAirSubmitQuote({ name: name, email: email, phone: phone, message: details })
+            .then(function () {
+                quoteForm.style.display = 'none';
+                quoteThankYou.style.display = 'block';
+                quoteForm.reset();
+            })
+            .catch(function (err) {
+                alert(err.message || 'We could not submit your request right now. Please call us instead.');
+            })
+            .finally(function () {
+                submitButton.innerHTML = originalText;
+                submitButton.disabled = false;
+            });
     });
 });

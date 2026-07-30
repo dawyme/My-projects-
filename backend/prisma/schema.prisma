@@ -1,0 +1,288 @@
+// HVAC / Refrigeration / Automotive AC — Admin Dashboard data model
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters", "queryCompiler"]
+  engineType      = "client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  passwordHash  String
+  role          String    @default("STAFF") // ADMIN | STAFF
+  phone         String?
+  avatarUrl     String?
+  isActive      Boolean   @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+  activities    Activity[]
+  bookings      Booking[]        @relation("TechnicianBookings")
+  bookingNotes  BookingNote[]
+  messageReplies MessageReply[]
+  adjustments   InventoryAdjustment[]
+
+  @@index([role])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  imageUrl    String?
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+}
+
+model Product {
+  id            String   @id @default(uuid())
+  sku           String   @unique
+  name          String
+  slug          String   @unique
+  description   String?
+  brand         String?
+  model         String?
+  categoryId    String
+  category      Category @relation(fields: [categoryId], references: [id])
+  price         Float    @default(0)
+  costPrice     Float    @default(0)
+  quantity      Int      @default(0)
+  lowStockLevel Int      @default(5)
+  unit          String   @default("unit")
+  imageUrl      String?
+  gallery       String?  // JSON array of image URLs
+  specs         String?  // JSON object of specifications
+  featured      Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orderItems    OrderItem[]
+  adjustments   InventoryAdjustment[]
+  restocks      Restock[]
+
+  @@index([categoryId])
+  @@index([featured])
+  @@index([isActive])
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  phone     String?
+  company   String?
+  address   String?
+  city      String?
+  state     String?
+  postalCode String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings  Booking[]
+  orders    Order[]
+  messages  ContactMessage[]
+
+  @@index([email])
+}
+
+model Service {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  basePrice   Float     @default(0)
+  durationMin Int       @default(60)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  bookings    Booking[]
+}
+
+model Booking {
+  id            String   @id @default(uuid())
+  reference     String   @unique
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  serviceId     String?
+  service       Service? @relation(fields: [serviceId], references: [id])
+  technicianId  String?
+  technician    User?    @relation("TechnicianBookings", fields: [technicianId], references: [id])
+  scheduledAt   DateTime
+  completedAt   DateTime?
+  status        String   @default("PENDING") // PENDING CONFIRMED IN_PROGRESS COMPLETED CANCELLED
+  priority      String   @default("NORMAL")  // LOW NORMAL HIGH URGENT
+  address       String?
+  description   String?
+  price         Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  notes         BookingNote[]
+
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([customerId])
+  @@index([technicianId])
+}
+
+model BookingNote {
+  id        String   @id @default(uuid())
+  bookingId String
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([bookingId])
+}
+
+model Order {
+  id         String      @id @default(uuid())
+  reference  String      @unique
+  customerId String
+  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status     String      @default("PENDING") // PENDING PAID SHIPPED COMPLETED CANCELLED
+  subtotal   Float       @default(0)
+  tax        Float       @default(0)
+  total      Float       @default(0)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  items      OrderItem[]
+
+  @@index([status])
+  @@index([customerId])
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int     @default(1)
+  unitPrice Float   @default(0)
+  total     Float   @default(0)
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model ContactMessage {
+  id         String    @id @default(uuid())
+  name       String
+  email      String
+  phone      String?
+  subject    String?
+  body       String
+  status     String    @default("UNREAD") // UNREAD READ ARCHIVED
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  replies    MessageReply[]
+
+  @@index([status])
+}
+
+model MessageReply {
+  id        String         @id @default(uuid())
+  messageId String
+  message   ContactMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?          @relation(fields: [userId], references: [id])
+  body      String
+  sentAt    DateTime       @default(now())
+
+  @@index([messageId])
+}
+
+model InventoryAdjustment {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  change    Int
+  before    Int
+  after     Int
+  reason    String
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+}
+
+model Restock {
+  id         String   @id @default(uuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity   Int
+  unitCost   Float    @default(0)
+  supplier   String?
+  reference  String?
+  receivedAt DateTime @default(now())
+
+  @@index([productId])
+}
+
+model Activity {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  type      String
+  message   String
+  meta      String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  ip        String?
+  userAgent String?
+  data      String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entity])
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

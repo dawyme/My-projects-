@@ -52,3 +52,20 @@
 - [ ] Update CHANGELOG.md
 - [ ] Merge branch
 - [ ] Push to GitHub
+## Phase 8: Admin Dashboard (backend + /admin)
+- [x] Prisma schema, SQL migration and seed data
+- [x] Authentication (bcrypt, JWT access + rotating refresh tokens, RBAC)
+- [x] Protected admin routes and role-based UI
+- [x] Responsive dashboard layout (sidebar, top bar, mobile menu, dark mode)
+- [x] Dashboard widgets (products, bookings, customers, messages, low stock,
+      recent activity, revenue)
+- [x] Product management CRUD across all 10 categories with bulk actions
+- [x] Service booking management with technician assignment and calendar
+- [x] Customer management with booking and purchase history
+- [x] Contact message inbox with reply, archive and bulk actions
+- [x] Inventory (stock levels, alerts, adjustments, restocks, reports)
+- [x] Analytics charts (bookings, sales, products, customers, revenue)
+- [x] Business settings (company, hours, social, email, payments, SEO)
+- [x] Security hardening (CSRF, validation, rate limiting, audit logs)
+- [x] Website contact/booking/quote forms connected to the backend
+- [x] Automated verification: 182 checks across API, admin UI and website
