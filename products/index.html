@@ -4,160 +4,244 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Product Catalog - N&amp;D's Air Conditioning and Refrigeration</title>
-    <meta name="description" content="Browse our extensive catalog of HVAC and refrigeration parts, equipment, and supplies. Find everything you need for your HVACR needs.">
+    <meta name="description" content="Browse our premium HVAC, refrigeration, and automotive AC products. Compressors, thermostats, refrigerants, mini-splits, and more.">
     <link rel="stylesheet" href="../assets/css/style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&amp;family=Open+Sans:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
-    <!-- Header -->
     <header class="site-header">
         <div class="container">
             <div class="header-content">
-                <div class="logo"><a href="../index.html"><img src="../assets/logo.png" alt="N&amp;D logo" class="site-logo"></a></div>
+                <div class="logo"><a href="../index.html"><img src="../assets/logo.png" alt="N&amp;D's" class="site-logo"></a></div>
                 <nav class="main-nav">
-                    <button class="nav-toggle" aria-label="Toggle navigation" aria-controls="primary-menu" aria-expanded="false">
-                        <span class="hamburger"></span>
-                    </button>
+                    <button class="nav-toggle"><span class="hamburger"></span></button>
                     <ul class="nav-menu" id="primary-menu">
                         <li><a href="../index.html">Home</a></li>
                         <li><a href="../services.html">Services</a></li>
-                        <li><a href="../about.html">About Us</a></li>
-                        <li><a href="../booking.html">Book Service</a></li>
-                        <li><a href="../contact.html">Contact</a></li>
                         <li><a href="index.html" class="active">Products</a></li>
+                        <li><a href="../about.html">About</a></li>
+                        <li><a href="../booking.html">Book</a></li>
+                        <li><a href="../contact.html">Contact</a></li>
+                        <li><a href="../cart.html" class="cart-link"><i class="fas fa-shopping-cart"></i> <span class="cart-count">0</span></a></li>
                     </ul>
                 </nav>
             </div>
         </div>
     </header>
 
-    <!-- Page Header -->
     <section class="page-header">
         <div class="container">
             <h1>Product Catalog</h1>
-            <p>Quality HVACR parts and equipment for residential and commercial applications</p>
+            <p>Premium HVAC, refrigeration &amp; automotive AC components — in stock and ready to ship</p>
         </div>
     </section>
 
-    <!-- Product Filters -->
+    <!-- Filters -->
     <section class="product-filters">
         <div class="container">
             <div class="filters-header">
-                <h2>Filter Products</h2>
-                <button id="clearFilters" class="btn-secondary">Clear Filters</button>
+                <h2>Filter &amp; Search Products</h2>
+                <button id="clearFilters" class="btn-secondary">Clear All</button>
             </div>
-            <div class="filters-content">
-                <div class="filter-group">
-                    <h3>Category</h3>
-                    <div class="filter-options" id="categoryFilters">
-                        <!-- Categories will be populated dynamically -->
-                    </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                <!-- Search -->
+                <div>
+                    <label style="font-weight:600; margin-bottom:8px; display:block;">Search</label>
+                    <input type="text" id="searchInput" placeholder="Search products..." style="width:100%; padding:12px 16px; border:1px solid #ddd; border-radius:8px;">
                 </div>
-                <div class="filter-group">
-                    <h3>Price Range</h3>
-                    <div class="price-range">
-                        <input type="range" min="0" max="2000" value="2000" id="priceSlider">
-                        <div class="price-values">
-                            <span id="minPrice">$0</span> - <span id="maxPrice">$2000</span>
-                        </div>
-                    </div>
+                
+                <!-- Category -->
+                <div>
+                    <label style="font-weight:600; margin-bottom:8px; display:block;">Category</label>
+                    <select id="categoryFilter" style="width:100%; padding:12px 16px; border:1px solid #ddd; border-radius:8px;">
+                        <option value="">All Categories</option>
+                        <option value="Refrigeration">Refrigeration</option>
+                        <option value="Air Conditioning">Air Conditioning</option>
+                        <option value="Automotive Air Conditioning">Automotive AC</option>
+                    </select>
                 </div>
-                <div class="filter-group">
-                    <h3>Availability</h3>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="inStockOnly">
-                        In stock only
-                    </label>
-                </div>
-            </div>
-            <div class="filter-group">
-                <h3>Search</h3>
-                <input type="text" id="searchInput" placeholder="Search products...">
-            </div>
-            <div class="filters-actions">
-                <button id="applyFilters" class="btn-primary">Apply Filters</button>
-            </div>
-        </div>
-    </section>
-
-    <!-- Products Grid -->
-    <section class="products-section">
-        <div class="container">
-            <div class="products-header">
-                <h2>Products</h2>
-                <div class="products-sort">
-                    <label for="sortBy">Sort by:</label>
-                    <select id="sortBy">
-                        <option value="featured">Featured first</option>
-                        <option value="name-asc">Name (A-Z)</option>
-                        <option value="name-desc">Name (Z-A)</option>
+                
+                <!-- Sort -->
+                <div>
+                    <label style="font-weight:600; margin-bottom:8px; display:block;">Sort By</label>
+                    <select id="sortFilter" style="width:100%; padding:12px 16px; border:1px solid #ddd; border-radius:8px;">
+                        <option value="featured">Featured First</option>
                         <option value="price-low">Price: Low to High</option>
                         <option value="price-high">Price: High to Low</option>
-                        <option value="rating-high">Rating: High to Low</option>
+                        <option value="name-az">Name: A-Z</option>
                     </select>
                 </div>
             </div>
-            <div class="products-grid" id="productsGrid">
-                <!-- Products will be populated dynamically -->
+        </div>
+    </section>
+
+    <!-- Products -->
+    <section style="padding: 50px 0; background:#f8f9fa;">
+        <div class="container">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
+                <h3 style="margin:0;">Showing <span id="productCount">8</span> Products</h3>
             </div>
-            <div class="products-pagination">
-                <button id="prevPage" class="btn-secondary">Previous</button>
-                <span id="pageInfo">Page 1 of 1</span>
-                <button id="nextPage" class="btn-secondary">Next</button>
+            
+            <div class="products-grid" id="productsGrid">
+                <!-- Populated via JS -->
             </div>
         </div>
     </section>
 
-    <!-- Call to Action -->
     <section class="cta-section">
         <div class="container">
-            <h2>Need Help Finding the Right Part?</h2>
-            <p>Our experts are here to help you find the perfect component for your HVACR system. Contact us for personalized assistance.</p>
-            <a href="../contact.html" class="btn-primary">Contact Us</a>
+            <h2>Need a Specific Part?</h2>
+            <p>Our team can source hard-to-find HVAC components. Contact us for special orders.</p>
+            <a href="../contact.html" class="btn-primary btn-large">Contact Sales</a>
         </div>
     </section>
 
-    <!-- Footer -->
     <footer class="site-footer">
         <div class="container">
             <div class="footer-content">
                 <div class="footer-column">
-                    <h3>N&amp;D's Air Conditioning and Refrigeration</h3>
-                    <p>Expert HVAC and refrigeration services for residential and commercial clients.</p>
+                    <div class="footer-brand"><img src="../assets/logo.png" alt="N&amp;D's" class="footer-logo"><h3>N&amp;D's Air Conditioning</h3></div>
+                    <p>Quality parts for professionals and DIY.</p>
                 </div>
                 <div class="footer-column">
-                    <h3>Quick Links</h3>
+                    <h3>Categories</h3>
                     <ul>
-                        <li><a href="../index.html">Home</a></li>
-                        <li><a href="../services.html">Services</a></li>
-                        <li><a href="../about.html">About Us</a></li>
-                        <li><a href="../booking.html">Book Service</a></li>
-                        <li><a href="../contact.html">Contact</a></li>
+                        <li><a href="#">Refrigeration</a></li>
+                        <li><a href="#">Air Conditioning</a></li>
+                        <li><a href="#">Automotive AC</a></li>
                     </ul>
                 </div>
                 <div class="footer-column">
-                    <h3>Contact Info</h3>
-                    <p><i class="fas fa-phone"></i> (868) 707-4646</p>
-                    <p><i class="fas fa-envelope"></i> ndsairconditioning@gmail.com</p>
-                    <p><i class="fas fa-map-marker-alt"></i> Trinidad &amp; Tobago</p>
+                    <h3>Support</h3>
+                    <ul>
+                        <li><a href="../contact.html">Contact Us</a></li>
+                        <li><a href="../booking.html">Book Service</a></li>
+                    </ul>
                 </div>
                 <div class="footer-column">
-                    <h3>Emergency Service</h3>
-                    <p>Available 24/7 for urgent HVAC needs</p>
-                    <a href="../services/emergency-service.html" class="btn-emergency">Call for Emergency Service</a>
+                    <h3>Contact</h3>
+                    <p>(868) 707-4646</p>
+                    <p>ndsairconditioning@gmail.com</p>
                 </div>
             </div>
-            <div class="footer-bottom">
-                <p>© 2026 N&amp;D's Air Conditioning and Refrigeration. All rights reserved.</p>
-            </div>
+            <div class="footer-bottom"><p>© 2026 N&amp;D's. All rights reserved.</p></div>
         </div>
     </footer>
 
-    <!-- Load Font Awesome for icons -->
-    <script src="https://kit.fontawesome.com/yourkitid.js" crossorigin="anonymous"></script>
     <script src="../assets/js/main.js"></script>
-    <script src="../assets/js/product-catalog.js"></script>
+    <script>
+        // Product Catalog JS
+        let allProducts = [];
+        
+        async function loadProducts() {
+            try {
+                const res = await fetch('../assets/data/products.json');
+                allProducts = await res.json();
+                renderProducts(allProducts);
+                setupFilters();
+            } catch(e) {
+                console.error(e);
+                // Fallback products
+                allProducts = [
+                    {id:"ac-001",name:"Mitsubishi Mini Split",price:1199.99,category:"Air Conditioning",rating:4.9,image:""},
+                    {id:"ref-001",name:"Copeland Compressor",price:1249.99,category:"Refrigeration",rating:4.8,image:""},
+                    {id:"auto-001",name:"Sanden Compressor",price:299.99,category:"Automotive Air Conditioning",rating:4.6,image:""}
+                ];
+                renderProducts(allProducts);
+            }
+        }
+        
+        function renderProducts(products) {
+            const grid = document.getElementById('productsGrid');
+            const countEl = document.getElementById('productCount');
+            countEl.textContent = products.length;
+            
+            if (!products.length) {
+                grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:60px 20px;"><p>No products found matching your criteria.</p></div>`;
+                return;
+            }
+            
+            grid.innerHTML = products.map(p => `
+                <div class="product-card">
+                    <div class="product-image">
+                        <i class="fas fa-${p.category.includes('Auto') ? 'car' : p.category.includes('Ref') ? 'snowflake' : 'snowflake'} fa-4x"></i>
+                    </div>
+                    <div class="product-info">
+                        <span class="product-category">${p.category}</span>
+                        <h4>${p.name}</h4>
+                        <div class="product-price">$${p.price}</div>
+                        <div class="product-rating">
+                            ${Array(5).fill(0).map((_,i) => `<i class="fas fa-star ${i < Math.floor(p.rating) ? '' : 'far'}"></i>`).join('')}
+                            <span style="color:#666; margin-left:6px;">${p.rating}</span>
+                        </div>
+                        <div style="display:flex; gap:10px; margin-top:12px;">
+                            <button onclick="addToCart('${p.id}', '${p.name}', ${p.price})" class="btn-primary btn-sm" style="flex:1;">Add to Cart</button>
+                            <a href="product-detail.html?id=${p.id}" class="btn-secondary btn-sm" style="flex:1;">Details</a>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function setupFilters() {
+            const search = document.getElementById('searchInput');
+            const cat = document.getElementById('categoryFilter');
+            const sort = document.getElementById('sortFilter');
+            const clear = document.getElementById('clearFilters');
+            
+            function applyFilters() {
+                let filtered = [...allProducts];
+                
+                const q = search.value.toLowerCase().trim();
+                if (q) {
+                    filtered = filtered.filter(p => 
+                        p.name.toLowerCase().includes(q) || 
+                        p.description?.toLowerCase().includes(q)
+                    );
+                }
+                
+                if (cat.value) {
+                    filtered = filtered.filter(p => p.category === cat.value);
+                }
+                
+                // Sort
+                const s = sort.value;
+                if (s === 'price-low') filtered.sort((a,b) => a.price - b.price);
+                else if (s === 'price-high') filtered.sort((a,b) => b.price - a.price);
+                else if (s === 'name-az') filtered.sort((a,b) => a.name.localeCompare(b.name));
+                else if (s === 'featured') filtered.sort((a,b) => (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0) || a.name.localeCompare(b.name));
+                
+                renderProducts(filtered);
+            }
+            
+            search.addEventListener('input', applyFilters);
+            cat.addEventListener('change', applyFilters);
+            sort.addEventListener('change', applyFilters);
+            
+            clear.addEventListener('click', () => {
+                search.value = '';
+                cat.value = '';
+                sort.value = 'featured';
+                renderProducts(allProducts);
+            });
+        }
+        
+        function addToCart(id, name, price) {
+            let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+            const existing = cart.find(item => item.id === id);
+            if (existing) existing.quantity = (existing.quantity || 1) + 1;
+            else cart.push({id, name, price, quantity: 1});
+            localStorage.setItem('cart', JSON.stringify(cart));
+            window.updateCartCount && window.updateCartCount();
+            alert(name + ' added to cart!');
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProducts();
+            if (window.updateCartCount) window.updateCartCount();
+        });
+    </script>
 </body>
 </html>

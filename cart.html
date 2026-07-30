@@ -3,30 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shopping Cart - N&amp;D's Air Conditioning and Refrigeration</title>
-    <meta name="description" content="Review and manage items in your shopping cart.">
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <title>Shopping Cart - N&amp;D's</title>
+    <link rel="stylesheet" href="assets/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&amp;family=Open+Sans:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
-    <!-- Header -->
     <header class="site-header">
         <div class="container">
             <div class="header-content">
-                <div class="logo"><a href="../index.html"><img src="../assets/logo.png" alt="N&amp;D logo" class="site-logo"></a></div>
+                <div class="logo"><a href="index.html"><img src="assets/logo.png" alt="N&amp;D's" class="site-logo"></a></div>
                 <nav class="main-nav">
-                    <button class="nav-toggle" aria-label="Toggle navigation" aria-controls="primary-menu" aria-expanded="false">
-                        <span class="hamburger"></span>
-                    </button>
+                    <button class="nav-toggle"><span class="hamburger"></span></button>
                     <ul class="nav-menu" id="primary-menu">
-                        <li><a href="../index.html">Home</a></li>
-                        <li><a href="../services.html">Services</a></li>
-                        <li><a href="../about.html">About Us</a></li>
-                        <li><a href="../booking.html">Book Service</a></li>
-                        <li><a href="../contact.html">Contact</a></li>
-                        <li><a href="../products/index.html">Products</a></li>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="products/index.html">Products</a></li>
                         <li><a href="cart.html" class="active">Cart</a></li>
                     </ul>
                 </nav>
@@ -34,87 +25,87 @@
         </div>
     </header>
 
-    <!-- Page Header -->
     <section class="page-header">
-        <div class="container">
-            <h1>Shopping Cart</h1>
-            <p>Review your selected items before checkout</p>
-        </div>
+        <div class="container"><h1>Your Cart</h1></div>
     </section>
 
-    <!-- Cart Content -->
-    <section class="cart-section">
+    <section style="padding:60px 0;">
         <div class="container">
-            <div class="cart-content">
-                <div class="cart-summary">
-                    <div id="cartItems">
-                        <!-- Cart items will be populated here -->
-                    </div>
-
-                    <div class="cart-actions">
-                        <a href="../products/index.html" class="btn-secondary">Continue Shopping</a>
-                        <button class="btn-primary" id="checkoutBtn">Proceed to Checkout</button>
-                    </div>
-                </div>
-
-                <div class="cart-sidebar">
-                    <div class="cart-totals">
-                        <h3>Cart Summary</h3>
-                        <div class="totals-row">
-                            <span>Subtotal:</span>
-                            <span id="subtotal">$0.00</span>
-                        </div>
-                        <div class="totals-row">
-                            <span>Tax (Estimated):</span>
-                            <span id="tax">$0.00</span>
-                        </div>
-                        <div class="totals-row total">
-                            <span>Total:</span>
-                            <span id="total">$0.00</span>
-                        </div>
-                    </div>
-                </div>
+            <div id="cartContent">
+                <!-- Populated by JS -->
+            </div>
+            <div id="cartEmpty" style="display:none; text-align:center; padding:80px 20px;">
+                <i class="fas fa-shopping-cart fa-5x" style="color:#ddd;"></i>
+                <h3 style="margin:30px 0 12px;">Your cart is empty</h3>
+                <a href="products/index.html" class="btn-primary">Browse Products</a>
             </div>
         </div>
     </section>
 
-    <!-- Footer -->
     <footer class="site-footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-column">
-                    <h3>N&amp;D's Air Conditioning and Refrigeration</h3>
-                    <p>Expert HVAC and refrigeration services for residential and commercial clients.</p>
-                </div>
-                <div class="footer-column">
-                    <h3>Quick Links</h3>
-                    <ul>
-                        <li><a href="../index.html">Home</a></li>
-                        <li><a href="../services.html">Services</a></li>
-                        <li><a href="../about.html">About Us</a></li>
-                        <li><a href="../booking.html">Book Service</a></li>
-                        <li><a href="../contact.html">Contact</a></li>
-                    </ul>
-                </div>
-                <div class="footer-column">
-                    <h3>Contact Info</h3>
-                    <p><i class="fas fa-phone"></i> (868) 707-4646</p>
-                    <p><i class="fas fa-envelope"></i> ndsairconditioning@gmail.com</p>
-                    <p><i class="fas fa-map-marker-alt"></i> Trinidad &amp; Tobago</p>
-                </div>
-                <div class="footer-column">
-                    <h3>Emergency Service</h3>
-                    <p>Available 24/7 for urgent HVAC needs</p>
-                    <a href="../services/emergency-service.html" class="btn-emergency">Call for Emergency Service</a>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <p>© 2026 N&amp;D's Air Conditioning and Refrigeration. All rights reserved.</p>
-            </div>
-        </div>
+        <div class="container"><div class="footer-bottom"><p>© 2026 N&amp;D's. All rights reserved.</p></div></div>
     </footer>
 
-    <script src="../assets/js/main.js"></script>
-    <script src="../assets/js/cart.js"></script>
+    <script src="assets/js/main.js"></script>
+    <script>
+        function renderCart() {
+            const container = document.getElementById('cartContent');
+            const empty = document.getElementById('cartEmpty');
+            let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+            
+            if (!cart.length) {
+                container.style.display = 'none';
+                empty.style.display = 'block';
+                return;
+            }
+            
+            container.style.display = 'block';
+            empty.style.display = 'none';
+            
+            let html = `<div style="max-width:920px;margin:0 auto;"><table style="width:100%; border-collapse:collapse;"><thead><tr style="border-bottom:2px solid #ddd;"><th style="text-align:left;padding:14px;">Product</th><th style="padding:14px;">Price</th><th style="padding:14px;">Qty</th><th style="padding:14px;">Total</th><th></th></tr></thead><tbody>`;
+            
+            let subtotal = 0;
+            cart.forEach((item, index) => {
+                const total = item.price * (item.quantity || 1);
+                subtotal += total;
+                html += `<tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:16px;">${item.name}</td>
+                    <td style="padding:16px;">$${item.price}</td>
+                    <td style="padding:16px;"><input type="number" value="${item.quantity || 1}" min="1" style="width:60px; padding:6px;" onchange="updateQuantity(${index}, this.value)"></td>
+                    <td style="padding:16px;">$${total.toFixed(2)}</td>
+                    <td style="padding:16px;"><button onclick="removeFromCart(${index})" style="background:none;border:none;color:#e74c3c;cursor:pointer;"><i class="fas fa-trash"></i></button></td>
+                </tr>`;
+            });
+            
+            html += `</tbody></table>
+            <div style="margin-top:40px; text-align:right;">
+                <p style="font-size:1.4rem; font-weight:700;">Subtotal: $${subtotal.toFixed(2)}</p>
+                <a href="checkout.html" class="btn-primary btn-large" style="margin-top:20px;">Proceed to Checkout</a>
+            </div></div>`;
+            
+            container.innerHTML = html;
+        }
+        
+        function updateQuantity(index, qty) {
+            let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+            cart[index].quantity = parseInt(qty);
+            localStorage.setItem('cart', JSON.stringify(cart));
+            renderCart();
+            window.updateCartCount && window.updateCartCount();
+        }
+        
+        function removeFromCart(index) {
+            let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+            cart.splice(index, 1);
+            localStorage.setItem('cart', JSON.stringify(cart));
+            renderCart();
+            window.updateCartCount && window.updateCartCount();
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            renderCart();
+            if (window.updateCartCount) window.updateCartCount();
+        });
+    </script>
 </body>
 </html>
