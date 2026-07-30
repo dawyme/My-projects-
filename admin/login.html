@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light dark">
+<title>Sign in · CoolAir Admin</title>
+<link rel="icon" href="../assets/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/admin.css">
+<script>
+  (function () {
+    var t = localStorage.getItem('coolair.theme')
+      || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.dataset.theme = t;
+  })();
+</script>
+</head>
+<body class="login-page">
+<main class="login-card">
+  <div class="login-brand">
+    <div class="sidebar__logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14.7 6.3a4 4 0 0 0 5 5l-9 9a2.8 2.8 0 0 1-4-4l9-9-1-1Z"/></svg>
+    </div>
+    <div>
+      <h1 style="font-size:19px">CoolAir Admin</h1>
+      <p style="margin:2px 0 0;color:var(--text-muted);font-size:13px">HVAC · Refrigeration · Automotive AC</p>
+    </div>
+  </div>
+
+  <div id="alert" hidden></div>
+
+  <form id="loginForm" novalidate>
+    <div class="field">
+      <label for="email">Email address</label>
+      <input id="email" name="email" type="email" autocomplete="username" required placeholder="you@company.com">
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required placeholder="••••••••">
+    </div>
+    <label class="checkline" style="margin-bottom:16px">
+      <input type="checkbox" id="showPassword"> Show password
+    </label>
+    <button class="btn btn--primary btn--block" id="submitBtn" type="submit">Sign in</button>
+  </form>
+
+  <div class="login-hint">
+    <strong>Demo credentials</strong><br>
+    Administrator — <code>admin@coolairhvac.com</code> / <code>Admin@12345</code><br>
+    Staff — <code>staff@coolairhvac.com</code> / <code>Staff@12345</code>
+  </div>
+</main>
+
+<script type="module">
+import { auth, store, ApiError } from './js/api.js';
+
+const form = document.getElementById('loginForm');
+const alertBox = document.getElementById('alert');
+const submit = document.getElementById('submitBtn');
+
+function showAlert(message, type = 'error') {
+  alertBox.className = `alert alert--${type}`;
+  alertBox.textContent = message;
+  alertBox.hidden = false;
+}
+
+document.getElementById('showPassword').onchange = (e) => {
+  document.getElementById('password').type = e.target.checked ? 'text' : 'password';
+};
+
+if (store.get().accessToken) location.replace('index.html');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  alertBox.hidden = true;
+  const email = form.elements.email.value.trim();
+  const password = form.elements.password.value;
+  if (!email || !password) return showAlert('Please enter both your email address and password.');
+
+  submit.disabled = true;
+  submit.innerHTML = '<span class="spinner"></span> Signing in…';
+  try {
+    await auth.login(email, password);
+    const next = new URLSearchParams(location.search).get('next');
+    location.replace(next ? `index.html${next}` : 'index.html');
+  } catch (err) {
+    showAlert(err instanceof ApiError && err.status === 429
+      ? err.message
+      : (err.message || 'Unable to sign in. Please try again.'));
+    submit.disabled = false;
+    submit.textContent = 'Sign in';
+    form.elements.password.select();
+  }
+});
+</script>
+</body>
+</html>

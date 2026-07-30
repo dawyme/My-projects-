@@ -66,6 +66,9 @@
 
         forms.forEach(form => {
             if (form.dataset.enhanced === 'true') return;
+            // site-api.js owns delivery for these forms; it posts to the CoolAir
+            // backend so submissions land in the admin dashboard.
+            if (form.dataset.apiHandled === 'true') return;
             form.dataset.enhanced = 'true';
 
             form.addEventListener('submit', async function (event) {
@@ -100,7 +103,17 @@
                 const action = form.getAttribute('action');
                 const method = (form.getAttribute('method') || 'POST').toUpperCase();
 
-                if (action && /^https?:\/\//.test(action)) {
+                // Prefer the CoolAir backend when the API bridge is loaded.
+                if (window.CoolAirSubmitForm) {
+                    try {
+                        await window.CoolAirSubmitForm(form);
+                        submitted = true;
+                    } catch (error) {
+                        console.warn('Backend submission failed; falling back.', error);
+                    }
+                }
+
+                if (!submitted && action && /^https?:\/\//.test(action)) {
                     try {
                         const response = await fetch(action, {
                             method,
