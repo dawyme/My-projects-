@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const card = document.createElement('div');
                     card.className = 'related-product-card';
                     card.innerHTML = `
-                        <img src="${related.image}" alt="${related.name}" onerror="this.onerror=null;this.src='../assets/images/placeholder-product.jpg';">
+                        <img src="${related.image}" alt="${related.name}" onerror="this.onerror=null;this.src='../assets/images/placeholder-product.svg';">
                         <h3>${related.name}</h3>
                         <p class="price">$${related.price.toFixed(2)}</p>
                         <a href="product-detail.html?id=${related.id}" class="btn-secondary">View Details</a>
