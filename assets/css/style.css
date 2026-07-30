@@ -139,17 +139,19 @@ img {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 0;
+    padding: 12px 0;
+    min-height: 70px;
 }
 
 .logo img {
-    max-height: 62px;
+    max-height: 56px;
     width: auto;
 }
 
 .main-nav {
     display: flex;
     align-items: center;
+    position: relative;
 }
 
 .nav-menu {
@@ -208,18 +210,21 @@ img {
     display: none;
     background: none;
     border: none;
-    font-size: 1.5rem;
+    font-size: 1.6rem;
     color: var(--secondary);
     cursor: pointer;
+    padding: 8px;
+    margin-left: auto;
 }
 
 /* Hero */
 .hero {
     background: linear-gradient(135deg, #0A66C2 0%, #1E3A5F 100%);
     color: white;
-    padding: 120px 0 100px;
+    padding: 80px 0 70px;
     position: relative;
     overflow: hidden;
+    margin-top: 0;
 }
 
 .hero::before {
@@ -655,7 +660,7 @@ img {
     
     .nav-menu {
         position: fixed;
-        top: 80px;
+        top: 70px;
         left: -100%;
         width: 100%;
         background: white;
