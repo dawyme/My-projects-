@@ -15,7 +15,9 @@
     "test": "node tests/run-all.js",
     "test:api": "node tests/api.test.js",
     "test:ui": "node tests/ui.test.js",
-    "test:site": "node tests/site.test.js"
+    "test:site": "node tests/site.test.js",
+    "build": "prisma generate",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
