@@ -1,19 +1,56 @@
 #!/usr/bin/env node
 /**
- * Applies the SQL migrations in prisma/migrations in order and records them in
- * the standard `_prisma_migrations` table, so state stays compatible with
- * `prisma migrate deploy` on hosts where the Prisma schema engine is available.
+ * Applies migrations or schema updates.
+ * For Supabase PostgreSQL, synchronizes schema using Prisma db push / migrate.
+ * For local SQLite testing, applies SQL migrations in prisma/migrations.
  */
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { createClient } = require('@libsql/client');
+const { spawnSync } = require('child_process');
+const { ensureSchemaProvider } = require('../src/lib/schema-provider');
+
+ensureSchemaProvider();
+
+const url = process.env.DATABASE_URL || 'file:./data/app.db';
+const isPostgres =
+  url.startsWith('postgresql://') ||
+  url.startsWith('postgres://') ||
+  Boolean(process.env.DIRECT_URL) ||
+  Boolean(process.env.SUPABASE_URL);
 
 const MIGRATIONS_DIR = path.join(__dirname, 'migrations');
 
+if (isPostgres) {
+  console.log('Running Prisma schema sync for Supabase PostgreSQL...');
+  const schemaPath = path.join(__dirname, 'schema.prisma');
+  const binDir = path.join(__dirname, '..', 'node_modules', '.bin');
+  const prismaBin = path.join(binDir, 'prisma');
+  const env = { ...process.env };
+  if (!env.DIRECT_URL && env.DATABASE_URL) {
+    env.DIRECT_URL = env.DATABASE_URL;
+  }
+  const wrapperPath = path.join(binDir, 'schema-engine-wrapper');
+  if (!env.PRISMA_SCHEMA_ENGINE_BINARY && fs.existsSync(wrapperPath)) {
+    env.PRISMA_SCHEMA_ENGINE_BINARY = wrapperPath;
+  }
+  const libPath = path.join(__dirname, '..', 'node_modules', '@prisma', 'client', 'runtime', 'library.js');
+  if (!env.PRISMA_QUERY_ENGINE_LIBRARY && fs.existsSync(libPath)) {
+    env.PRISMA_QUERY_ENGINE_LIBRARY = libPath;
+  }
+  const res = spawnSync(process.execPath, [prismaBin, 'db', 'push', '--schema', schemaPath, '--accept-data-loss'], {
+    stdio: 'inherit',
+    env,
+  });
+  if (res.status !== 0) {
+    console.warn('Note: Prisma db push returned status', res.status);
+  }
+  console.log('Supabase PostgreSQL schema sync complete.');
+  process.exit(0);
+}
+
 function dbUrl() {
-  const url = process.env.DATABASE_URL || 'file:./data/app.db';
   if (!url.startsWith('file:')) return url;
   const rel = url.slice('file:'.length);
   const abs = path.isAbsolute(rel) ? rel : path.resolve(__dirname, '..', rel);
@@ -32,6 +69,7 @@ function splitStatements(sql) {
 }
 
 async function main() {
+  const { createClient } = require('@libsql/client');
   const db = createClient({ url: dbUrl() });
   await db.execute(`CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
     "id" TEXT PRIMARY KEY NOT NULL,

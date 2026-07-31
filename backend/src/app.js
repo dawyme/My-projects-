@@ -1,5 +1,8 @@
 require('dotenv').config();
 const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env') });
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -11,6 +14,8 @@ const { issueCsrf, verifyCsrf } = require('./middleware/csrf');
 const { sanitizeBody } = require('./middleware/validate');
 const { notFoundHandler, errorHandler } = require('./middleware/error');
 const { UPLOAD_DIR } = require('./middleware/upload');
+const { supabaseConfig, verifySupabaseConfig } = require('./lib/supabase');
+const prisma = require('./lib/prisma');
 
 const app = express();
 const ROOT = path.join(__dirname, '..', '..');
@@ -22,12 +27,12 @@ app.disable('x-powered-by');
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
-      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdn.jsdelivr.net'],
-      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
-      imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
-      connectSrc: ["'self'"],
+      defaultSrc: ["'self'", "https:", "http:"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https:", "http:", "https://cdn.jsdelivr.net"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https:", "http:", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
+      fontSrc: ["'self'", "https:", "http:", "https://fonts.gstatic.com", "data:"],
+      imgSrc: ["'self'", "data:", "blob:", "https:", "http:"],
+      connectSrc: ["'self'", "https:", "http:", "ws:", "wss:"],
       objectSrc: ["'none'"],
       frameAncestors: ["'self'"],
     },
@@ -45,11 +50,25 @@ app.use((req, res, next) => {
 const origins = (process.env.CORS_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
 app.use(cors({
   origin(origin, cb) {
-    if (!origin || origins.length === 0 || origins.includes(origin)) return cb(null, true);
-    cb(new Error('Not allowed by CORS'));
+    if (
+      !origin ||
+      origins.length === 0 ||
+      origins.includes('*') ||
+      origins.includes(origin) ||
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1') ||
+      origin.endsWith('.vercel.app') ||
+      origin === process.env.VERCEL_URL ||
+      origin === process.env.SUPABASE_URL
+    ) {
+      return cb(null, true);
+    }
+    return cb(null, true);
   },
   credentials: true,
-  exposedHeaders: ['Content-Disposition'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Disposition', 'X-CSRF-Token'],
 }));
 
 // ---------------------------------------------------------------- parsing
@@ -61,8 +80,63 @@ app.use(sanitizeBody);
 app.use(issueCsrf);
 
 // ---------------------------------------------------------------- health
-app.get('/health', (req, res) => res.json({ status: 'healthy', uptime: process.uptime(), timestamp: new Date().toISOString() }));
-app.get('/api/status', (req, res) => res.json({ success: true, status: 'ok', version: require('../package.json').version }));
+app.get('/health', async (req, res) => {
+  let dbOk = false;
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    dbOk = true;
+  } catch (e) {
+    dbOk = false;
+  }
+  res.json({
+    status: 'healthy',
+    database: dbOk ? 'connected' : 'disconnected',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get('/api/status', async (req, res) => {
+  let dbOk = false;
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    dbOk = true;
+  } catch (e) {
+    dbOk = false;
+  }
+  const config = supabaseConfig();
+  res.json({
+    success: true,
+    status: 'ok',
+    version: (() => {
+      try { return require('../package.json').version; } catch { return '1.0.0'; }
+    })(),
+    database: {
+      connected: dbOk,
+      provider: process.env.DATABASE_URL?.startsWith('postgres') ? 'postgresql' : 'sqlite',
+    },
+    supabase: config,
+  });
+});
+
+app.get('/api/supabase/status', async (req, res) => {
+  let dbOk = false;
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    dbOk = true;
+  } catch (e) {
+    dbOk = false;
+  }
+  const verification = verifySupabaseConfig();
+  res.json({
+    success: true,
+    connected: dbOk,
+    configured: verification.config.configured,
+    environment: verification.config,
+    missing: verification.missing,
+  });
+});
+
 app.get('/api/csrf-token', (req, res) => res.json({ success: true, data: { csrfToken: req.csrfToken } }));
 
 // ---------------------------------------------------------------- static

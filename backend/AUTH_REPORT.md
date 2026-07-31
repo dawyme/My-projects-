@@ -1,0 +1,1 @@
+New endpoints: POST /api/auth/login, POST /api/auth/logout, GET /api/auth/me. Prisma model: User. Seed: npx prisma db seed. Commands: npm install, npx prisma migrate dev, npm run seed. Testing: 1) curl login 2) curl /me with token 3) protected reject 4) logout. Files: backend/prisma/schema.prisma, backend/src/middleware/auth.js, backend/src/routes/auth.js (to be added).

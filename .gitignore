@@ -58,6 +58,8 @@ Thumbs.db
 # Environment variables
 .env
 .env.*
+!.env.example
+!backend/.env.example
 
 # Logs
 logs
