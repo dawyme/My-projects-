@@ -180,3 +180,9 @@ __pycache__/
 
 # Backup files
 *backup*
+
+# Backend runtime artifacts
+backend/node_modules/
+backend/.env
+backend/data/
+backend/uploads/
