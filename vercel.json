@@ -1,25 +1,3 @@
 {
-  "version": 2,
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.js"
-    },
-    {
-      "source": "/health",
-      "destination": "/api/index.js"
-    },
-    {
-      "source": "/admin/(.*)",
-      "destination": "/admin/$1"
-    },
-    {
-      "source": "/assets/(.*)",
-      "destination": "/assets/$1"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/$1"
-    }
-  ]
+  "outputDirectory": "."
 }
