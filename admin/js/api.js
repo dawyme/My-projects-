@@ -8,7 +8,7 @@ const API_BASE = (() => {
   // The backend serves /admin, so same-origin is correct. Only a file:// preview
   // needs an explicit host; otherwise override with <meta name="api-base">.
   if (location.protocol === 'file:') return 'http://localhost:3001';
-  return '';
+  return 'https://my-projects-backend.vercel.app';
 })();
 
 const STORAGE_KEY = 'coolair.auth';
