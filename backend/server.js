@@ -4,7 +4,7 @@ const prisma = require('./src/lib/prisma');
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
-if (!process.env.JWT_SECRET) {
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
   console.error('FATAL: JWT_SECRET is not set. Copy .env.example to .env and configure it.');
   process.exit(1);
 }

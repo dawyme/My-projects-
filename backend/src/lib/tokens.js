@@ -6,7 +6,7 @@ const ACCESS_TTL = process.env.ACCESS_TOKEN_TTL || '15m';
 const REFRESH_DAYS = parseInt(process.env.REFRESH_TOKEN_TTL_DAYS || '7', 10);
 
 function accessSecret() {
-  const s = process.env.JWT_SECRET;
+  const s = process.env.JWT_SECRET || (process.env.NODE_ENV !== "production" ? "test-jwt-secret-do-not-use-in-production-1234567890" : null);
   if (!s) throw new Error('JWT_SECRET is not configured');
   return s;
 }

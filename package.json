@@ -1,0 +1,49 @@
+{
+  "name": "nds-air-conditioning-refrigeration-supabase",
+  "version": "1.0.0",
+  "private": true,
+  "description": "N&D's Air Conditioning and Refrigeration Website with Admin Dashboard and Supabase PostgreSQL Backend",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "node backend/server.js",
+    "build": "node backend/scripts/generate.js",
+    "postinstall": "node backend/scripts/generate.js || true",
+    "migrate": "node backend/prisma/migrate.js",
+    "migrate:dev": "prisma migrate dev --schema=backend/prisma/schema.prisma",
+    "generate": "node backend/scripts/generate.js",
+    "seed": "node backend/prisma/seed.js",
+    "setup": "node backend/prisma/migrate.js && node backend/prisma/seed.js",
+    "test": "node backend/tests/run-all.js",
+    "test:api": "node backend/tests/api.test.js",
+    "test:ui": "node backend/tests/ui.test.js",
+    "test:site": "node backend/tests/site.test.js"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.17.4",
+    "@prisma/adapter-libsql": "^6.19.3",
+    "@prisma/client": "^6.1.0",
+    "@supabase/supabase-js": "^2.48.0",
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.5",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.16",
+    "sharp": "^0.33.5",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1",
+    "jsdom": "^30.0.1",
+    "prisma": "^6.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
