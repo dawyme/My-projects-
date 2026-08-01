@@ -17,8 +17,12 @@ const ADMIN_DIR = path.join(__dirname, '..', '..', 'admin');
 
 /**
  * jsdom cannot execute native ES modules (real browsers can), so for the test
- * harness each page's inline module script is extracted, bundled to a classic
- * script with esbuild, and injected back in place of the original tag.
+ * harness each page's inline module script is extracted and bundled to a
+ * classic IIFE with esbuild. The bundle is then injected at runtime via a DOM
+ * script element rather than inlined into the HTML: jsdom's HTML tokenizer
+ * corrupts large inline scripts that contain HTML-template strings (the Website
+ * Content Manager's editor markup), which yields a spurious SyntaxError. Setting
+ * script.textContent programmatically bypasses the HTML parser entirely.
  */
 const MODULE_TAG = /<script type="module">([\s\S]*?)<\/script>/;
 
@@ -28,7 +32,7 @@ function pageHtml(file) {
   html = html.replace(/<link[^>]+fonts\.googleapis[^>]*>/g, '');
 
   const match = html.match(MODULE_TAG);
-  if (!match) return html;
+  if (!match) return { html, script: null };
 
   const entryName = `.test-entry-${path.basename(file, '.html')}.js`;
   const entryPath = path.join(ADMIN_DIR, entryName);
@@ -42,7 +46,15 @@ function pageHtml(file) {
   } finally {
     fs.unlinkSync(entryPath);
   }
-  return html.replace(MODULE_TAG, `<script>${code.replace(/<\/script>/g, '<\\/script>')}</script>`);
+  return { html: html.replace(MODULE_TAG, ''), script: code };
+}
+
+/** Executes a bundled classic script in the window, bypassing HTML parsing. */
+function bootBundle(window, script) {
+  if (!script) return;
+  const s = window.document.createElement('script');
+  s.textContent = script;
+  window.document.body.appendChild(s);
 }
 
 const ROUTES = [
@@ -61,6 +73,8 @@ const ROUTES = [
   ['#/users', 'Team', ['Role', 'Last sign-in']],
   ['#/audit', 'Audit Log', ['Action', 'IP address']],
   ['#/profile', 'My Profile', ['Change password', 'Sessions']],
+  ['#/content', 'Website Content Manager', ['Homepage', 'About Us', 'Services', 'SEO settings', 'Publish']],
+  ['#/media', 'Media Library', ['Upload', 'Folders']],
   ['#/no-such-page', 'Not found', ['Page not found']],
 ];
 
@@ -136,7 +150,8 @@ async function main() {
   });
 
   // ---------- login page
-  const loginDom = new JSDOM(pageHtml('login.html'), {
+  const loginPage = pageHtml('login.html');
+  const loginDom = new JSDOM(loginPage.html, {
     url: `${base}/admin/login.html`,
     runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true, virtualConsole,
     beforeParse(window) {
@@ -145,6 +160,7 @@ async function main() {
     },
   });
   const lw = loginDom.window;
+  bootBundle(lw, loginPage.script);
   await until(() => lw.document.getElementById('loginForm'));
   record(!!lw.document.getElementById('loginForm'), 'Login page renders the sign-in form');
   record(lw.document.body.textContent.includes('admin@coolairhvac.com'), 'Login page shows demo credentials');
@@ -176,7 +192,8 @@ async function main() {
   }
 
   // ---------- SPA
-  const dom = new JSDOM(pageHtml('index.html'), {
+  const spaPage = pageHtml('index.html');
+  const dom = new JSDOM(spaPage.html, {
     url: `${base}/admin/index.html`,
     runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true, virtualConsole,
     beforeParse(window) {
@@ -191,6 +208,7 @@ async function main() {
   const w = dom.window;
   const doc = w.document;
   cookies.split(';').forEach((c) => { if (c.trim()) doc.cookie = c.trim(); });
+  bootBundle(w, spaPage.script);
 
   const shellReady = await until(() => doc.querySelector('.sidebar') && doc.querySelector('#view'));
   record(shellReady, 'Admin shell renders sidebar, topbar and content area');
@@ -319,6 +337,18 @@ async function main() {
   const svgCount = doc.querySelectorAll('#view svg polyline, #view svg rect, #view svg path').length;
   record(doc.querySelectorAll('#view .chart-box svg').length >= 4, 'Analytics renders multiple charts',
     `${doc.querySelectorAll('#view .chart-box svg').length} charts, ${svgCount} shapes`);
+
+  // website content manager tabs
+  w.location.hash = '#/content';
+  await until(() => doc.querySelector('#contentTabs [data-tab="services"]'), 12000);
+  doc.querySelector('#contentTabs [data-tab="services"]').click();
+  const svcRendered = await until(() => doc.querySelector('[data-list] table tbody tr'), 12000);
+  record(svcRendered, 'Content manager Services tab lists services');
+
+  // media library renders tiles
+  w.location.hash = '#/media';
+  const mediaReady = await until(() => doc.querySelector('.media-tile') || doc.querySelector('.empty'), 12000);
+  record(!!mediaReady, 'Media library renders tiles or empty state');
 
   // accessibility sweep
   w.location.hash = '#/customers';
