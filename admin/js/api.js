@@ -5,10 +5,11 @@
 const API_BASE = (() => {
   const meta = document.querySelector('meta[name="api-base"]');
   if (meta?.content) return meta.content.replace(/\/$/, '');
-  // The backend serves /admin, so same-origin is correct. Only a file:// preview
+  // The backend serves both /admin and /api from the same origin, so same-origin
+  // is always correct (production, staging and local). Only a file:// preview
   // needs an explicit host; otherwise override with <meta name="api-base">.
   if (location.protocol === 'file:') return 'http://localhost:3001';
-  return 'https://my-projects-backend.vercel.app';
+  return location.origin;
 })();
 
 const STORAGE_KEY = 'coolair.auth';

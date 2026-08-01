@@ -27,6 +27,10 @@ const NAV = [
     { path: '/users', label: 'Team', icon: 'user', adminOnly: true },
     { path: '/audit', label: 'Audit Log', icon: 'shield', adminOnly: true },
   ] },
+  { group: 'Website', items: [
+    { path: '/content', label: 'Website Content', icon: 'edit' },
+    { path: '/media', label: 'Media Library', icon: 'image' },
+  ] },
 ];
 
 /* ------------------------------------------------------------ theme */
@@ -187,6 +191,8 @@ const routes = {
   '/users': () => import('./pages/users.js'),
   '/audit': () => import('./pages/audit.js'),
   '/profile': () => import('./pages/profile.js'),
+  '/content': () => import('./pages/content.js'),
+  '/media': () => import('./pages/media.js'),
 };
 
 function parseHash() {
