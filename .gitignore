@@ -188,3 +188,5 @@ backend/node_modules/
 backend/.env
 backend/data/
 backend/uploads/
+.vercel
+.env*

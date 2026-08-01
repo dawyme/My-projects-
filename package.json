@@ -7,8 +7,8 @@
   "scripts": {
     "start": "node backend/server.js",
     "dev": "node backend/server.js",
-    "build": "node backend/scripts/generate.js",
-    "postinstall": "node backend/scripts/generate.js || true",
+    "build": "echo Build complete",
+    "postinstall": "npx prisma generate --schema=backend/prisma/schema.prisma",
     "migrate": "node backend/prisma/migrate.js",
     "migrate:dev": "prisma migrate dev --schema=backend/prisma/schema.prisma",
     "generate": "node backend/scripts/generate.js",

@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "outputDirectory": ".",
   "functions": {
     "api/index.js": {
       "includeFiles": "backend/**"

@@ -31,7 +31,10 @@ if (global.__prisma) {
   prisma = global.__prisma;
 } else if (isPostgres) {
   // Production / Supabase PostgreSQL (direct or PgBouncer pooler)
+  const { PrismaPg } = require('@prisma/adapter-pg');
+  const adapter = new PrismaPg({ connectionString: url });
   prisma = new PrismaClient({
+    adapter,
     log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
   });
 } else {
