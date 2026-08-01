@@ -190,3 +190,6 @@ backend/data/
 backend/uploads/
 .vercel
 .env*
+
+# Local dev database (nested file URL artifact)
+backend/backend/
