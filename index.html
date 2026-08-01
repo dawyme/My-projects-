@@ -58,6 +58,13 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
+    <!-- Emergency banner (dynamic) -->
+    <div class="emergency-banner" data-emergency-banner hidden>
+        <div class="container">
+            <span data-emergency-text></span>
+            <a data-emergency-link href="tel:+18687074646"><span data-emergency-label>Call Now</span></a>
+        </div>
+    </div>
     <!-- Header / Navigation -->
     <header class="site-header">
         <div class="container">
@@ -89,12 +96,12 @@
     <section class="hero">
         <div class="container">
             <div class="hero-content">
-                <h1>Expert HVAC, Refrigeration &amp; Automotive AC Services</h1>
-                <p>Professional solutions for homes, businesses, and vehicles across Trinidad &amp; Tobago. 24/7 Emergency Service Available.</p>
+                <h1 data-content="homepage.hero.title">Expert HVAC, Refrigeration &amp; Automotive AC Services</h1>
+                <p data-content="homepage.hero.subtitle">Professional solutions for homes, businesses, and vehicles across Trinidad &amp; Tobago. 24/7 Emergency Service Available.</p>
                 <div class="hero-buttons">
-                    <a href="booking.html" class="btn-primary btn-large">Book Service Now</a>
-                    <a href="products/index.html" class="btn-secondary btn-large">Browse Products</a>
-                    <a href="tel:+18687074646" class="btn-emergency"><i class="fas fa-phone"></i> Call (868) 707-4646</a>
+                    <a href="booking.html" class="btn-primary btn-large" data-content="homepage.hero.ctaPrimary.label" data-href="homepage.hero.ctaPrimary.url">Book Service Now</a>
+                    <a href="products/index.html" class="btn-secondary btn-large" data-content="homepage.hero.ctaSecondary.label" data-href="homepage.hero.ctaSecondary.url">Browse Products</a>
+                    <a href="tel:+18687074646" class="btn-emergency" data-content="homepage.hero.ctaEmergency.label" data-href="homepage.hero.ctaEmergency.url"><i class="fas fa-phone"></i> Call (868) 707-4646</a>
                 </div>
                 <div class="hero-stats">
                     <div class="stat"><span class="stat-number">10+</span> <span class="stat-label">Years Experience</span></div>
@@ -120,10 +127,10 @@
     <section class="services-overview">
         <div class="container">
             <div class="section-header">
-                <h2 class="section-title">Our Comprehensive Services</h2>
+                <h2 class="section-title" data-content="homepage.featuredServicesTitle">Our Comprehensive Services</h2>
                 <p>Full-service HVAC, refrigeration, and automotive air conditioning solutions</p>
             </div>
-            <div class="services-grid">
+            <div class="services-grid" data-content-list="services">
                 <div class="service-card">
                     <div class="service-icon"><i class="fas fa-snowflake"></i></div>
                     <h3>Air Conditioning</h3>
@@ -171,7 +178,7 @@
     <section class="featured-products">
         <div class="container">
             <div class="section-header">
-                <h2 class="section-title">Featured Products</h2>
+                <h2 class="section-title" data-content="homepage.featuredProductsTitle">Featured Products</h2>
                 <p>Premium HVAC, refrigeration, and automotive AC components in stock</p>
             </div>
             <div class="products-grid" id="featuredProducts">
@@ -220,7 +227,7 @@
             <div class="section-header">
                 <h2 class="section-title">What Our Customers Say</h2>
             </div>
-            <div class="testimonials-grid">
+            <div class="testimonials-grid" data-content-list="testimonials">
                 <div class="testimonial-card">
                     <div class="testimonial-content">
                         <p>"Fast, professional service. Fixed our commercial walk-in freezer the same day. Highly recommend!"</p>
@@ -258,8 +265,8 @@
     <!-- CTA Banner -->
     <section class="cta-section">
         <div class="container">
-            <h2>Need Service Today?</h2>
-            <p>Book your appointment online or call our 24/7 emergency line.</p>
+            <h2 data-cta-title>Need Service Today?</h2>
+            <p data-cta-subtitle>Book your appointment online or call our 24/7 emergency line.</p>
             <div class="cta-buttons">
                 <a href="booking.html" class="btn-primary btn-large">Book Appointment</a>
                 <a href="tel:+18687074646" class="btn-emergency btn-large"><i class="fas fa-phone"></i> Call Now</a>
@@ -276,7 +283,7 @@
                         <img src="assets/logo.png" alt="N&amp;D's" class="footer-logo" width="512" height="512">
                         <h3>N&amp;D's Air Conditioning &amp; Refrigeration</h3>
                     </div>
-                    <p>Expert HVAC, refrigeration, and automotive AC services since 2008. Serving Trinidad &amp; Tobago with pride.</p>
+                    <p data-footer-about>Expert HVAC, refrigeration, and automotive AC services since 2008. Serving Trinidad &amp; Tobago with pride.</p>
                 </div>
                 <div class="footer-column">
                     <h3>Services</h3>
@@ -290,7 +297,7 @@
                 </div>
                 <div class="footer-column">
                     <h3>Quick Links</h3>
-                    <ul>
+                    <ul data-footer-quicklinks>
                         <li><a href="products/index.html">Product Catalog</a></li>
                         <li><a href="about.html">About Us</a></li>
                         <li><a href="gallery/index.html">Project Gallery</a></li>
@@ -298,7 +305,7 @@
                         <li><a href="booking.html">Book Service</a></li>
                     </ul>
                 </div>
-                <div class="footer-column">
+                <div class="footer-column" data-footer-contact>
                     <h3>Contact Us</h3>
                     <p><i class="fas fa-phone"></i> <a href="tel:+18687074646">(868) 707-4646</a></p>
                     <p><i class="fas fa-envelope"></i> <a href="mailto:ndsairconditioning@gmail.com">ndsairconditioning@gmail.com</a></p>
@@ -307,11 +314,12 @@
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>© 2026 N&amp;D's Air Conditioning and Refrigeration. All rights reserved. | <a href="privacy.html">Privacy</a> | <a href="terms.html">Terms</a></p>
+                <p data-footer-copyright>© 2026 N&amp;D's Air Conditioning and Refrigeration. All rights reserved. | <a href="privacy.html">Privacy</a> | <a href="terms.html">Terms</a></p>
             </div>
         </div>
     </footer>
 
+    <script src="assets/js/site-content.js"></script>
     <script src="assets/js/main.js"></script>
     <script>
         // Featured products on homepage
