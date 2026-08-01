@@ -94,6 +94,7 @@ async function main() {
   }
   record((await fetch(`${base}/assets/css/style.css`)).ok, 'Site stylesheet is served');
   record((await fetch(`${base}/assets/js/site-api.js`)).ok, 'Site API bridge script is served');
+  record((await fetch(`${base}/assets/js/site-content.js`)).ok, 'Site content loader script is served');
 
   // ---------- contact form
   const beforeMessages = await prisma.contactMessage.count();
@@ -160,6 +161,22 @@ async function main() {
       stored ? '' : `alert: ${qw.__alert || 'none'}`);
   }
   quoteDom.window.close();
+
+  // ---------- Website Content Manager dynamic integration
+  const scDom = await loadPage('index.html', base, vc);
+  const scWin = scDom.window;
+  record(typeof scWin.CoolAirContent === 'object', 'Homepage loads the site content loader');
+  const heroTitle = scWin.document.querySelector('[data-content="homepage.hero.title"]');
+  record(!!heroTitle && heroTitle.textContent.trim().length > 10, 'Homepage hero title is wired to dynamic content',
+    heroTitle ? heroTitle.textContent.trim() : 'missing element');
+  const svcList = scWin.document.querySelector('[data-content-list="services"]');
+  record(!!svcList && svcList.querySelectorAll('.service-card').length >= 4, 'Homepage services render from published content',
+    svcList ? `${svcList.querySelectorAll('.service-card').length} cards` : 'missing');
+  const emergency = scWin.document.querySelector('[data-emergency-banner]');
+  record(!!emergency && emergency.hidden === false, 'Emergency banner is shown when published/enabled');
+  const footAbout = scWin.document.querySelector('[data-footer-about]');
+  record(!!footAbout && footAbout.textContent.trim().length > 20, 'Footer about text is dynamic');
+  scDom.window.close();
 
   // ---------- public catalogue API used by the storefront
   const cat = await (await fetch(`${base}/api/public/categories`)).json();

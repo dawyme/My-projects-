@@ -288,3 +288,155 @@ model Setting {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+// ---------------------------------------------------------------------------
+// Website Content Manager — editable pages, collections and media library
+// ---------------------------------------------------------------------------
+
+/// A single editable website page/section. `content` holds the published JSON
+/// payload for the page; `draft` holds the in-progress autosave so edits never
+/// affect the live site until the page is published.
+model ContentPage {
+  id             String    @id @default(uuid())
+  key            String    @unique // homepage | about | services | products-home | gallery | testimonials | faq | contact | hours | emergency | promotions | footer | seo | social | logo | banners
+  title          String
+  subtitle       String?
+  slug           String?   @unique
+  status         String    @default("DRAFT") // DRAFT | PUBLISHED
+  content        String    @default("{}")    // published JSON payload
+  draft          String?                     // autosave JSON payload
+  metaTitle      String?
+  metaDescription String?
+  keywords       String?
+  ogImage        String?
+  canonicalUrl   String?
+  robots         String    @default("index,follow")
+  publishedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status])
+}
+
+/// Services Manager — individual service records shown on the website.
+model ServiceItem {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String?   @unique
+  icon        String?            // font-awesome class or inline svg name
+  imageUrl    String?
+  description String?            // short excerpt
+  content     String?            // rich text body
+  sortOrder   Int       @default(0)
+  featured    Boolean   @default(false)
+  status      String    @default("DRAFT") // DRAFT | PUBLISHED
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([featured])
+  @@index([status])
+}
+
+/// Testimonials — customer reviews shown on the website.
+model Testimonial {
+  id        String   @id @default(uuid())
+  name      String
+  company   String?
+  review    String
+  rating    Int      @default(5)
+  photoUrl  String?
+  sortOrder Int      @default(0)
+  status    String   @default("DRAFT") // DRAFT | PUBLISHED
+  publishedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+/// Gallery Manager — optimised images grouped by category.
+model GalleryItem {
+  id        String   @id @default(uuid())
+  title     String?
+  alt       String?
+  category  String?
+  imageUrl  String
+  thumbUrl  String?
+  sortOrder Int      @default(0)
+  status    String   @default("PUBLISHED") // DRAFT | PUBLISHED
+  publishedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([category])
+}
+
+/// FAQ — frequently asked questions.
+model FaqItem {
+  id        String   @id @default(uuid())
+  question  String
+  answer    String
+  category  String?
+  sortOrder Int      @default(0)
+  status    String   @default("PUBLISHED") // DRAFT | PUBLISHED
+  publishedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+/// Promotions — banners / deals displayed on the site.
+model PromotionItem {
+  id        String    @id @default(uuid())
+  title     String
+  body      String?
+  imageUrl  String?
+  link      String?
+  badge     String?
+  sortOrder Int       @default(0)
+  status    String    @default("DRAFT") // DRAFT | PUBLISHED
+  publishedAt DateTime?
+  startAt   DateTime?
+  endAt     DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([status])
+}
+
+/// About Us — team members.
+model TeamMember {
+  id        String   @id @default(uuid())
+  name      String
+  role      String?
+  bio       String?
+  photoUrl  String?
+  sortOrder Int      @default(0)
+  status    String   @default("DRAFT") // DRAFT | PUBLISHED
+  publishedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+/// Media Manager — the site-wide media library.
+model MediaAsset {
+  id        String   @id @default(uuid())
+  filename  String
+  url       String
+  thumbUrl  String?
+  mimeType  String
+  size      Int      @default(0)
+  width     Int?
+  height    Int?
+  folder    String   @default("/")
+  alt       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([folder])
+}

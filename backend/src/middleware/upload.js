@@ -51,4 +51,32 @@ function removeImage(url) {
   fs.promises.unlink(target).catch(() => {});
 }
 
-module.exports = { upload, persistImage, removeImage, UPLOAD_DIR };
+/**
+ * Persists an uploaded image for the media library, converting rasters to
+ * optimised WebP (1600px max) plus a 400px cover thumbnail and returning the
+ * full metadata so the Media Manager can record dimensions and file size.
+ */
+async function persistMedia(file, { folder = '/' } = {}) {
+  const id = crypto.randomBytes(10).toString('hex');
+  const base = { filename: file.originalname, mimeType: file.mimetype, size: file.size, folder };
+  if (sharp && file.mimetype !== 'image/svg+xml' && file.mimetype !== 'image/gif') {
+    const meta = await sharp(file.buffer).rotate().metadata();
+    const name = `${id}.webp`;
+    await sharp(file.buffer).rotate()
+      .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 82 })
+      .toFile(path.join(UPLOAD_DIR, name));
+    const thumbName = `${id}-thumb.webp`;
+    await sharp(file.buffer).rotate()
+      .resize({ width: 400, height: 400, fit: 'cover' })
+      .webp({ quality: 75 })
+      .toFile(path.join(UPLOAD_DIR, thumbName));
+    return { ...base, url: `/uploads/${name}`, thumbUrl: `/uploads/${thumbName}`, width: meta.width || null, height: meta.height || null };
+  }
+  const ext = path.extname(file.originalname).toLowerCase() || '.img';
+  const name = `${id}${ext.replace(/[^a-z0-9.]/g, '')}`;
+  fs.writeFileSync(path.join(UPLOAD_DIR, name), file.buffer);
+  return { ...base, url: `/uploads/${name}`, thumbUrl: null, width: null, height: null };
+}
+
+module.exports = { upload, persistImage, removeImage, persistMedia, UPLOAD_DIR };
