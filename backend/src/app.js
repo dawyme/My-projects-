@@ -148,7 +148,7 @@ app.use('/admin', express.static(path.join(ROOT, 'admin'), { etag: true }));
 // ---------------------------------------------------------------- api
 app.use('/api', apiLimiter);
 app.use('/api', verifyCsrf);
-app.use(['/api/products', '/api/bookings', '/api/customers', '/api/messages', '/api/inventory', '/api/orders', '/api/users', '/api/settings', '/api/categories', '/api/services'], writeLimiter);
+app.use(['/api/products', '/api/bookings', '/api/customers', '/api/messages', '/api/inventory', '/api/orders', '/api/users', '/api/settings', '/api/categories', '/api/services', '/api/content', '/api/site-content', '/api/media'], writeLimiter);
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/dashboard', require('./routes/dashboard'));
@@ -165,6 +165,10 @@ app.use('/api/settings', require('./routes/settings'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/audit-logs', require('./routes/audit'));
 app.use('/api/public', require('./routes/public'));
+app.use('/api/public', require('./routes/public-content'));
+app.use('/api/content', require('./routes/content'));
+app.use('/api/site-content', require('./routes/site-content'));
+app.use('/api/media', require('./routes/media'));
 
 // ---------------------------------------------------------------- site
 app.use('/', express.static(ROOT, { ...staticOpts, index: 'index.html', extensions: ['html'] }));

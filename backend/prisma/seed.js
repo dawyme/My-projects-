@@ -144,6 +144,14 @@ async function reset() {
   await prisma.refreshToken.deleteMany();
   await prisma.user.deleteMany();
   await prisma.setting.deleteMany();
+  await prisma.mediaAsset.deleteMany();
+  await prisma.teamMember.deleteMany();
+  await prisma.promotionItem.deleteMany();
+  await prisma.faqItem.deleteMany();
+  await prisma.galleryItem.deleteMany();
+  await prisma.testimonial.deleteMany();
+  await prisma.serviceItem.deleteMany();
+  await prisma.contentPage.deleteMany();
 }
 
 async function main() {
@@ -336,6 +344,98 @@ async function main() {
     await prisma.product.update({ where: { id: p.id }, data: { quantity: rand(0, 3), lowStockLevel: 8 } });
   }
   console.log('  ✔ inventory history and low-stock samples');
+
+  // ---- website content (Content Manager seed)
+  const { PAGE_DEFAULTS, serialize } = require('../src/routes/content');
+  for (const key of Object.keys(PAGE_DEFAULTS)) {
+    const def = PAGE_DEFAULTS[key];
+    await prisma.contentPage.upsert({
+      where: { key },
+      update: {},
+      create: { key, title: def.title, slug: key, content: serialize(def.content), status: 'PUBLISHED', publishedAt: new Date() },
+    });
+  }
+  console.log(`  ✔ ${Object.keys(PAGE_DEFAULTS).length} content pages (published)`);
+
+  const siteServices = [
+    ['AC Repair & Installation', 'fa-snowflake', true, 'Fast, reliable installation and repair of residential split and window air conditioners.'],
+    ['Commercial Refrigeration', 'fa-warehouse', true, 'Walk-in coolers, freezers and cold-room design, installation and maintenance.'],
+    ['Automotive AC', 'fa-car', true, 'Vehicle air conditioning repair, recharging and component replacement.'],
+    ['Preventive Maintenance', 'fa-shield-alt', true, 'Scheduled maintenance plans that keep your systems efficient and reliable.'],
+    ['Emergency Service', 'fa-exclamation-triangle', true, '24/7 emergency callout for urgent breakdowns and failures.'],
+    ['Cold Rooms & Freezers', 'fa-thermometer', true, 'Commercial cold room and freezer installations for businesses.'],
+    ['Residential Installation', 'fa-home', false, 'Complete home air conditioning installation with professional ducting.'],
+    ['Ventilation & IAQ', 'fa-wind', false, 'Improve indoor air quality with professional ventilation solutions.'],
+  ];
+  for (const [i, s] of siteServices.entries()) {
+    const [name, icon, featured, description] = s;
+    await prisma.serviceItem.create({
+      data: {
+        name, slug: slug(name), icon, featured, description,
+        content: `<p>${description}</p><p>Our certified technicians deliver dependable ${name.toLowerCase()} services backed by years of experience.</p>`,
+        sortOrder: i, status: 'PUBLISHED', publishedAt: new Date(),
+      },
+    });
+  }
+  console.log(`  ✔ ${siteServices.length} site services`);
+
+  const testimonials = [
+    ['Maria Santos', 'Owner, Santos Grocery', 'Fast, professional service. Fixed our commercial walk-in freezer the same day. Highly recommend!', 5],
+    ['David Williams', 'Homeowner, Port of Spain', 'Excellent installation of our new mini-split. The team was clean, polite, and efficient.', 5],
+    ['Keisha Thomas', 'Vehicle Owner', 'My car\'s AC was fixed in under 2 hours. Great price and honest diagnosis. Will return for sure.', 5],
+    ['Robert Charles', 'Facilities Manager, Cascade Plaza', 'They maintain all our rooftop units. Responsive, thorough and always on time.', 4],
+  ];
+  for (const [i, t] of testimonials.entries()) {
+    const [name, company, review, rating] = t;
+    await prisma.testimonial.create({ data: { name, company, review, rating, sortOrder: i, status: 'PUBLISHED', publishedAt: new Date() } });
+  }
+  console.log(`  ✔ ${testimonials.length} testimonials`);
+
+  const galleryItems = [
+    ['Residential mini-split installation', 'Residential', '/assets/images/residential-installation.svg'],
+    ['Commercial rooftop units', 'Commercial', '/assets/images/commercial-installation.svg'],
+    ['Walk-in freezer repair', 'Refrigeration', '/assets/images/commercial-refrigeration.svg'],
+    ['Ductless system install', 'Residential', '/assets/images/ductless-installation.svg'],
+  ];
+  for (const [i, g] of galleryItems.entries()) {
+    const [title, category, imageUrl] = g;
+    await prisma.galleryItem.create({ data: { title, category, imageUrl, thumbUrl: imageUrl, sortOrder: i, status: 'PUBLISHED', publishedAt: new Date() } });
+  }
+  console.log(`  ✔ ${galleryItems.length} gallery items`);
+
+  const faqs = [
+    ['Do you offer emergency service?', 'Yes, we provide 24/7 emergency callout for urgent breakdowns. Call our emergency line any time.', 'General'],
+    ['How often should I service my AC?', 'We recommend a professional service at least twice a year, ideally before each hot season.', 'Maintenance'],
+    ['Do you service commercial refrigerators?', 'Yes, we install and maintain walk-in coolers, freezers and cold rooms for businesses.', 'Commercial'],
+    ['Are your technicians certified?', 'All our technicians are certified and fully insured.', 'General'],
+  ];
+  for (const [i, f] of faqs.entries()) {
+    const [question, answer, category] = f;
+    await prisma.faqItem.create({ data: { question, answer, category, sortOrder: i, status: 'PUBLISHED', publishedAt: new Date() } });
+  }
+  console.log(`  ✔ ${faqs.length} FAQs`);
+
+  const promotions = [
+    ['Free AC Health Check', 'Book any installation and receive a free 10-point AC health check.', '/assets/images/ac-repair.svg', '/booking.html', 'LIMITED TIME'],
+    ['Seasonal Maintenance Special', '20% off preventive maintenance plans this month.', '/assets/images/maintenance.svg', '/services/preventive-maintenance.html', 'SAVE 20%'],
+  ];
+  for (const [i, p] of promotions.entries()) {
+    const [title, body, imageUrl, link, badge] = p;
+    await prisma.promotionItem.create({ data: { title, body, imageUrl, link, badge, sortOrder: i, status: 'PUBLISHED', publishedAt: new Date(), startAt: daysAgo(5), endAt: new Date(Date.now() + 30 * 864e5) } });
+  }
+  console.log(`  ✔ ${promotions.length} promotions`);
+
+  const team = [
+    ['Grace Adeyemi', 'Founder & Lead Technician', 'Over 15 years of hands-on HVAC and refrigeration experience.'],
+    ['Marcus Reed', 'Service Manager', 'Coordinates our technician team and ensures quality service delivery.'],
+    ['Ibrahim Sesay', 'Senior Technician', 'Specialist in commercial refrigeration and cold rooms.'],
+    ['Amara Cole', 'Customer Support', 'Friendly point of contact for bookings and enquiries.'],
+  ];
+  for (const [i, m] of team.entries()) {
+    const [name, role, bio] = m;
+    await prisma.teamMember.create({ data: { name, role, bio, photoUrl: '/assets/images/team-member-1.svg', sortOrder: i, status: 'PUBLISHED', publishedAt: new Date() } });
+  }
+  console.log(`  ✔ ${team.length} team members`);
 
   // ---- activity feed
   const feed = [
