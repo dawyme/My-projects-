@@ -66,10 +66,11 @@ export async function render(view, query) {
   qs('#foldersBtn', view).addEventListener('click', () => { modal({ title: 'Folders', body: '<p class="hint">Use the "Move to folder" option on a file to organise it. Folders are auto-created.</p><button class="btn btn--primary" data-close>Close</button>' }); });
 
   function openUploader() {
-    const input = el('<input type="file" accept="image/*" multiple>');
+    const input = el('<input type="file" accept="image/*" multiple style="display:none">');
+    document.body.appendChild(input);
     input.onchange = async () => {
       const files = [...input.files];
-      if (!files.length) return;
+      if (!files.length) { input.remove(); return; }
       const m = modal({ title: 'Uploading…', body: `<div class="upload-progress"><div class="upload-progress__bar" data-bar style="width:0%"></div></div><p data-status class="hint">Preparing ${files.length} file(s)…</p>` });
       let done = 0;
       for (const file of files) {
@@ -85,6 +86,7 @@ export async function render(view, query) {
         } catch (e) { toastError(e); }
       }
       m.close();
+      input.remove();
       if (done) { toast(`Uploaded ${done} file(s)`, 'success'); state.page = 1; load(); }
     };
     input.click();
