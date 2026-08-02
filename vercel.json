@@ -3,7 +3,7 @@
   "outputDirectory": ".",
   "functions": {
     "api/index.js": {
-      "includeFiles": "backend/**"
+      "includeFiles": "{backend/**,node_modules/.prisma/**}"
     }
   },
   "rewrites": [

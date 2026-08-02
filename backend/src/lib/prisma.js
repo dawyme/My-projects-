@@ -24,7 +24,9 @@ if (isPostgres && !process.env.DIRECT_URL && process.env.DATABASE_URL) {
   process.env.DIRECT_URL = process.env.DATABASE_URL;
 }
 
-ensureSchemaProvider();
+if (process.env.VERCEL !== "1") {
+  ensureSchemaProvider();
+}
 
 let prisma;
 if (global.__prisma) {
