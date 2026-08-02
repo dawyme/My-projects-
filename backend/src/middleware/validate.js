@@ -18,7 +18,11 @@ function sanitizeValue(v) {
 }
 
 function sanitizeBody(req, res, next) {
-  if (req.body && typeof req.body === 'object') req.body = sanitizeValue(req.body);
+  // Raw (Buffer) bodies — e.g. payment webhooks — are handled separately and
+  // must be preserved byte-for-byte for signature verification.
+  if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
+    req.body = sanitizeValue(req.body);
+  }
   next();
 }
 

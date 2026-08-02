@@ -73,6 +73,11 @@ app.use(cors({
 
 // ---------------------------------------------------------------- parsing
 app.use(compression());
+// Payment webhooks need the raw request body for signature verification, so
+// they are parsed before the JSON parsers and before CSRF (gateway servers do
+// not participate in the double-submit cookie scheme).
+app.use('/api/payments/webhook', express.raw({ type: '*/*', limit: '2mb' }));
+app.use('/api/payments/webhook', require('./routes/payments').webhookRouter);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
@@ -160,6 +165,7 @@ app.use('/api/services', require('./routes/services'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/inventory', require('./routes/inventory'));
 app.use('/api/orders', require('./routes/orders'));
+app.use('/api/payments', require('./routes/payments'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/users', require('./routes/users'));
