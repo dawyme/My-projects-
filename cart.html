@@ -48,6 +48,10 @@
 
     <script src="assets/js/main.js"></script>
     <script>
+        const escCart = (s) => String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
         function renderCart() {
             const container = document.getElementById('cartContent');
             const empty = document.getElementById('cartEmpty');
@@ -66,14 +70,14 @@
             
             let subtotal = 0;
             cart.forEach((item, index) => {
-                const total = item.price * (item.quantity || 1);
+                const total = Number(item.price || 0) * (item.quantity || 1);
                 subtotal += total;
                 html += `<tr style="border-bottom:1px solid #eee;">
-                    <td style="padding:16px;">${item.name}</td>
-                    <td style="padding:16px;">$${item.price}</td>
-                    <td style="padding:16px;"><input type="number" value="${item.quantity || 1}" min="1" style="width:60px; padding:6px;" onchange="updateQuantity(${index}, this.value)"></td>
+                    <td style="padding:16px;">${escCart(item.name)}</td>
+                    <td style="padding:16px;">$${Number(item.price || 0).toFixed(2)}</td>
+                    <td style="padding:16px;"><input type="number" value="${escCart(item.quantity || 1)}" min="1" style="width:60px; padding:6px;" onchange="updateQuantity(${index}, this.value)"></td>
                     <td style="padding:16px;">$${total.toFixed(2)}</td>
-                    <td style="padding:16px;"><button onclick="removeFromCart(${index})" style="background:none;border:none;color:#e74c3c;cursor:pointer;"><i class="fas fa-trash"></i></button></td>
+                    <td style="padding:16px;"><button onclick="removeFromCart(${index})" aria-label="Remove ${escCart(item.name)} from cart" style="background:none;border:none;color:#e74c3c;cursor:pointer;"><i class="fas fa-trash"></i></button></td>
                 </tr>`;
             });
             
