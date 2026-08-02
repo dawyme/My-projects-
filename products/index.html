@@ -137,13 +137,21 @@
         
         async function loadProducts() {
             try {
-                const res = await fetch('../assets/data/products.json');
-                allProducts = await res.json();
+                const res = await fetch('/api/public/products?limit=50');
+                const json = await res.json();
+                allProducts = (json.data || []).map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    price: p.price,
+                    category: p.category ? p.category.name : '',
+                    rating: 4.5,
+                    image: p.imageUrl || '',
+                    isFeatured: p.featured
+                }));
                 renderProducts(allProducts);
                 setupFilters();
             } catch(e) {
                 console.error(e);
-                // Fallback products
                 allProducts = [
                     {id:"ac-001",name:"Mitsubishi Mini Split",price:1199.99,category:"Air Conditioning",rating:4.9,image:""},
                     {id:"ref-001",name:"Copeland Compressor",price:1249.99,category:"Refrigeration",rating:4.8,image:""},
