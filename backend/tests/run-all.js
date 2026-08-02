@@ -6,6 +6,7 @@ const path = require('path');
 const SUITES = [
   ['API endpoints', 'api.test.js'],
   ['Website Content Manager', 'content.test.js'],
+  ['Payment gateways', 'payments.test.js'],
   ['Admin dashboard UI', 'ui.test.js'],
   ['Public website', 'site.test.js'],
 ];

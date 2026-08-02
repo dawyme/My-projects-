@@ -53,7 +53,7 @@ function installFetch(window, base) {
   window.Headers = Headers;
 }
 
-async function loadPage(file, base, virtualConsole) {
+async function loadPage(file, base, virtualConsole, extraBeforeParse) {
   let html = fs.readFileSync(path.join(ROOT, file), 'utf8');
   html = html.replace(/<link[^>]+(fonts\.googleapis|cdnjs|jsdelivr)[^>]*>/g, '');
   html = html.replace(/<script[^>]+(cdnjs|jsdelivr|googletagmanager)[^>]*><\/script>/g, '');
@@ -66,6 +66,7 @@ async function loadPage(file, base, virtualConsole) {
       window.scrollTo = () => {};
       window.HTMLElement.prototype.scrollIntoView = () => {};
       window.alert = (m) => { window.__alert = m; };
+      if (extraBeforeParse) extraBeforeParse(window);
     },
   });
   // Give inline page scripts time to attach their handlers.
@@ -161,6 +162,50 @@ async function main() {
       stored ? '' : `alert: ${qw.__alert || 'none'}`);
   }
   quoteDom.window.close();
+
+  // ---------- storefront checkout (real order through the payment API)
+  {
+    const feed = await (await fetch(`${base}/api/public/products?limit=1`)).json();
+    const product = feed.data && feed.data[0];
+    if (product) {
+      const email = `site.checkout.${Date.now()}@example.com`;
+      const coDom = await loadPage('checkout.html', base, vc, (win) => {
+        win.localStorage.setItem('cart', JSON.stringify([{ id: product.id, name: product.name, price: product.price, quantity: 2 }]));
+      });
+      const cow = coDom.window;
+      const coForm = cow.document.getElementById('checkoutForm');
+      record(!!coForm, 'Checkout page exposes the checkout form');
+      const methodsRendered = await until(() => cow.document.querySelectorAll('#paymentMethods input[name="payment"]').length >= 2);
+      record(methodsRendered, 'Checkout page renders payment methods from settings',
+        methodsRendered ? '' : 'no payment radios appeared');
+      const beforeOrders = await prisma.order.count();
+      if (coForm && methodsRendered) {
+        cow.document.getElementById('fullName').value = 'Site Checkout Tester';
+        cow.document.getElementById('email').value = email;
+        cow.document.getElementById('phone').value = '+1 555 7777';
+        cow.document.getElementById('address').value = '5 Checkout Lane';
+        cow.document.getElementById('city').value = 'Springfield';
+        const bankRadio = [...cow.document.querySelectorAll('#paymentMethods input[name="payment"]')]
+          .find((r) => r.value === 'BANK_TRANSFER');
+        if (bankRadio) bankRadio.checked = true;
+        coForm.dispatchEvent(new cow.Event('submit', { bubbles: true, cancelable: true }));
+        const placed = await until(async () => Boolean(
+          await prisma.order.findFirst({ where: { customer: { email } } })
+        ));
+        record(placed, 'Checkout form submission creates a real order');
+        if (placed) {
+          const order = await prisma.order.findFirst({ where: { customer: { email } }, include: { items: true } });
+          record(order.paymentMethod === 'BANK_TRANSFER', 'Checkout order records the selected payment method');
+          record(order.paymentStatus === 'PENDING', 'Bank-transfer order stays pending until captured');
+          record(order.items.length === 1 && order.items[0].quantity === 2, 'Checkout order line items match the cart');
+          const resultVisible = await until(() => cow.document.getElementById('checkoutResult').style.display === 'block');
+          record(resultVisible, 'Checkout shows the post-order confirmation panel');
+        }
+        record((await prisma.order.count()) > beforeOrders, 'Checkout order lands in the admin order list');
+      }
+      coDom.window.close();
+    }
+  }
 
   // ---------- Website Content Manager dynamic integration
   const scDom = await loadPage('index.html', base, vc);
