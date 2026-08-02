@@ -107,6 +107,13 @@ export async function render(view) {
         ${text('pf-stripeKey', 'stripePublicKey', 'Stripe publishable key', settings.payment.stripePublicKey, 'text', 'Only the publishable key belongs here — keep the secret key in the backend environment.')}
         ${check('pf-paypal', 'paypalEnabled', 'Enable PayPal', settings.payment.paypalEnabled)}
         ${text('pf-paypalId', 'paypalClientId', 'PayPal client ID', settings.payment.paypalClientId)}
+        <div style="border-top:1px solid var(--border);margin:16px 0 4px"></div>
+        ${check('pf-wipay', 'wipayEnabled', 'Enable WiPay (Caribbean cards &amp; vouchers)', settings.payment.wipayEnabled)}
+        ${check('pf-tilopay', 'tilopayEnabled', 'Enable Tilopay', settings.payment.tilopayEnabled)}
+        <div class="field" style="margin-top:12px"><label for="pf-bankDetails">Bank transfer instructions</label>
+          <textarea id="pf-bankDetails" name="bankTransferDetails" rows="3" ${disabled}>${esc(settings.payment.bankTransferDetails || '')}</textarea>
+          <span class="hint">Shown to customers who select bank transfer at checkout (account number, bank, etc.).</span></div>
+        <p class="hint" style="margin-top:14px">Gateway API keys (Stripe secret, PayPal, WiPay, Tilopay) live in the server environment — see <code>DEPLOYMENT.md</code>. A method enabled here but missing its keys runs in test mode (development only).</p>
       </form></div>`,
     seo: () => `
       <div class="card__head"><h2>SEO settings</h2></div>

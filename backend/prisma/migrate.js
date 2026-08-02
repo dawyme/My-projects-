@@ -65,7 +65,26 @@ function splitStatements(sql) {
     .join('\n')
     .split(';')
     .map((s) => s.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    // PostgreSQL-only statements (the shared baseline migration targets
+    // Supabase). SQLite has no schemas and no ALTER TABLE ADD CONSTRAINT, so
+    // skip them in local dev — Prisma's client-side engine emulates the FK
+    // relationships at the application layer.
+    .filter((s) => !/^CREATE\s+SCHEMA/i.test(s))
+    .filter((s) => !/^ALTER\s+TABLE.*ADD\s+CONSTRAINT.*FOREIGN\s+KEY/i.test(s));
+}
+
+/** SQLite runner is idempotent for CREATE statements so the shared
+ *  PostgreSQL-generated baseline can be applied on a fresh local DB. */
+function applyStatement(db, stmt) {
+  return db.execute(stmt).catch((e) => {
+    const isCreate = /^CREATE\s+(TABLE|INDEX|UNIQUE\s+INDEX)/i.test(stmt);
+    if (isCreate && /already exists/i.test(e.message)) {
+      console.warn(`• skipped (already present): ${stmt.slice(0, 64)}…`);
+      return null;
+    }
+    throw e;
+  });
 }
 
 async function main() {
@@ -96,7 +115,7 @@ async function main() {
     if (applied.has(name)) { console.log(`• already applied: ${name}`); continue; }
     const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, name, 'migration.sql'), 'utf8');
     const statements = splitStatements(sql);
-    for (const stmt of statements) await db.execute(stmt);
+    for (const stmt of statements) await applyStatement(db, stmt);
     await db.execute({
       sql: 'INSERT INTO _prisma_migrations (id, checksum, finished_at, migration_name, applied_steps_count) VALUES (?, ?, current_timestamp, ?, ?)',
       args: [crypto.randomUUID(), crypto.createHash('sha256').update(sql).digest('hex'), name, statements.length],

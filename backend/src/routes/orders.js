@@ -91,7 +91,15 @@ router.patch('/:id/status', protect, validate(z.object({ status: z.enum(STATUSES
         await tx.product.update({ where: { id: item.productId }, data: { quantity: { increment: item.quantity } } });
       }
     }
-    return tx.order.update({ where: { id: existing.id }, data: { status: req.body.status }, include });
+    // Marking an order paid also records the payment if it was still pending.
+    const paymentPatch = req.body.status === 'PAID' && existing.paymentStatus === 'PENDING'
+      ? { paymentStatus: 'PAID', paidAt: existing.paidAt || new Date() }
+      : {};
+    return tx.order.update({
+      where: { id: existing.id },
+      data: { status: req.body.status, ...paymentPatch },
+      include,
+    });
   });
   cache.invalidate('stats');
   await audit(req, 'STATUS_CHANGE', 'Order', order.id, { from: existing.status, to: order.status });

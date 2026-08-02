@@ -168,20 +168,31 @@ model BookingNote {
 }
 
 model Order {
-  id         String      @id @default(uuid())
-  reference  String      @unique
-  customerId String
-  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  status     String      @default("PENDING") // PENDING PAID SHIPPED COMPLETED CANCELLED
-  subtotal   Float       @default(0)
-  tax        Float       @default(0)
-  total      Float       @default(0)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  items      OrderItem[]
+  id              String      @id @default(uuid())
+  reference       String      @unique
+  customerId      String
+  customer        Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status          String      @default("PENDING") // PENDING PAID SHIPPED COMPLETED CANCELLED
+  subtotal        Float       @default(0)
+  tax             Float       @default(0)
+  total           Float       @default(0)
+  paymentMethod   String      @default("CASH_ON_DELIVERY") // CASH_ON_DELIVERY BANK_TRANSFER STRIPE PAYPAL WIPAY TILOPAY
+  paymentStatus   String      @default("PENDING") // PENDING PAID FAILED REFUNDED
+  paymentReference String?    // gateway transaction / session id
+  paidAt          DateTime?
+  shippingName    String?
+  shippingPhone   String?
+  shippingAddress String?
+  shippingCity    String?
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  items           OrderItem[]
 
   @@index([status])
   @@index([customerId])
+  @@index([paymentMethod])
+  @@index([paymentStatus])
 }
 
 model OrderItem {

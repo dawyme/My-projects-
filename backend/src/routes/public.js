@@ -8,6 +8,7 @@ const { activity } = require('../lib/audit');
 const { readAll } = require('./settings');
 const { sendMail } = require('../lib/mailer');
 const cache = require('../lib/cache');
+const payments = require('../lib/payments');
 
 const router = express.Router();
 const reference = () => `BK-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
@@ -62,7 +63,37 @@ router.get('/services', asyncHandler(async (req, res) => {
 // GET /api/public/settings — public-safe business info
 router.get('/settings', asyncHandler(async (req, res) => {
   const all = await readAll();
-  res.json({ success: true, data: { company: all.company, hours: all.hours, social: all.social, seo: all.seo, currency: { code: all.payment.currency, symbol: all.payment.currencySymbol } } });
+  const p = all.payment;
+  const PAYMENT_METHOD_LABELS = {
+    CASH_ON_DELIVERY: 'Cash on Delivery',
+    BANK_TRANSFER: 'Bank Transfer',
+    STRIPE: 'Credit / Debit Card (Stripe)',
+    PAYPAL: 'PayPal',
+    WIPAY: 'WiPay',
+    TILOPAY: 'Tilopay',
+  };
+  const flags = {
+    CASH_ON_DELIVERY: p.cashOnDelivery,
+    BANK_TRANSFER: p.bankTransfer,
+    STRIPE: p.stripeEnabled,
+    PAYPAL: p.paypalEnabled,
+    WIPAY: p.wipayEnabled,
+    TILOPAY: p.tilopayEnabled,
+  };
+  const methods = Object.entries(flags).filter(([, on]) => on).map(([id]) => {
+    const configured = payments.GATEWAY_METHODS.includes(id)
+      ? payments.gatewayEnv(id).configured
+      : true; // offline methods (COD / bank transfer) always work
+    return { id, label: PAYMENT_METHOD_LABELS[id], sandbox: !configured };
+  });
+  res.json({
+    success: true,
+    data: {
+      company: all.company, hours: all.hours, social: all.social, seo: all.seo,
+      currency: { code: p.currency, symbol: p.currencySymbol },
+      checkout: { currency: p.currency, currencySymbol: p.currencySymbol, taxRate: p.taxRate, methods },
+    },
+  });
 }));
 
 // POST /api/public/contact

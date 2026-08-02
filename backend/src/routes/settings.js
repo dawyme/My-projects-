@@ -33,7 +33,14 @@ const DEFAULTS = {
   },
   social: { facebook: '', instagram: '', twitter: '', linkedin: '', youtube: '', tiktok: '' },
   email: { fromName: 'CoolAir HVAC', fromEmail: 'no-reply@coolairhvac.com', replyTo: 'info@coolairhvac.com', notifyBookings: true, notifyMessages: true },
-  payment: { currency: 'USD', currencySymbol: '$', taxRate: 0, bankTransfer: true, cashOnDelivery: true, stripeEnabled: false, stripePublicKey: '', paypalEnabled: false, paypalClientId: '' },
+  payment: {
+    currency: 'USD', currencySymbol: '$', taxRate: 0,
+    bankTransfer: true, bankTransferDetails: 'Bank transfer — please use your order reference as the payment memo.',
+    cashOnDelivery: true,
+    stripeEnabled: false, stripePublicKey: '',
+    paypalEnabled: false, paypalClientId: '',
+    wipayEnabled: false, tilopayEnabled: false,
+  },
   seo: { title: 'CoolAir HVAC & Refrigeration | AC, Refrigeration & Automotive AC', description: 'Professional HVAC installation, refrigeration servicing and automotive AC repair. Parts, refrigerants and compressors in stock.', keywords: 'hvac, air conditioning, refrigeration, automotive ac, compressors, refrigerants', ogImage: '/assets/logo.png', googleAnalyticsId: '', indexable: true },
 };
 
@@ -63,9 +70,12 @@ const SCHEMAS = {
   payment: z.object({
     currency: z.string().trim().length(3), currencySymbol: z.string().trim().max(4),
     taxRate: z.coerce.number().min(0).max(100).default(0),
-    bankTransfer: z.coerce.boolean().default(true), cashOnDelivery: z.coerce.boolean().default(true),
+    bankTransfer: z.coerce.boolean().default(true),
+    bankTransferDetails: z.string().trim().max(500).default(''),
+    cashOnDelivery: z.coerce.boolean().default(true),
     stripeEnabled: z.coerce.boolean().default(false), stripePublicKey: z.string().trim().max(200).default(''),
     paypalEnabled: z.coerce.boolean().default(false), paypalClientId: z.string().trim().max(200).default(''),
+    wipayEnabled: z.coerce.boolean().default(false), tilopayEnabled: z.coerce.boolean().default(false),
   }),
   seo: z.object({
     title: z.string().trim().max(180), description: z.string().trim().max(400),
