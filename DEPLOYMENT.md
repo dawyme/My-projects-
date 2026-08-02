@@ -95,6 +95,77 @@ The project is deployed as a single Express app on Vercel (see `vercel.json`), w
 
 Migrations are additive (`CREATE TABLE`); existing admin data (products, orders, bookings, customers, users, settings) is preserved. Seeding only runs when invoked manually (`npm run seed`) and resets the demo dataset.
 
+## 8. Payments
+
+The storefront supports six payment methods: **Cash on Delivery**, **Bank Transfer**,
+**Stripe**, **PayPal**, **WiPay** and **Tilopay**. Methods are switched on/off in
+Admin → Settings → Payments. Gateway credentials always live in the environment
+(`.env`), never in the database or the repository.
+
+### Environment variables
+
+| Variable | Purpose |
+| --- | --- |
+| `STRIPE_SECRET_KEY` | Stripe secret key (`sk_live_…` / `sk_test_…`) |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (`whsec_…`) |
+| `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | PayPal REST app credentials |
+| `PAYPAL_ENV` | `live` or `sandbox` |
+| `PAYPAL_WEBHOOK_ID`, `PAYPAL_WEBHOOK_SECRET` | PayPal webhook verification |
+| `WIPAY_API_TOKEN`, `WIPAY_MERCHANT_ID` | WiPay developer token + merchant id |
+| `WIPAY_BASE_URL` | WiPay checkout endpoint (region-specific) |
+| `WIPAY_WEBHOOK_SECRET` | Optional HMAC secret for WiPay webhook verification |
+| `TILOPAY_API_KEY`, `TILOPAY_API_USER`, `TILOPAY_API_PASSWORD` | Tilopay integration credentials |
+| `TILOPAY_BASE_URL` | Tilopay checkout endpoint (region-specific) |
+| `TILOPAY_WEBHOOK_SECRET` | Optional HMAC secret for Tilopay webhook verification |
+| `PAYMENT_SANDBOX_SECRET` | Shared secret for sandbox webhook tests (**development only**) |
+
+### How a checkout works
+
+1. The storefront `POST /api/payments/checkout` with customer details, cart
+   items and the chosen `paymentMethod`. Prices are always taken from the
+   database — client-supplied prices are ignored.
+2. The order is created (`PENDING`), stock is reserved, and the payment method
+   is started:
+   - **COD / Bank Transfer** — no gateway; instructions are returned and the
+     order stays `PENDING` until an admin captures the payment.
+   - **Stripe / PayPal / WiPay / Tilopay** — a hosted payment page is created
+     and the customer is redirected (`payment.url`).
+3. The gateway redirects back to `checkout.html?order=<ref>&status=…`.
+
+### Webhooks
+
+Each gateway calls back to `POST /api/payments/webhook/<gateway>` (lowercase),
+e.g. `https://yourdomain.com/api/payments/webhook/stripe`. The webhook verifies
+the gateway signature, finds the order, and captures the payment (order →
+`PAID`, `paymentStatus` → `PAID`, `paidAt` set). Captures are **idempotent**:
+replayed webhooks are safe.
+
+- **Stripe**: point the dashboard webhook at `/api/payments/webhook/stripe`
+  with the `checkout.session.completed` event.
+- **PayPal**: point the webhook at `/api/payments/webhook/paypal` with the
+  `PAYMENT.CAPTURE.COMPLETED` event.
+- **WiPay / Tilopay**: configure the merchant's callback/webhook URL to
+  `/api/payments/webhook/wipay` (or `/tilopay`) and set the HMAC secret if the
+  gateway supports signing.
+
+### Test / sandbox mode
+
+When a gateway is enabled in settings but its API keys are **not** configured:
+
+- **Development** (`NODE_ENV != production`): checkout still works in a clearly
+  labelled **test mode** — the order is placed and marked `PAID` with a
+  `sandbox_…` reference, and webhook tests sign payloads with
+  `PAYMENT_SANDBOX_SECRET`.
+- **Production**: checkout is rejected with an actionable error telling the
+  merchant to configure the keys or disable the method.
+
+### Manual capture & refunds
+
+In Admin → Orders → view an order you can **Capture payment** (COD, bank
+transfers, or any offline payment — optionally recording the gateway
+transaction reference) and **Refund** (ADMIN only). Marking an order `PAID`
+from the status dropdown also records the payment.
+
 ## Troubleshooting
 
 - **`@prisma/client did not initialize`** — regenerate the client (see step 1).

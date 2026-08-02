@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Storefront checkout & payment gateways** — the checkout page now submits
+  real orders to the backend (`POST /api/payments/checkout`) with server-side
+  pricing, stock reservation and payment handling for **Cash on Delivery**,
+  **Bank Transfer**, **Stripe**, **PayPal**, **WiPay** and **Tilopay**.
+- **Gateway layer** (`backend/src/lib/payments`) with hosted-checkout
+  integrations for Stripe (Checkout Sessions), PayPal (Orders v2), WiPay and
+  Tilopay, plus HMAC / Stripe-style webhook signature verification and
+  idempotent capture (`POST /api/payments/webhook/:gateway`).
+- **Payment tracking on orders** — `paymentMethod`, `paymentStatus`,
+  `paymentReference`, `paidAt` and shipping fields with migration
+  `20260802000000_order_payments`; admin Orders page shows payment method,
+  status and gateway reference, with **Capture payment** and **Refund**
+  (ADMIN) actions.
+- **Test / sandbox mode** for unconfigured gateways during development
+  (clearly labelled; production rejects them with an actionable error).
+- Automated **payment gateway verification suite**
+  (`backend/tests/payments.test.js`, `npm run test:payments`) — 30 checks
+  covering every method, webhook signatures, idempotency, stock deduction and
+  admin capture/refund. Total automated checks now 262.
+- `npm run build` now verifies the app boots and every admin page bundles
+  cleanly (`backend/scripts/verify-build.js`).
+- Documentation: payment environment variables in `.env.example`,
+  `backend/.env.example` and DEPLOYMENT.md § Payments.
+
+### Fixed
+- `multer` upgraded 1.x → 2.x, `nodemailer` → 9.x, `sharp` → 0.35.x —
+  `npm audit` now reports **0 vulnerabilities**.
+- Product catalogue no longer interpolates API data into inline
+  `onclick` handlers unescaped (XSS hardening) — names/images are escaped in
+  `products/index.html` and the cart/checkout renderers.
+- Local SQLite migration runner tolerates the shared PostgreSQL baseline
+  (`CREATE SCHEMA`, `ALTER TABLE ADD CONSTRAINT`) and is idempotent for
+  `CREATE` statements, so `npm run setup` works on a fresh clone.
+- Removed dead code: unused legacy `assets/js/checkout.js`, `cart.js`,
+  `product-catalog.js` and `testimonials.js`.
+- Order status `PAID` now also records `paymentStatus`/`paidAt`; webhook and
+  manual captures are idempotent against refunded/failed orders.
+
+## [Website Content Manager release]
+
+### Added
 - **Website Content Manager** (`/admin/#/content`) with modules for Homepage,
   About, Services, Products Homepage, Gallery, Testimonials, FAQ, Contact,
   Business Hours, Emergency Banner, Promotions, Footer, SEO, Social Media,
