@@ -15,7 +15,8 @@
     "test": "node tests/run-all.js",
     "test:api": "node tests/api.test.js",
     "test:ui": "node tests/ui.test.js",
-    "test:site": "node tests/site.test.js"
+    "test:site": "node tests/site.test.js",
+    "test:payments": "node backend/tests/payments.test.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
@@ -34,10 +35,10 @@
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^1.4.5-lts.1",
-    "nodemailer": "^6.9.16",
+    "multer": "^2.0.0",
+    "nodemailer": "^9.0.3",
     "pg": "^8.22.0",
-    "sharp": "^0.33.5",
+    "sharp": "^0.35.3",
     "zod": "^3.24.1"
   },
   "devDependencies": {
