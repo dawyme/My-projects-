@@ -32,7 +32,11 @@
   import { requireAuth } from './js/api.js';
   import { boot } from './js/layout.js';
 
+  (async () => {
   const user = await requireAuth();
+
+  // existing code here
+})();
 
   if (user) {
     boot();
