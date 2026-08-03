@@ -6,6 +6,9 @@
       "includeFiles": "{backend/**,node_modules/.prisma/**}"
     }
   },
+  "redirects": [
+    { "source": "/admin", "destination": "/admin/", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" },
     { "source": "/health", "destination": "/api" },
