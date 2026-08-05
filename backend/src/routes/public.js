@@ -9,6 +9,7 @@ const { readAll } = require('./settings');
 const { sendMail } = require('../lib/mailer');
 const cache = require('../lib/cache');
 const payments = require('../lib/payments');
+const { badRequest, notFound } = require('../lib/errors');
 
 const router = express.Router();
 const reference = () => `BK-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
@@ -60,6 +61,60 @@ router.get('/services', asyncHandler(async (req, res) => {
   res.json({ success: true, data });
 }));
 
+// GET /api/public/orders/:reference — public order status for checkout return page
+// For Tilopay orders still PENDING, consults the Tilopay /consult endpoint
+// to check whether the payment was approved, then captures if so.
+router.get('/orders/:reference', asyncHandler(async (req, res) => {
+  const order = await prisma.order.findUnique({
+    where: { reference: req.params.reference },
+    select: {
+      id: true, reference: true, status: true, paymentMethod: true,
+      paymentStatus: true, total: true, createdAt: true, paidAt: true,
+      customer: { select: { name: true, email: true } },
+    },
+  });
+  if (!order) throw notFound('Order not found');
+
+  // For Tilopay orders that are still PENDING, poll the /consult endpoint.
+  if (order.paymentMethod === 'TILOPAY' && order.paymentStatus === 'PENDING') {
+    try {
+      const result = await payments.confirmTilopayPayment(order.reference);
+      if (result.paid) {
+        // Capture the order using the same helper from the payments route.
+        // Inline the minimal capture logic to avoid circular imports.
+        await prisma.order.update({
+          where: { id: order.id },
+          data: {
+            status: 'PAID',
+            paymentStatus: 'PAID',
+            paidAt: new Date(),
+            ...(result.transactionId ? { paymentReference: result.transactionId } : {}),
+          },
+        });
+        cache.invalidate('stats');
+        await activity(null, 'payment', `Tilopay payment confirmed for ${order.reference}`);
+        // Re-fetch after capture.
+        const updated = await prisma.order.findUnique({
+          where: { reference: req.params.reference },
+          select: {
+            id: true, reference: true, status: true, paymentMethod: true,
+            paymentStatus: true, total: true, createdAt: true, paidAt: true,
+            customer: { select: { name: true, email: true } },
+          },
+        });
+        return res.json({ success: true, data: updated });
+      }
+    } catch (err) {
+      // If the Tilopay consult call fails (network / config), we still
+      // return the current PENDING status — the customer can refresh later.
+      if (err.code !== 'GATEWAY_NOT_CONFIGURED') {
+        await activity(null, 'payment', `Tilopay consult failed for ${order.reference}: ${err.message}`);
+      }
+    }
+  }
+
+  res.json({ success: true, data: order });
+}));
 // GET /api/public/settings — public-safe business info
 router.get('/settings', asyncHandler(async (req, res) => {
   const all = await readAll();

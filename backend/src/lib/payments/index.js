@@ -9,12 +9,18 @@
  *   STRIPE            — Checkout Sessions (hosted page) + webhook capture.
  *   PAYPAL            — Orders v2 (hosted approval) + webhook capture.
  *   WIPAY             — hosted checkout session + webhook capture.
- *   TILOPAY           — hosted checkout session + webhook capture.
+ *   TILOPAY           — hosted checkout (processPayment) + confirm-on-return
+ *                        (consult). Tilopay does NOT send webhooks for one-off
+ *                        payments; payment status is confirmed when the
+ *                        customer returns to the checkout page.
  *
  * Every gateway exposes the same contract:
  *   createPayment(ctx)            -> { action, url?, reference?, sandbox, instructions? }
  *   verifyWebhook(rawBody, hdrs)  -> boolean
  *   parseWebhook(rawBody, hdrs)   -> { orderReference?, transactionId? } | null
+ *
+ * Tilopay additionally exports confirmTilopayPayment(orderReference) which
+ * polls the /consult endpoint to check whether a payment was approved.
  *
  * Sandbox / test mode: when a gateway's credentials are not configured the
  * adapters run in a clearly-labelled simulated mode **outside production** so
@@ -135,7 +141,7 @@ function gatewayEnv(name) {
     case 'WIPAY':
       return { configured: Boolean(process.env.WIPAY_API_TOKEN && process.env.WIPAY_MERCHANT_ID) };
     case 'TILOPAY':
-      return { configured: Boolean(process.env.TILOPAY_API_KEY) };
+      return { configured: Boolean(process.env.TILOPAY_API_USER && process.env.TILOPAY_API_PASSWORD && process.env.TILOPAY_API_KEY) };
     default:
       return { configured: true };
   }
@@ -262,36 +268,85 @@ const GATEWAYS = {
       const env = gatewayEnv('TILOPAY');
       if (!env.configured) return sandboxRedirect('TILOPAY', ctx);
       const { order, customer, settings, baseUrl } = ctx;
-      const endpoint = process.env.TILOPAY_BASE_URL || 'https://app.tilopay.com/api/checkout';
-      const res = await httpJson(endpoint, {
+
+      // 1. Obtain a cached bearer token (logs in only when expired).
+      const token = await getTilopayToken();
+
+      // 2. Build the billing/shipping address fields.
+      const nameParts = (customer.name || '').split(' ');
+      const billToFirstName = nameParts[0] || 'N/A';
+      const billToLastName = nameParts.slice(1).join(' ') || 'N/A';
+      const billToAddress = customer.address || 'N/A';
+      const billToCity = customer.city || 'N/A';
+      // Best-effort ISO subdivision for Trinidad & Tobago; fall back to city.
+      const TT_SUBDIVISIONS = ['TT-ARI', 'TT-CHA', 'TT-CTT', 'TT-DMN', 'TT-MRC', 'TT-PED', 'TT-POS', 'TT-PRT', 'TT-PTF', 'TT-SAN', 'TT-SIL', 'TT-TUP'];
+      const billToState = TT_SUBDIVISIONS.find((s) => s.toUpperCase() === (customer.city || '').toUpperCase()) || (customer.city || 'POS');
+      const billToZipPostCode = '00000';
+      const billToCountry = 'TT';
+      const billToTelephone = customer.phone || '0000000000';
+      const billToEmail = customer.email;
+
+      // Ship-to mirrors bill-to (service business, no physical shipping).
+      const shipToFirstName = billToFirstName;
+      const shipToLastName = billToLastName;
+      const shipToAddress = billToAddress;
+      const shipToAddress2 = '';
+      const shipToCity = billToCity;
+      const shipToState = billToState;
+      const shipToZipPostCode = billToZipPostCode;
+      const shipToCountry = billToCountry;
+      const shipToTelephone = billToTelephone;
+
+      // 3. Call processPayment.
+      const res = await httpJson('https://app.tilopay.com/api/v1/processPayment', {
+        headers: {
+          Authorization: `bearer ${token}`,
+          Accept: 'application/json',
+        },
         body: {
-          api_key: process.env.TILOPAY_API_KEY,
-          api_user: process.env.TILOPAY_API_USER || '',
-          api_password: process.env.TILOPAY_API_PASSWORD || '',
+          redirect: `${baseUrl}/checkout.html?order=${order.reference}`,
+          key: process.env.TILOPAY_API_KEY,
           amount: order.total.toFixed(2),
           currency: settings.payment.currency || 'USD',
-          reference: order.reference,
-          description: `Order ${order.reference}`.slice(0, 190),
-          success_url: `${baseUrl}/checkout.html?order=${order.reference}&status=paid`,
-          cancel_url: `${baseUrl}/checkout.html?order=${order.reference}&status=cancelled`,
-          callback_url: `${baseUrl}/api/payments/webhook/tilopay`,
-          customer_name: customer.name,
-          customer_email: customer.email,
+          orderNumber: order.reference,
+          capture: '1',
+          subscription: '0',
+          platform: 'web',
+          token_version: 'v2',
+          hashVersion: 'V2',
+          billToFirstName,
+          billToLastName,
+          billToAddress,
+          billToAddress2: '',
+          billToCity,
+          billToState,
+          billToZipPostCode,
+          billToCountry,
+          billToTelephone,
+          billToEmail,
+          shipToFirstName,
+          shipToLastName,
+          shipToAddress,
+          shipToAddress2,
+          shipToCity,
+          shipToState,
+          shipToZipPostCode,
+          shipToCountry,
+          shipToTelephone,
         },
       });
-      const url = res?.redirect_url || res?.link || res?.url || res?.checkout_url;
-      if (!url) throw paymentError('Tilopay did not return a checkout URL');
-      return { action: 'redirect', url, reference: res?.id || res?.transaction_id || order.reference, sandbox: false };
+
+      // 4. type "100" means success; anything else is an error.
+      if (String(res.type) !== '100' || !res.url) {
+        const desc = res.description || res.message || 'Unknown error';
+        throw paymentError(`Tilopay payment failed: ${desc}`);
+      }
+
+      return { action: 'redirect', url: res.url, reference: order.reference, sandbox: false };
     },
-    verifyWebhook(rawBody, headers) {
-      return verifyHmacSignature(rawBody, headers, process.env.TILOPAY_WEBHOOK_SECRET);
-    },
-    parseWebhook(rawBody, headers, body) {
-      if (!body) return null;
-      const ref = body.order_reference || body.orderReference || body.reference;
-      const tx = body.transaction_id || body.transactionId || body.id;
-      return { orderReference: ref, transactionId: tx };
-    },
+    // Tilopay does NOT send webhooks for one-off payments.
+    verifyWebhook() { return false; },
+    parseWebhook() { return null; },
   },
 };
 
@@ -373,6 +428,74 @@ function parseWebhook(method, rawBody, headers, body) {
   return gateway ? gateway.parseWebhook(rawBody, headers, body) : null;
 }
 
+/* ============================================================= TILOPAY  */
+/**
+ * Module-level cache for the Tilopay bearer token. Reused across requests
+ * until ~60 s before expiry, then a fresh login is performed.
+ */
+let _tilopayToken = null;   // { accessToken, expiresAt } — expiresAt is ms epoch
+const TILOPAY_TOKEN_BUFFER = 60_000; // re-login 60 s before actual expiry
+
+/** Obtain a cached Tilopay bearer token, logging in if necessary. */
+async function getTilopayToken() {
+  const apiUser = process.env.TILOPAY_API_USER;
+  const password = process.env.TILOPAY_API_PASSWORD;
+  if (!apiUser || !password) {
+    throw configError('TILOPAY_API_USER / TILOPAY_API_PASSWORD');
+  }
+  // Reuse cached token if still valid.
+  if (_tilopayToken && _tilopayToken.expiresAt > Date.now() + TILOPAY_TOKEN_BUFFER) {
+    return _tilopayToken.accessToken;
+  }
+  const res = await httpJson('https://app.tilopay.com/api/v1/login', {
+    headers: { 'Content-Type': 'application/json' },
+    body: { apiuser: apiUser, password },
+  });
+  if (!res.access_token) {
+    throw paymentError('Tilopay login did not return an access_token');
+  }
+  const expiresIn = Number(res.expires_in) || 86400;
+  _tilopayToken = {
+    accessToken: res.access_token,
+    expiresAt: Date.now() + expiresIn * 1000,
+  };
+  return _tilopayToken.accessToken;
+}
+
+/**
+ * Confirm a Tilopay payment by consulting the /consult endpoint.
+ * Returns { paid: true, transactionId } if approved, or { paid: false }.
+ * Used by the public order-status endpoint to check payment when the
+ * customer returns from Tilopay's hosted checkout — Tilopay one-off
+ * payments do not send webhooks.
+ */
+async function confirmTilopayPayment(orderReference) {
+  const token = await getTilopayToken();
+  const res = await httpJson('https://app.tilopay.com/api/v1/consult', {
+    headers: {
+      Authorization: `bearer ${token}`,
+      Accept: 'application/json',
+    },
+    body: {
+      key: process.env.TILOPAY_API_KEY,
+      orderNumber: orderReference,
+      merchantId: '',
+    },
+  });
+  // res.response is an array; take the most recent entry.
+  const entries = Array.isArray(res.response) ? res.response : [];
+  if (entries.length === 0) return { paid: false };
+  const latest = entries[entries.length - 1];
+  // code === "1" means approved/paid.
+  if (String(latest.code) === '1') {
+    return { paid: true, transactionId: latest.auth || latest.tpt || latest.orderNumber || orderReference };
+  }
+  return { paid: false };
+}
+
+/** Reset the Tilopay token cache (useful in tests). */
+function _resetTilopayTokenCache() { _tilopayToken = null; }
+
 module.exports = {
   PAYMENT_METHODS,
   GATEWAY_METHODS,
@@ -385,6 +508,9 @@ module.exports = {
   createPayment,
   verifyWebhook,
   parseWebhook,
+  confirmTilopayPayment,
+  getTilopayToken,
+  _resetTilopayTokenCache,
   sandboxSecret,
   gatewayConfig: (name) => gatewayEnv(name),
   gateways: () => Object.fromEntries(GATEWAY_METHODS.map((m) => [m, { label: GATEWAYS[m].label, configured: gatewayEnv(m).configured }])),
