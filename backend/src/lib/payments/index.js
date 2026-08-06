@@ -172,7 +172,7 @@ const GATEWAYS = {
           cancel_url: `${baseUrl}/checkout.html?order=${order.reference}&status=cancelled`,
           client_reference_id: order.reference,
           customer_email: customer.email,
-          metadata: { order_reference: order.reference },
+          'metadata[order_reference]': order.reference,
           'line_items[0][quantity]': '1',
           'line_items[0][price_data][currency]': currency,
           'line_items[0][price_data][unit_amount]': String(Math.round(order.total * 100)),
