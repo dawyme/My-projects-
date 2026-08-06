@@ -64,13 +64,22 @@ async function httpJson(url, { method = 'POST', headers = {}, body, form } = {})
     init.body = JSON.stringify(body);
   }
   const res = await fetch(url, init);
-  const text = await res.text();
-  let json = null;
-  try { json = JSON.parse(text); } catch (_) { /* non-JSON response */ }
-  if (!res.ok) {
-    throw paymentError(`Gateway request failed (${res.status}${json && json.message ? `: ${json.message}` : ''})`);
-  }
-  return json;
+const text = await res.text();
+
+console.error("Gateway response:", text);
+
+let json = null;
+try {
+  json = JSON.parse(text);
+} catch (_) {
+  /* non-JSON response */
+}
+
+if (!res.ok) {
+  throw paymentError(`Gateway request failed (${res.status}): ${text}`);
+}
+
+return json;
 }
 
 const basicAuth = (u, p) => `Basic ${Buffer.from(`${u}:${p}`).toString('base64')}`;
