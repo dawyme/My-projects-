@@ -175,6 +175,11 @@ app.use('/api/public', require('./routes/public-content'));
 app.use('/api/content', require('./routes/content'));
 app.use('/api/site-content', require('./routes/site-content'));
 app.use('/api/media', require('./routes/media'));
+app.use('/api/technicians', require('./routes/technicians'));
+app.use('/api/equipment', require('./routes/equipment'));
+app.use('/api/estimates', require('./routes/estimates'));
+app.use('/api/invoices', require('./routes/invoices'));
+app.use('/api/dispatch', require('./routes/dispatch'));
 
 // ---------------------------------------------------------------- site
 app.use('/', express.static(ROOT, { ...staticOpts, index: 'index.html', extensions: ['html'] }));

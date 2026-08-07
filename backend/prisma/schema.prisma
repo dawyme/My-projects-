@@ -1,10 +1,10 @@
 // HVAC / Refrigeration / Automotive AC — Admin Dashboard data model
 
- generator client {
+generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["driverAdapters", "queryCompiler"]
   engineType      = "client"
-}                     
+}
 
 datasource db {
   provider  = "postgresql"
@@ -13,39 +13,39 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(uuid())
-  name          String
-  email         String    @unique
-  passwordHash  String
-  role          String    @default("STAFF") // ADMIN | STAFF
-  phone         String?
-  avatarUrl     String?
-  isActive      Boolean   @default(true)
-  lastLoginAt   DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         String    @default("STAFF") // ADMIN | STAFF
+  phone        String?
+  avatarUrl    String?
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  refreshTokens RefreshToken[]
-  auditLogs     AuditLog[]
-  activities    Activity[]
-  bookings      Booking[]        @relation("TechnicianBookings")
-  bookingNotes  BookingNote[]
+  refreshTokens  RefreshToken[]
+  auditLogs      AuditLog[]
+  activities     Activity[]
+  bookings       Booking[]             @relation("TechnicianBookings")
+  bookingNotes   BookingNote[]
   messageReplies MessageReply[]
-  adjustments   InventoryAdjustment[]
+  adjustments    InventoryAdjustment[]
 
   @@index([role])
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid())
-  tokenHash String   @unique
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   revokedAt DateTime?
   userAgent String?
   ip        String?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId])
 }
@@ -78,16 +78,16 @@ model Product {
   lowStockLevel Int      @default(5)
   unit          String   @default("unit")
   imageUrl      String?
-  gallery       String?  // JSON array of image URLs
-  specs         String?  // JSON object of specifications
+  gallery       String? // JSON array of image URLs
+  specs         String? // JSON object of specifications
   featured      Boolean  @default(false)
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  orderItems    OrderItem[]
-  adjustments   InventoryAdjustment[]
-  restocks      Restock[]
+  orderItems  OrderItem[]
+  adjustments InventoryAdjustment[]
+  restocks    Restock[]
 
   @@index([categoryId])
   @@index([featured])
@@ -95,22 +95,26 @@ model Product {
 }
 
 model Customer {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  phone     String?
-  company   String?
-  address   String?
-  city      String?
-  state     String?
+  id         String   @id @default(uuid())
+  name       String
+  email      String   @unique
+  phone      String?
+  company    String?
+  address    String?
+  city       String?
+  state      String?
   postalCode String?
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  bookings  Booking[]
-  orders    Order[]
-  messages  ContactMessage[]
+  bookings Booking[]
+  orders   Order[]
+  messages ContactMessage[]
+
+  equipment Equipment[]
+  estimates Estimate[]
+  invoices  Invoice[]
 
   @@index([email])
 }
@@ -129,25 +133,26 @@ model Service {
 }
 
 model Booking {
-  id            String   @id @default(uuid())
-  reference     String   @unique
-  customerId    String
-  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  serviceId     String?
-  service       Service? @relation(fields: [serviceId], references: [id])
-  technicianId  String?
-  technician    User?    @relation("TechnicianBookings", fields: [technicianId], references: [id])
-  scheduledAt   DateTime
-  completedAt   DateTime?
-  status        String   @default("PENDING") // PENDING CONFIRMED IN_PROGRESS COMPLETED CANCELLED
-  priority      String   @default("NORMAL")  // LOW NORMAL HIGH URGENT
-  address       String?
-  description   String?
-  price         Float    @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String    @id @default(uuid())
+  reference    String    @unique
+  customerId   String
+  customer     Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  serviceId    String?
+  service      Service?  @relation(fields: [serviceId], references: [id])
+  technicianId String?
+  technician   User?     @relation("TechnicianBookings", fields: [technicianId], references: [id])
+  scheduledAt  DateTime
+  completedAt  DateTime?
+  status       String    @default("PENDING") // PENDING CONFIRMED IN_PROGRESS COMPLETED CANCELLED
+  priority     String    @default("NORMAL") // LOW NORMAL HIGH URGENT
+  address      String?
+  description  String?
+  price        Float     @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  notes         BookingNote[]
+  notes     BookingNote[]
+  jobStatus JobStatus?
 
   @@index([status])
   @@index([scheduledAt])
@@ -168,26 +173,26 @@ model BookingNote {
 }
 
 model Order {
-  id              String      @id @default(uuid())
-  reference       String      @unique
-  customerId      String
-  customer        Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  status          String      @default("PENDING") // PENDING PAID SHIPPED COMPLETED CANCELLED
-  subtotal        Float       @default(0)
-  tax             Float       @default(0)
-  total           Float       @default(0)
-  paymentMethod   String      @default("CASH_ON_DELIVERY") // CASH_ON_DELIVERY BANK_TRANSFER STRIPE PAYPAL WIPAY TILOPAY
-  paymentStatus   String      @default("PENDING") // PENDING PAID FAILED REFUNDED
-  paymentReference String?    // gateway transaction / session id
-  paidAt          DateTime?
-  shippingName    String?
-  shippingPhone   String?
-  shippingAddress String?
-  shippingCity    String?
-  notes           String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  items           OrderItem[]
+  id               String      @id @default(uuid())
+  reference        String      @unique
+  customerId       String
+  customer         Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status           String      @default("PENDING") // PENDING PAID SHIPPED COMPLETED CANCELLED
+  subtotal         Float       @default(0)
+  tax              Float       @default(0)
+  total            Float       @default(0)
+  paymentMethod    String      @default("CASH_ON_DELIVERY") // CASH_ON_DELIVERY BANK_TRANSFER STRIPE PAYPAL WIPAY TILOPAY
+  paymentStatus    String      @default("PENDING") // PENDING PAID FAILED REFUNDED
+  paymentReference String? // gateway transaction / session id
+  paidAt           DateTime?
+  shippingName     String?
+  shippingPhone    String?
+  shippingAddress  String?
+  shippingCity     String?
+  notes            String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  items            OrderItem[]
 
   @@index([status])
   @@index([customerId])
@@ -210,17 +215,17 @@ model OrderItem {
 }
 
 model ContactMessage {
-  id         String    @id @default(uuid())
+  id         String         @id @default(uuid())
   name       String
   email      String
   phone      String?
   subject    String?
   body       String
-  status     String    @default("UNREAD") // UNREAD READ ARCHIVED
+  status     String         @default("UNREAD") // UNREAD READ ARCHIVED
   customerId String?
-  customer   Customer? @relation(fields: [customerId], references: [id])
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  customer   Customer?      @relation(fields: [customerId], references: [id])
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
   replies    MessageReply[]
 
   @@index([status])
@@ -308,23 +313,23 @@ model Setting {
 /// payload for the page; `draft` holds the in-progress autosave so edits never
 /// affect the live site until the page is published.
 model ContentPage {
-  id             String    @id @default(uuid())
-  key            String    @unique // homepage | about | services | products-home | gallery | testimonials | faq | contact | hours | emergency | promotions | footer | seo | social | logo | banners
-  title          String
-  subtitle       String?
-  slug           String?   @unique
-  status         String    @default("DRAFT") // DRAFT | PUBLISHED
-  content        String    @default("{}")    // published JSON payload
-  draft          String?                     // autosave JSON payload
-  metaTitle      String?
+  id              String    @id @default(uuid())
+  key             String    @unique // homepage | about | services | products-home | gallery | testimonials | faq | contact | hours | emergency | promotions | footer | seo | social | logo | banners
+  title           String
+  subtitle        String?
+  slug            String?   @unique
+  status          String    @default("DRAFT") // DRAFT | PUBLISHED
+  content         String    @default("{}") // published JSON payload
+  draft           String? // autosave JSON payload
+  metaTitle       String?
   metaDescription String?
-  keywords       String?
-  ogImage        String?
-  canonicalUrl   String?
-  robots         String    @default("index,follow")
-  publishedAt    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  keywords        String?
+  ogImage         String?
+  canonicalUrl    String?
+  robots          String    @default("index,follow")
+  publishedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([status])
 }
@@ -334,10 +339,10 @@ model ServiceItem {
   id          String    @id @default(uuid())
   name        String
   slug        String?   @unique
-  icon        String?            // font-awesome class or inline svg name
+  icon        String? // font-awesome class or inline svg name
   imageUrl    String?
-  description String?            // short excerpt
-  content     String?            // rich text body
+  description String? // short excerpt
+  content     String? // rich text body
   sortOrder   Int       @default(0)
   featured    Boolean   @default(false)
   status      String    @default("DRAFT") // DRAFT | PUBLISHED
@@ -351,34 +356,34 @@ model ServiceItem {
 
 /// Testimonials — customer reviews shown on the website.
 model Testimonial {
-  id        String   @id @default(uuid())
-  name      String
-  company   String?
-  review    String
-  rating    Int      @default(5)
-  photoUrl  String?
-  sortOrder Int      @default(0)
-  status    String   @default("DRAFT") // DRAFT | PUBLISHED
+  id          String    @id @default(uuid())
+  name        String
+  company     String?
+  review      String
+  rating      Int       @default(5)
+  photoUrl    String?
+  sortOrder   Int       @default(0)
+  status      String    @default("DRAFT") // DRAFT | PUBLISHED
   publishedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([status])
 }
 
 /// Gallery Manager — optimised images grouped by category.
 model GalleryItem {
-  id        String   @id @default(uuid())
-  title     String?
-  alt       String?
-  category  String?
-  imageUrl  String
-  thumbUrl  String?
-  sortOrder Int      @default(0)
-  status    String   @default("PUBLISHED") // DRAFT | PUBLISHED
+  id          String    @id @default(uuid())
+  title       String?
+  alt         String?
+  category    String?
+  imageUrl    String
+  thumbUrl    String?
+  sortOrder   Int       @default(0)
+  status      String    @default("PUBLISHED") // DRAFT | PUBLISHED
   publishedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([status])
   @@index([category])
@@ -386,55 +391,150 @@ model GalleryItem {
 
 /// FAQ — frequently asked questions.
 model FaqItem {
-  id        String   @id @default(uuid())
-  question  String
-  answer    String
-  category  String?
-  sortOrder Int      @default(0)
-  status    String   @default("PUBLISHED") // DRAFT | PUBLISHED
+  id          String    @id @default(uuid())
+  question    String
+  answer      String
+  category    String?
+  sortOrder   Int       @default(0)
+  status      String    @default("PUBLISHED") // DRAFT | PUBLISHED
   publishedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([status])
 }
 
 /// Promotions — banners / deals displayed on the site.
 model PromotionItem {
-  id        String    @id @default(uuid())
-  title     String
-  body      String?
-  imageUrl  String?
-  link      String?
-  badge     String?
-  sortOrder Int       @default(0)
-  status    String    @default("DRAFT") // DRAFT | PUBLISHED
+  id          String    @id @default(uuid())
+  title       String
+  body        String?
+  imageUrl    String?
+  link        String?
+  badge       String?
+  sortOrder   Int       @default(0)
+  status      String    @default("DRAFT") // DRAFT | PUBLISHED
   publishedAt DateTime?
-  startAt   DateTime?
-  endAt     DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  startAt     DateTime?
+  endAt       DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([status])
 }
 
 /// About Us — team members.
 model TeamMember {
-  id        String   @id @default(uuid())
-  name      String
-  role      String?
-  bio       String?
-  photoUrl  String?
-  sortOrder Int      @default(0)
-  status    String   @default("DRAFT") // DRAFT | PUBLISHED
+  id          String    @id @default(uuid())
+  name        String
+  role        String?
+  bio         String?
+  photoUrl    String?
+  sortOrder   Int       @default(0)
+  status      String    @default("DRAFT") // DRAFT | PUBLISHED
   publishedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([status])
 }
 
 /// Media Manager — the site-wide media library.
+model Technician {
+  id               String   @id @default(uuid())
+  employeeId       String   @unique
+  name             String
+  phone            String?
+  email            String?
+  profilePhoto     String?
+  skills           String?
+  certifications   String?
+  serviceAreas     String?
+  employmentStatus String   @default("ACTIVE")
+  availability     String?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Equipment {
+  id             String           @id @default(uuid())
+  customerId     String
+  customer       Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  type           String
+  brand          String?
+  model          String?
+  serialNumber   String?
+  installDate    DateTime?
+  warrantyExp    DateTime?
+  refrigerant    String?
+  voltage        String?
+  filterSize     String?
+  location       String?
+  photos         String?
+  manuals        String?
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  serviceHistory ServiceHistory[]
+}
+
+model ServiceHistory {
+  id           String    @id @default(uuid())
+  equipmentId  String
+  equipment    Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  serviceDate  DateTime
+  description  String
+  technicianId String?
+  notes        String?
+  createdAt    DateTime  @default(now())
+}
+
+model Estimate {
+  id         String   @id @default(uuid())
+  reference  String   @unique
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status     String   @default("DRAFT")
+  subtotal   Float    @default(0)
+  tax        Float    @default(0)
+  discount   Float    @default(0)
+  total      Float    @default(0)
+  labour     String?
+  parts      String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Invoice {
+  id         String    @id @default(uuid())
+  reference  String    @unique
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status     String    @default("PENDING")
+  subtotal   Float     @default(0)
+  tax        Float     @default(0)
+  total      Float     @default(0)
+  dueDate    DateTime?
+  paidAt     DateTime?
+  branding   String?
+  labour     String?
+  parts      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model JobStatus {
+  id           String   @id @default(uuid())
+  bookingId    String   @unique
+  booking      Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  status       String   @default("NEW")
+  technicianId String?
+  priority     String   @default("NORMAL")
+  updatedAt    DateTime @updatedAt
+}
+
 model MediaAsset {
   id        String   @id @default(uuid())
   filename  String
