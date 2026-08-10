@@ -1,0 +1,260 @@
+// ============================================
+// POS SCHEMA v2 — Built for trade/service businesses
+// (HVAC, refrigeration, appliance repair — not just N&D's)
+// ============================================
+
+// ---------- MULTI-TENANCY (skip/ignore if staying single-shop for now) ----------
+// If there's any chance of reselling this to other shops later, wrapping
+// everything under a Business scopes all data per-tenant from day one.
+// Cheap to add now, painful to retrofit later.
+
+model Business {
+  id            String   @id @default(uuid())
+  name          String
+  phone         String?
+  email         String?
+  address       String?
+  taxRate       Decimal  @db.Decimal(5, 4) @default(0) // e.g. 0.1250 for 12.5%
+  currency      String   @default("TTD")
+  createdAt     DateTime @default(now())
+
+  technicians   Technician[]
+  customers     Customer[]
+  equipment     Equipment[]
+  sales         Sale[]
+  jobs          ServiceJob[]
+  jobTypes      JobType[]
+}
+
+// ---------- TECHNICIANS / STAFF ----------
+
+model Technician {
+  id          String   @id @default(uuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id])
+
+  name        String
+  phone       String?
+  role        String   @default("technician") // technician, admin, counter staff
+  active      Boolean  @default(true)
+  hourlyRate  Decimal? @db.Decimal(10, 2) // for labor cost calc, optional
+
+  createdAt   DateTime @default(now())
+
+  jobs        ServiceJob[]
+  sales       Sale[]
+}
+
+// ---------- CUSTOMERS (the real differentiator vs generic retail POS) ----------
+// Trade businesses have repeat customers with equipment history —
+// generic POS treats every sale as anonymous. This doesn't.
+
+model Customer {
+  id            String   @id @default(uuid())
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id])
+
+  name          String
+  phone         String?
+  email         String?
+  address       String?
+  notes         String?  // "gate code 1234", "dog on property", etc.
+
+  createdAt     DateTime @default(now())
+
+  equipment     Equipment[]
+  jobs          ServiceJob[]
+  sales         Sale[]
+}
+
+// ---------- EQUIPMENT ON SITE ----------
+// Tracks what units a customer has, so a tech pulling up a job history
+// sees "this is the 3rd repair on this same compressor" instead of nothing.
+
+model Equipment {
+  id            String    @id @default(uuid())
+  businessId    String
+  business      Business  @relation(fields: [businessId], references: [id])
+
+  customerId    String
+  customer      Customer  @relation(fields: [customerId], references: [id])
+
+  type          String    // "Split AC Unit", "Chest Freezer", "Auto AC", "Washer"
+  brand         String?
+  model         String?
+  serialNumber  String?
+  installDate   DateTime?
+  location      String?   // "upstairs bedroom", "kitchen", physical location on-site
+
+  notes         String?
+
+  createdAt     DateTime  @default(now())
+
+  jobs          ServiceJob[]
+}
+
+// ---------- JOB TYPES ----------
+// Configurable per business — lets a shop define its own service categories
+// (installation, repair, maintenance, inspection) instead of hardcoding HVAC-only terms.
+
+model JobType {
+  id          String   @id @default(uuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id])
+
+  name        String   // "Repair", "Installation", "Maintenance", "Inspection"
+  defaultRate Decimal? @db.Decimal(10, 2) // default labor rate for this job type
+
+  jobs        ServiceJob[]
+}
+
+// ---------- SERVICE JOBS (the core differentiator) ----------
+
+enum JobStatus {
+  QUOTED
+  SCHEDULED
+  IN_PROGRESS
+  AWAITING_PARTS
+  COMPLETED
+  INVOICED
+  PAID
+  CANCELLED
+}
+
+model ServiceJob {
+  id              String        @id @default(uuid())
+  businessId      String
+  business        Business      @relation(fields: [businessId], references: [id])
+
+  jobNumber       String        @unique
+
+  customerId      String
+  customer        Customer      @relation(fields: [customerId], references: [id])
+
+  equipmentId     String?
+  equipment       Equipment?    @relation(fields: [equipmentId], references: [id])
+
+  jobTypeId       String?
+  jobType         JobType?      @relation(fields: [jobTypeId], references: [id])
+
+  technicianId    String?
+  technician      Technician?   @relation(fields: [technicianId], references: [id])
+
+  description     String
+  status          JobStatus     @default(QUOTED)
+
+  scheduledDate   DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+
+  laborHours      Decimal?      @db.Decimal(5, 2)
+  laborRate       Decimal?      @db.Decimal(10, 2)
+  laborAmount     Decimal       @db.Decimal(10, 2) @default(0)
+  partsAmount     Decimal       @db.Decimal(10, 2) @default(0) // denormalized sum of line items
+  taxAmount       Decimal       @db.Decimal(10, 2) @default(0)
+  total           Decimal       @db.Decimal(10, 2) @default(0)
+
+  paymentMethod   String?       // "cash" | "stripe" | "paypal" etc — plain string, not enum, so it's easy to extend
+  paymentRef      String?
+  paidAt          DateTime?
+
+  // Recurring maintenance — lets a shop set up "service this AC every 6 months"
+  isRecurring     Boolean       @default(false)
+  recurrenceMonths Int?         // e.g. 6 = every 6 months
+  nextServiceDate DateTime?
+
+  photos          String[]      // URLs to before/after photos, uploaded via admin media library
+  notes           String?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  partsUsed       JobLineItem[]
+
+  @@index([status])
+  @@index([customerId])
+  @@index([scheduledDate])
+  @@index([nextServiceDate])
+}
+
+model JobLineItem {
+  id           String     @id @default(uuid())
+  jobId        String
+  job          ServiceJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  productId    String?    // nullable — non-catalog parts still billable
+  product      Product?   @relation(fields: [productId], references: [id])
+
+  description  String
+  quantity     Int
+  unitPrice    Decimal    @db.Decimal(10, 2)
+  lineTotal    Decimal    @db.Decimal(10, 2)
+
+  createdAt    DateTime   @default(now())
+
+  @@index([productId])
+}
+
+// ---------- COUNTER / RETAIL SALES (simpler side, unchanged in spirit) ----------
+
+enum SaleStatus {
+  COMPLETED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  VOIDED
+}
+
+model Sale {
+  id            String       @id @default(uuid())
+  businessId    String
+  business      Business     @relation(fields: [businessId], references: [id])
+
+  saleNumber    String       @unique
+  status        SaleStatus   @default(COMPLETED)
+
+  customerId    String?      // optional — walk-in sales may have no linked customer
+  customer      Customer?    @relation(fields: [customerId], references: [id])
+
+  technicianId  String?      // who rang it up
+  technician    Technician?  @relation(fields: [technicianId], references: [id])
+
+  subtotal      Decimal      @db.Decimal(10, 2)
+  taxAmount     Decimal      @db.Decimal(10, 2) @default(0)
+  discountAmount Decimal     @db.Decimal(10, 2) @default(0)
+  total         Decimal      @db.Decimal(10, 2)
+
+  paymentMethod String       // "cash" | "stripe" | "paypal"
+  paymentRef    String?
+
+  location      String?      // "shop" | "field" device identifier
+  syncedAt      DateTime?    // when this local-first record synced to Supabase — null = pending
+
+  createdAt     DateTime     @default(now())
+
+  lineItems     SaleLineItem[]
+
+  @@index([createdAt])
+  @@index([status])
+  @@index([syncedAt])
+}
+
+model SaleLineItem {
+  id          String   @id @default(uuid())
+  saleId      String
+  sale        Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+
+  quantity    Int
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  lineTotal   Decimal  @db.Decimal(10, 2)
+
+  createdAt   DateTime @default(now())
+
+  @@index([productId])
+}
+
+// ---------- ON EXISTING Product MODEL, ADD ----------
+// saleLineItems  SaleLineItem[]
+// jobLineItems   JobLineItem[]
