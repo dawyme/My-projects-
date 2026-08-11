@@ -152,6 +152,7 @@ app.use('/admin', express.static(path.join(ROOT, 'admin'), { etag: true }));
 
 // ---------------------------------------------------------------- api
 app.use('/api', apiLimiter);
+app.use('/api/public', require('./routes/public-forms'));
 app.use('/api', verifyCsrf);
 app.use(['/api/products', '/api/bookings', '/api/customers', '/api/messages', '/api/inventory', '/api/orders', '/api/users', '/api/settings', '/api/categories', '/api/services', '/api/content', '/api/site-content', '/api/media'], writeLimiter);
 

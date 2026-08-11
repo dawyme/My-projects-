@@ -95,12 +95,11 @@
       var phone = (data.get('phone') || '').toString().trim();
 
       if (!name || !message) return feedback(contactForm, 'Please fill in your name and message.', true);
-      if (!email) return feedback(contactForm, 'Please provide an email address so we can reply.', true);
-
       busy(contactForm);
       post('/public/contact', {
         name: name, email: email, phone: phone || null,
-        subject: (data.get('subject') || 'Website enquiry').toString(), message: message,
+        subject: (data.get('subject') || 'Website enquiry').toString(),
+        serviceType: (data.get('service_type') || 'General Inquiry').toString(), message: message,
       }).then(function (res) {
         contactForm.reset();
         feedback(contactForm, res.message || 'Thank you — your message has been received.');
@@ -124,15 +123,6 @@
       emergency: 'Emergency Callout',
     };
     var TIME_HINTS = { morning: '09:00', afternoon: '13:00', evening: '17:00', '': '10:00' };
-    var serviceIndex = {};
-
-    fetch(API_BASE + '/api/public/services')
-      .then(function (r) { return r.json(); })
-      .then(function (j) {
-        (j.data || []).forEach(function (s) { serviceIndex[s.name] = s.id; });
-      })
-      .catch(function () { /* the booking still submits without a service link */ });
-
     bookingForm.addEventListener('submit', function (e) {
       e.preventDefault();
       var data = new FormData(bookingForm);
@@ -141,9 +131,7 @@
       var phone = (data.get('phone') || '').toString().trim();
 
       if (!name || !phone) return feedback(bookingForm, 'Please provide your name and phone number.', true);
-      if (!email) return feedback(bookingForm, 'Please provide an email address so we can confirm your booking.', true);
-
-      var day = (data.get('date') || '').toString();
+            var day = (data.get('date') || '').toString();
       var time = TIME_HINTS[(data.get('time') || '').toString()] || '10:00';
       var when = day ? new Date(day + 'T' + time) : new Date(Date.now() + 86400000);
       if (isNaN(when.getTime())) when = new Date(Date.now() + 86400000);
@@ -156,7 +144,7 @@
       post('/public/bookings', {
         name: name, email: email, phone: phone,
         address: (data.get('address') || '').toString().trim() || null,
-        serviceId: serviceIndex[serviceName] || null,
+        serviceType: (data.get('service_type') || '').toString(),
         scheduledAt: when.toISOString(),
         description: (serviceName ? serviceName + ' — ' : '') + (details || 'Requested via the website booking form.'),
       }).then(function (res) {
@@ -189,6 +177,7 @@
     return post('/public/contact', {
       name: name, email: email, phone: phone || null,
       subject: 'Website enquiry',
+      serviceType: (data.get('service_type') || 'General Inquiry').toString(),
       message: lines.join('\n') || 'Enquiry submitted via the website.',
     });
   };
