@@ -97,7 +97,7 @@ export async function render(view) {
     const btn = e.target.closest('.cal-event');
     if (!btn) return;
     const m = modal({ title: 'Dispatch booking', size: 'sm', body: '<div style="display:grid;place-items:center;min-height:120px"><div class="spinner"></div></div>',
-      footer: '<button class="btn btn--ghost" data-close>Close</button><a class="btn btn--primary" href="#/bookings">Open bookings</a>' });
+      footer: '<button class="btn btn--ghost" data-close>Close</button><button class="btn btn--primary" id="saveDispatch">Save dispatch</button>' });
     try {
       const { data: b } = await api.get(`/bookings/${btn.dataset.id}`);
       m.body.innerHTML = `<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px">
