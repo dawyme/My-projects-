@@ -117,8 +117,13 @@ router.get('/calendar', protect, asyncHandler(async (req, res) => {
   const month = /^\d{4}-\d{2}$/.test(req.query.month || '') ? req.query.month : new Date().toISOString().slice(0, 7);
   const start = new Date(`${month}-01T00:00:00.000Z`);
   const end = new Date(start); end.setUTCMonth(end.getUTCMonth() + 1);
+  const allowedStatuses = new Set(STATUSES);
+  const status = String(req.query.status || '').toUpperCase();
+  const where = { scheduledAt: { gte: start, lt: end } };
+  if (req.query.technicianId) where.technicianId = req.query.technicianId === 'unassigned' ? null : req.query.technicianId;
+  if (allowedStatuses.has(status)) where.status = status;
   const bookings = await prisma.booking.findMany({
-    where: { scheduledAt: { gte: start, lt: end } },
+    where,
     orderBy: { scheduledAt: 'asc' },
     include: { customer: { select: { name: true } }, service: { select: { name: true } }, technician: { select: { name: true } } },
   });

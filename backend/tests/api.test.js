@@ -299,6 +299,13 @@ async function main() {
     const r = await admin.get(`/api/bookings/calendar?month=${new Date().toISOString().slice(0, 7)}`);
     assert.ok(r.body.data.days && typeof r.body.data.total === 'number');
   });
+  await test('GET /api/bookings/calendar filters by technician and status', async () => {
+    const r = await admin.get(`/api/bookings/calendar?month=${new Date().toISOString().slice(0, 7)}&technicianId=${technicianId}&status=CANCELLED`);
+    assert.ok(r.body.data.days && typeof r.body.data.total === 'number');
+    for (const day of Object.values(r.body.data.days)) for (const event of day) {
+      assert.strictEqual(event.status, 'CANCELLED'); assert.ok(event.technician);
+    }
+  });
   await test('GET /api/bookings filters by status', async () => {
     const r = await admin.get('/api/bookings?status=COMPLETED');
     assert.ok(r.body.data.every((b) => b.status === 'COMPLETED'));
