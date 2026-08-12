@@ -3,12 +3,22 @@ import { setTitle } from '../layout.js';
 import { qs, icon, esc, statusBadge, emptyState, modal, dateTime, money, toastError, titleCase } from '../ui.js';
 
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const STATE_KEY = 'nds.dispatch.calendar';
+
+function readState() {
+  try { return JSON.parse(sessionStorage.getItem(STATE_KEY) || '{}'); } catch (_) { return {}; }
+}
+
+function saveState(state) {
+  try { sessionStorage.setItem(STATE_KEY, JSON.stringify(state)); } catch (_) {}
+}
 
 export async function render(view) {
   setTitle('Calendar');
-  let month = new Date().toISOString().slice(0, 7);
-  let technicianId = '';
-  let status = '';
+  const saved = readState();
+  let month = /^\d{4}-\d{2}$/.test(saved.month || '') ? saved.month : new Date().toISOString().slice(0, 7);
+  let technicianId = saved.technicianId || '';
+  let status = saved.status || '';
   let technicians = [];
   try {
     const { data } = await api.get('/users', { limit: 100 });
@@ -49,6 +59,11 @@ export async function render(view) {
         <div id="calendar"></div></div>
     </section>`;
 
+  qs('#technicianFilter', view).value = technicianId;
+  qs('#statusFilter', view).value = status;
+
+  function persist() { saveState({ month, technicianId, status }); }
+
   async function load() {
     const host = qs('#calendar', view);
     host.innerHTML = '<div style="display:grid;place-items:center;min-height:320px"><div class="spinner"></div></div>';
@@ -84,14 +99,15 @@ export async function render(view) {
     const [y, m] = month.split('-').map(Number);
     const d = new Date(Date.UTC(y, m - 1 + delta, 1));
     month = d.toISOString().slice(0, 7);
+    persist();
     load();
   };
   qs('#prevBtn', view).onclick = () => shift(-1);
   qs('#nextBtn', view).onclick = () => shift(1);
-  qs('#todayBtn', view).onclick = () => { month = new Date().toISOString().slice(0, 7); load(); };
-  qs('#technicianFilter', view).onchange = (e) => { technicianId = e.target.value; load(); };
-  qs('#statusFilter', view).onchange = (e) => { status = e.target.value; load(); };
-  qs('#clearFilters', view).onclick = () => { technicianId = ''; status = ''; qs('#technicianFilter', view).value = ''; qs('#statusFilter', view).value = ''; load(); };
+  qs('#todayBtn', view).onclick = () => { month = new Date().toISOString().slice(0, 7); persist(); load(); };
+  qs('#technicianFilter', view).onchange = (e) => { technicianId = e.target.value; persist(); load(); };
+  qs('#statusFilter', view).onchange = (e) => { status = e.target.value; persist(); load(); };
+  qs('#clearFilters', view).onclick = () => { technicianId = ''; status = ''; qs('#technicianFilter', view).value = ''; qs('#statusFilter', view).value = ''; persist(); load(); };
 
   view.addEventListener('click', async (e) => {
     const btn = e.target.closest('.cal-event');
