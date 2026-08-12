@@ -103,6 +103,8 @@ async function main() {
   const cw = contactDom.window;
   const cForm = cw.document.getElementById('contactForm');
   record(!!cForm, 'Contact page exposes the contact form');
+  record(!String(cForm.getAttribute('action') || '').includes('formbold.com'), 'Contact form no longer falls back to FormBold');
+  record(String(cForm.getAttribute('action') || '') === '/api/public/contact', 'Contact form targets the backend public contact endpoint');
   if (cForm) {
     cForm.elements.name.value = 'Integration Tester';
     cForm.elements.email.value = `site.contact.${Date.now()}@example.com`;
