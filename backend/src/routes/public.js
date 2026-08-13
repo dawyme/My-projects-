@@ -157,12 +157,16 @@ router.post('/contact', publicFormLimiter, validate(z.object({
   email: z.string().email().max(180),
   phone: z.string().trim().max(40).optional().nullable(),
   subject: z.string().trim().max(200).optional().nullable(),
+  serviceType: z.string().trim().max(120).optional().nullable(),
   message: z.string().trim().min(5).max(5000),
 })), asyncHandler(async (req, res) => {
-  const { name, email, phone, subject, message } = req.body;
+  const { name, email, phone, subject, serviceType, message } = req.body;
   const customer = await prisma.customer.findUnique({ where: { email: email.toLowerCase() } });
+  const selectedService = serviceType || 'General Inquiry';
+  const storedSubject = subject || `${selectedService} enquiry`;
+  const storedBody = `Service Type: ${selectedService}\n\n${message}`;
   const created = await prisma.contactMessage.create({
-    data: { name, email: email.toLowerCase(), phone: phone || null, subject: subject || null, body: message, customerId: customer?.id || null },
+    data: { name, email: email.toLowerCase(), phone: phone || null, subject: storedSubject, body: storedBody, customerId: customer?.id || null },
   });
   cache.invalidate('stats');
   await activity(null, 'message', `New contact message from ${name}`);

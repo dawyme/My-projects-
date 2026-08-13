@@ -100,7 +100,8 @@
       busy(contactForm);
       post('/public/contact', {
         name: name, email: email, phone: phone || null,
-        subject: (data.get('subject') || 'Website enquiry').toString(), message: message,
+        subject: (data.get('subject') || 'Website enquiry').toString(),
+        serviceType: (data.get('service_type') || 'General Inquiry').toString(), message: message,
       }).then(function (res) {
         contactForm.reset();
         feedback(contactForm, res.message || 'Thank you — your message has been received.');
@@ -189,6 +190,7 @@
     return post('/public/contact', {
       name: name, email: email, phone: phone || null,
       subject: 'Website enquiry',
+      serviceType: (data.get('service_type') || 'General Inquiry').toString(),
       message: lines.join('\n') || 'Enquiry submitted via the website.',
     });
   };
