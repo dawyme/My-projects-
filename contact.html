@@ -30,83 +30,30 @@
                 <nav class="main-nav">
                     <button class="nav-toggle"><span class="hamburger"></span></button>
                     <ul class="nav-menu" id="primary-menu">
-                        <li><a href="index.html">Home</a></li>
-                        <li><a href="services.html">Services</a></li>
-                        <li><a href="products/index.html">Products</a></li>
-                        <li><a href="about.html">About</a></li>
-                        <li><a href="contact.html" class="active">Contact</a></li>
-                        <li><a href="booking.html">Book Service</a></li>
+                        <li><a href="index.html">Home</a></li><li><a href="services.html">Services</a></li><li><a href="products/index.html">Products</a></li><li><a href="about.html">About</a></li><li><a href="contact.html" class="active">Contact</a></li><li><a href="booking.html">Book Service</a></li>
                     </ul>
                 </nav>
             </div>
         </div>
     </header>
-
-    <section class="page-header">
-        <div class="container">
-            <h1>Contact Us</h1>
-            <p>We're here to help. Reach out for service, quotes, or questions.</p>
+    <section class="page-header"><div class="container"><h1>Contact Us</h1><p>We're here to help. Reach out for service, quotes, or questions.</p></div></section>
+    <section style="padding:80px 0;"><div class="container"><div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px, 1fr)); gap:30px;">
+        <div style="background:white; padding:35px; border-radius:16px; box-shadow:var(--shadow); text-align:center;"><i class="fas fa-phone fa-3x" style="color:#0A66C2; margin-bottom:20px;"></i><h3>Call Us</h3><p style="font-size:1.6rem; font-weight:700; margin:12px 0;"><a href="tel:+18687074646" data-content="contact.phone.0">(868) 707-4646</a></p><p>24/7 Emergency Service</p></div>
+        <div style="background:white; padding:35px; border-radius:16px; box-shadow:var(--shadow); text-align:center;"><i class="fas fa-envelope fa-3x" style="color:#0A66C2; margin-bottom:20px;"></i><h3>Email Us</h3><p style="font-size:1.15rem; margin:12px 0;"><a href="mailto:ndsairconditioning@gmail.com" data-content="contact.email">ndsairconditioning@gmail.com</a></p><p>Response within 1 business hour</p></div>
+        <div style="background:white; padding:35px; border-radius:16px; box-shadow:var(--shadow); text-align:center;"><i class="fas fa-map-marker-alt fa-3x" style="color:#0A66C2; margin-bottom:20px;"></i><h3>Visit Us</h3><p data-content="contact.address">Warden Road, East Street Extension<br>Stanisclause Circ Ave<br>Trinidad &amp; Tobago</p><p style="margin-top:10px; font-weight:600;" data-content="contact.hoursNote">Mon–Fri: 8am–5pm | Sat: 9am–3pm</p></div>
+    </div></div></section>
+    <section class="appointment-section"><div class="container"><h2 style="text-align:center; margin-bottom:30px;">Send Us a Message</h2>
+        <form id="contactForm" method="POST" style="max-width:720px; margin:0 auto;"><div style="display:grid; grid-template-columns:1fr 1fr; gap:22px;">
+            <div class="form-group"><label>Name *</label><input type="text" name="name" required></div>
+            <div class="form-group"><label>Phone *</label><input type="tel" name="phone" required></div>
         </div>
-    </section>
-
-    <section style="padding:80px 0;">
-        <div class="container">
-            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%, 260px), 1fr)); gap:30px;">
-                <div style="background:white; padding:35px; border-radius:16px; box-shadow:var(--shadow); text-align:center;">
-                    <i class="fas fa-phone fa-3x" style="color:#0A66C2; margin-bottom:20px;"></i>
-                    <h3>Call Us</h3>
-                    <p style="font-size:1.6rem; font-weight:700; margin:12px 0;"><a href="tel:+18687074646" data-content="contact.phones.0">(868) 707-4646</a></p>
-                    <p>24/7 Emergency Service</p>
-                </div>
-                <div style="background:white; padding:35px; border-radius:16px; box-shadow:var(--shadow); text-align:center;">
-                    <i class="fas fa-envelope fa-3x" style="color:#0A66C2; margin-bottom:20px;"></i>
-                    <h3>Email Us</h3>
-                    <p style="font-size:1.15rem; margin:12px 0;"><a href="mailto:ndsairconditioning@gmail.com" data-content="contact.email">ndsairconditioning@gmail.com</a></p>
-                    <p>Response within 1 business hour</p>
-                </div>
-                <div style="background:white; padding:35px; border-radius:16px; box-shadow:var(--shadow); text-align:center;">
-                    <i class="fas fa-map-marker-alt fa-3x" style="color:#0A66C2; margin-bottom:20px;"></i>
-                    <h3>Visit Us</h3>
-                    <p data-content="contact.address">Warden Road, East Street Extension<br>Stanisclause Circ Ave<br>Trinidad &amp; Tobago</p>
-                    <p style="margin-top:10px; font-weight:600;" data-content="contact.hoursNote">Mon–Fri: 8am–5pm | Sat: 9am–3pm</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="appointment-section">
-        <div class="container">
-            <h2 style="text-align:center; margin-bottom:30px;">Send Us a Message</h2>
-            <form id="contactForm" method="POST" style="max-width:720px; margin:0 auto;">
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:22px;">
-                    <div class="form-group"><label>Name *</label><input type="text" name="name" required></div>
-                    <div class="form-group"><label>Phone *</label><input type="tel" name="phone" required></div>
-                </div>
-                <div class="form-group"><label>Email</label><input type="email" name="email"></div>
-                <div class="form-group"><label>Service Type</label><select name="service_type" style="width:100%; padding:14px 18px; border:1px solid #ddd; border-radius:8px;"><option value="">Select Service</option><option value="Air Conditioning Repair / Installation">Air Conditioning Repair / Installation</option><option value="Commercial Refrigeration">Commercial Refrigeration</option><option value="Automotive AC Repair">Automotive AC Repair</option><option value="Preventive Maintenance">Preventive Maintenance</option><option value="Emergency Service">Emergency Service</option><option value="General Inquiry">General Inquiry</option></select></div>
-                <div class="form-group"><label>Message *</label><textarea name="message" rows="6" required></textarea></div>
-                <button type="submit" class="btn-primary" style="width:100%;">Send Message</button>
-            </form>
-            <div id="thank-you-message" style="display:none; text-align:center; margin-top:30px; padding:40px; background:#e6f0ff; border-radius:16px;">
-                <i class="fas fa-check-circle fa-3x" style="color:#2A9D8F;"></i>
-                <h3>Thank you! Message sent.</h3>
-            </div>
-        </div>
-    </section>
-
-    <footer class="site-footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-column"><div class="footer-brand"><img src="assets/logo.png" alt="N&amp;D's" class="footer-logo" width="512" height="512"><h3>N&amp;D's</h3></div><p>Expert HVAC, Refrigeration &amp; Automotive AC</p></div>
-                <div class="footer-column"><h3>Links</h3><ul><li><a href="services.html">Services</a></li><li><a href="booking.html">Book Now</a></li></ul></div>
-                <div class="footer-column"><h3>Contact</h3><p>(868) 707-4646</p><p>ndsairconditioning@gmail.com</p></div>
-            </div>
-            <div class="footer-bottom"><p>© 2026 N&amp;D's. All rights reserved.</p></div>
-        </div>
-    </footer>
-
-    <script src="assets/js/site-content.js"></script>
-    <script src="assets/js/main.js"></script>
-    <script src="assets/js/site-api.js"></script>
+        <div class="form-group"><label>Email</label><input type="email" name="email"></div>
+        <div class="form-group"><label>Service Type *</label><select name="service_type" required style="width:100%; padding:14px 18px; border:1px solid #ddd; border-radius:8px;"><option value="">Select Service</option><option value="Air Conditioning Repair / Installation">Air Conditioning Repair / Installation</option><option value="Commercial Refrigeration">Commercial Refrigeration</option><option value="Automotive AC Repair">Automotive AC Repair</option><option value="Preventive Maintenance">Preventive Maintenance</option><option value="Emergency Service">Emergency Service</option><option value="General Inquiry">General Inquiry</option></select></div>
+        <div class="form-group"><label>Message *</label><textarea name="message" rows="6" required></textarea></div>
+        <button type="submit" class="btn-primary" style="width:100%;">Send Message</button></form>
+        <div id="thank-you-message" style="display:none; text-align:center; margin-top:30px; padding:40px; background:#e6f0ff; border-radius:16px;"><i class="fas fa-check-circle fa-3x" style="color:#2A9D8F;"></i><h3>Thank you! Message sent.</h3></div>
+    </div></section>
+    <footer class="site-footer"><div class="container"><div class="footer-content"><div class="footer-column"><div class="footer-brand"><img src="assets/logo.png" alt="N&amp;D's" class="footer-logo" width="512" height="512"><h3>N&amp;D's</h3></div><p>Expert HVAC, Refrigeration &amp; Automotive AC</p></div><div class="footer-column"><h3>Links</h3><ul><li><a href="services.html">Services</a></li><li><a href="booking.html">Book Now</a></li></ul></div><div class="footer-column"><h3>Contact</h3><p>(868) 707-4646</p><p>ndsairconditioning@gmail.com</p></div></div><div class="footer-bottom"><p>© 2026 N&amp;D's. All rights reserved.</p></div></div></footer>
+    <script src="assets/js/site-content.js"></script><script src="assets/js/main.js"></script><script src="assets/js/site-api.js"></script>
 </body>
 </html>
