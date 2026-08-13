@@ -217,7 +217,7 @@ model OrderItem {
 model ContactMessage {
   id         String         @id @default(uuid())
   name       String
-  email      String
+  email      String?
   phone      String?
   subject    String?
   body       String
