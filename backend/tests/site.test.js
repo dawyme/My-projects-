@@ -103,6 +103,9 @@ async function main() {
   const cw = contactDom.window;
   const cForm = cw.document.getElementById('contactForm');
   record(!!cForm, 'Contact page exposes the contact form');
+  const contactHtml = fs.readFileSync(path.join(ROOT, 'contact.html'), 'utf8');
+  record(!/formbold/i.test(contactHtml), 'Contact form does not reference FormBold');
+  record(!/<form[^>]*id=\"contactForm\"[^>]*action=/i.test(contactHtml), 'Contact form has no external action fallback');
   if (cForm) {
     cForm.elements.name.value = 'Integration Tester';
     cForm.elements.email.value = `site.contact.${Date.now()}@example.com`;

@@ -94,7 +94,7 @@
       var message = (data.get('message') || '').toString().trim();
       var phone = (data.get('phone') || '').toString().trim();
 
-      var serviceType = (data.get('service_type') || '').toString().trim();
+      var serviceType = (data.get('service_type') || 'General Inquiry').toString().trim();
       if (!name || !phone || !message) {
         return feedback(contactForm, 'Please fill in your name, phone, and message.', true);
       }
