@@ -154,25 +154,26 @@ router.get('/settings', asyncHandler(async (req, res) => {
 // POST /api/public/contact
 router.post('/contact', publicFormLimiter, validate(z.object({
   name: z.string().trim().min(2).max(120),
-  email: z.string().email().max(180),
+  email: z.string().email().max(180).optional().nullable(),
   phone: z.string().trim().max(40).optional().nullable(),
   subject: z.string().trim().max(200).optional().nullable(),
   serviceType: z.string().trim().max(120).optional().nullable(),
   message: z.string().trim().min(5).max(5000),
 })), asyncHandler(async (req, res) => {
   const { name, email, phone, subject, serviceType, message } = req.body;
-  const customer = await prisma.customer.findUnique({ where: { email: email.toLowerCase() } });
+  const normalizedEmail = email ? email.toLowerCase() : null;
+  const customer = normalizedEmail ? await prisma.customer.findUnique({ where: { email: normalizedEmail } }) : null;
   const selectedService = serviceType || 'General Inquiry';
   const storedSubject = subject || `${selectedService} enquiry`;
   const storedBody = `Service Type: ${selectedService}\n\n${message}`;
   const created = await prisma.contactMessage.create({
-    data: { name, email: email.toLowerCase(), phone: phone || null, subject: storedSubject, body: storedBody, customerId: customer?.id || null },
+    data: { name, email: normalizedEmail || null, phone: phone || null, subject: storedSubject, body: storedBody, customerId: customer?.id || null },
   });
   cache.invalidate('stats');
   await activity(null, 'message', `New contact message from ${name}`);
   const settings = await readAll();
   if (settings.email.notifyMessages) {
-    sendMail({ to: settings.company.email, subject: `New website enquiry: ${subject || 'No subject'}`, text: `${name} <${email}>\n\n${message}` }).catch(() => {});
+    await sendMail({ to: settings.company.email, subject: `New website enquiry: ${subject || 'No subject'}`, text: `${name}${normalizedEmail ? ` <${normalizedEmail}>` : ''}${phone ? ` (${phone})` : ''}\n\n${message}` });
   }
   res.status(201).json({ success: true, data: { id: created.id }, message: 'Thank you — your message has been received.' });
 }));
