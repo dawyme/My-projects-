@@ -94,14 +94,16 @@
       var message = (data.get('message') || '').toString().trim();
       var phone = (data.get('phone') || '').toString().trim();
 
-      if (!name || !message) return feedback(contactForm, 'Please fill in your name and message.', true);
-      if (!email) return feedback(contactForm, 'Please provide an email address so we can reply.', true);
+      var serviceType = (data.get('service_type') || '').toString().trim();
+      if (!name || !phone || !serviceType || !message) {
+        return feedback(contactForm, 'Please fill in your name, phone, service type, and message.', true);
+      }
 
       busy(contactForm);
       post('/public/contact', {
-        name: name, email: email, phone: phone || null,
+        name: name, email: email || null, phone: phone,
         subject: (data.get('subject') || 'Website enquiry').toString(),
-        serviceType: (data.get('service_type') || 'General Inquiry').toString(), message: message,
+        serviceType: serviceType, message: message,
       }).then(function (res) {
         contactForm.reset();
         feedback(contactForm, res.message || 'Thank you — your message has been received.');
