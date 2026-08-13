@@ -113,7 +113,7 @@
                     }
                 }
 
-                if (!submitted && action && /^https?:\/\//.test(action)) {
+                if (!submitted && form.id !== 'contactForm' && action && /^https?:\/\//.test(action)) {
                     try {
                         const response = await fetch(action, {
                             method,
