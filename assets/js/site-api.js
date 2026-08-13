@@ -39,7 +39,7 @@
         body: JSON.stringify(payload),
       }).then(function (res) {
         return res.json().then(function (json) {
-          if (!res.ok) throw new Error((json && json.error) || 'Submission failed');
+          if (!res.ok) { var detailText = Array.isArray(json && json.details) ? json.details.map(function (d) { return d.field ? d.field + ': ' + d.message : d.message; }).join('; ') : ''; throw new Error(detailText || (json && json.error) || 'Submission failed'); }
           return json;
         });
       });
