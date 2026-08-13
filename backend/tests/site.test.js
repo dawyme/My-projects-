@@ -112,6 +112,10 @@ async function main() {
     const stored = await until(async () => (await prisma.contactMessage.count()) > beforeMessages);
     record(stored, 'Contact form submission reaches the admin inbox',
       stored ? '' : `feedback: ${cw.document.querySelector('.form-feedback')?.textContent || 'none'} | alert: ${cw.__alert || 'none'}`);
+    if (stored) {
+      const latest = await prisma.contactMessage.findFirst({ orderBy: { createdAt: 'desc' } });
+      record(latest?.body?.includes('Service Type: Air Conditioning Repair / Installation'), 'Contact Service Type is preserved in the admin message');
+    }
     record(!!cw.document.querySelector('.form-feedback'), 'Contact form shows confirmation feedback');
   }
   contactDom.window.close();
