@@ -1,36 +1,28 @@
-const nodemailer = require('nodemailer');
-const fs = require('fs');
-const path = require('path');
-
-const OUTBOX = path.join(__dirname, '..', '..', 'data', 'outbox.log');
-let transporter = null;
-
-function getTransporter() {
-  if (transporter !== null) return transporter;
-  if (!process.env.SMTP_HOST) { transporter = false; return false; }
-  transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '587', 10),
-    secure: String(process.env.SMTP_PORT) === '465',
-    auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
-  });
-  return transporter;
-}
-
 /**
- * Sends an email through SMTP when configured; otherwise appends it to a local
- * outbox file so nothing is silently lost in development.
+ * Send email through Resend. The API key is supplied by the production
+ * environment; no email provider or form service is used by the website.
  */
 async function sendMail({ to, subject, text, html }) {
-  const from = process.env.SMTP_FROM || 'CoolAir HVAC <no-reply@coolairhvac.com>';
-  const t = getTransporter();
-  if (!t) {
-    const entry = `[${new Date().toISOString()}] TO=${to} SUBJECT=${subject}\n${text || html}\n---\n`;
-    try { fs.appendFileSync(OUTBOX, entry); } catch (_) {}
-    return { delivered: false, queued: true };
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error('RESEND_API_KEY is not configured');
+
+  const from = process.env.RESEND_FROM || 'N&D’S Air Conditioning & Refrigeration Services <no-reply@ndsairconditioning.com>';
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ from, to, subject, text, html }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = payload?.message || payload?.error || `Resend request failed with HTTP ${response.status}`;
+    throw new Error(String(message));
   }
-  await t.sendMail({ from, to, subject, text, html });
-  return { delivered: true };
+
+  return { delivered: true, id: payload?.id };
 }
 
 const layout = (title, body) => `<div style="font-family:Segoe UI,Arial,sans-serif;max-width:600px;margin:auto">
@@ -49,7 +41,7 @@ async function sendBookingStatusEmail(booking, customer) {
   const when = new Date(booking.scheduledAt).toLocaleString();
   return sendMail({
     to: customer.email,
-    subject: `Booking ${booking.reference} — ${booking.status.replace('_', ' ')}`,
+    subject: `Booking ${booking.reference} â ${booking.status.replace('_', ' ')}`,
     text: `Hi ${customer.name}, your booking ${booking.reference} scheduled for ${when} is ${statusLabels[booking.status] || booking.status}.`,
     html: layout('Service Booking Update', `<p>Hi <strong>${customer.name}</strong>,</p>
       <p>Your booking <strong>${booking.reference}</strong> scheduled for <strong>${when}</strong> is ${statusLabels[booking.status] || booking.status}.</p>
