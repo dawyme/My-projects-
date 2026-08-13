@@ -95,8 +95,8 @@
       var phone = (data.get('phone') || '').toString().trim();
 
       var serviceType = (data.get('service_type') || '').toString().trim();
-      if (!name || !phone || !serviceType || !message) {
-        return feedback(contactForm, 'Please fill in your name, phone, service type, and message.', true);
+      if (!name || !phone || !message) {
+        return feedback(contactForm, 'Please fill in your name, phone, and message.', true);
       }
 
       busy(contactForm);
