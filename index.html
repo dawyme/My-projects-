@@ -55,7 +55,7 @@
     </script>
 
     <link rel="stylesheet" href="assets/css/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&amp;family=Open+Sans:wght@300;400;500;600;display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&amp;family=Open+Sans:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
@@ -351,8 +351,8 @@
                         <div class="product-actions">
                             <a href="products/index.html" class="btn-primary btn-sm">View Details</a>
                             <button onclick="addToCartQuick('${product.id}', '${product.name}', ${product.price})" class="btn-secondary btn-sm">Add to Cart</button>
-                        </div>
                     </div>
+                </div>
                 </div>
             `).join('');
         }
