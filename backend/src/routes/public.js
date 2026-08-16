@@ -173,7 +173,11 @@ router.post('/contact', publicFormLimiter, validate(z.object({
   await activity(null, 'message', `New contact message from ${name}`);
   const settings = await readAll();
   if (settings.email.notifyMessages) {
-    await sendMail({ to: settings.company.email, subject: `New website enquiry: ${subject || 'No subject'}`, text: `${name}${normalizedEmail ? ` <${normalizedEmail}>` : ''}${phone ? ` (${phone})` : ''}\n\n${message}` });
+    try {
+      await sendMail({ to: settings.company.email, subject: `New website enquiry: ${subject || 'No subject'}`, text: `${name}${normalizedEmail ? ` <${normalizedEmail}>` : ''}${phone ? ` (${phone})` : ''}\n\n${message}` });
+    } catch (err) {
+      await activity(null, 'message', `Contact email notification failed for ${created.id}: ${err.message}`);
+    }
   }
   res.status(201).json({ success: true, data: { id: created.id }, message: 'Thank you — your message has been received.' });
 }));

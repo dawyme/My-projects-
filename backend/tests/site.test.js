@@ -110,6 +110,7 @@ async function main() {
     cForm.elements.name.value = 'Integration Tester';
     cForm.elements.email.value = `site.contact.${Date.now()}@example.com`;
     cForm.elements.phone.value = '+1 555 4444';
+    cForm.elements.service_type.value = 'Air Conditioning Repair / Installation';
     cForm.elements.message.value = 'Automated verification of the website contact form.';
     cForm.dispatchEvent(new cw.Event('submit', { bubbles: true, cancelable: true }));
     const stored = await until(async () => (await prisma.contactMessage.count()) > beforeMessages);
