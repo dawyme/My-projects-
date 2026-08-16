@@ -49,8 +49,8 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate --schema backend/prisma/schema.prisma
 
-      - name: Apply database migrations
-        run: npx prisma migrate deploy --schema backend/prisma/schema.prisma
+      - name: Sync test database schema
+        run: npx prisma db push --schema backend/prisma/schema.prisma --accept-data-loss
 
       - name: Run tests
         run: npm test
