@@ -12,7 +12,7 @@ const API_BASE = (() => {
   return location.origin;
 })();
 
-const STORAGE_KEY = 'coolair.auth';
+const STORAGE_KEY = 'nds.auth';
 
 export class ApiError extends Error {
   constructor(status, message, details) {

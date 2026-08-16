@@ -156,8 +156,8 @@ async function main() {
   const qw = quoteDom.window;
   const qForm = qw.document.getElementById('quoteForm');
   record(!!qForm, 'Quote page exposes the quote form');
-  record(typeof qw.CoolAirSubmitQuote === 'function', 'Quote form is wired to the backend helper');
-  if (qForm && qw.CoolAirSubmitQuote) {
+  record(typeof qw.NDSSSubmitQuote === 'function', 'Quote form is wired to the backend helper');
+  if (qForm && qw.NDSSSubmitQuote) {
     const set = (id, v) => { const n = qw.document.getElementById(id); if (n) n.value = v; };
     set('quoteName', 'Integration Quoter');
     set('quotePhone', '+1 555 6666');
@@ -218,7 +218,7 @@ async function main() {
   // ---------- Website Content Manager dynamic integration
   const scDom = await loadPage('index.html', base, vc);
   const scWin = scDom.window;
-  record(typeof scWin.CoolAirContent === 'object', 'Homepage loads the site content loader');
+  record(typeof scWin.NDSContent === 'object', 'Homepage loads the site content loader');
   const heroTitle = scWin.document.querySelector('[data-content="homepage.hero.title"]');
   record(!!heroTitle && heroTitle.textContent.trim().length > 10, 'Homepage hero title is wired to dynamic content',
     heroTitle ? heroTitle.textContent.trim() : 'missing element');

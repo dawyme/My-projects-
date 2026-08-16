@@ -21,11 +21,11 @@ const srv=app.listen(0,async()=>{
   const login=await fetch(base+'/api/csrf-token');
   const csrf=(await login.json()).data.csrfToken;
   const cookie=login.headers.getSetCookie()[0].split(';')[0];
-  const lr=await fetch(base+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json','x-csrf-token':csrf,cookie},body:JSON.stringify({email:'admin@coolairhvac.com',password:'Admin@12345'})});
+  const lr=await fetch(base+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json','x-csrf-token':csrf,cookie},body:JSON.stringify({email:'admin@ndsairconditioning.com',password:'Admin@12345'})});
   const session=JSON.stringify({accessToken:(await lr.json()).data.accessToken});
   const vc=new VirtualConsole();
   const dom=new JSDOM(page('index.html'),{url:base+'/admin/index.html',runScripts:'dangerously',resources:'usable',pretendToBeVisual:true,virtualConsole:vc,
-    beforeParse(w){inst(w,base);w.localStorage.setItem('coolair.auth',session);w.scrollTo=()=>{};w.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}});}});
+    beforeParse(w){inst(w,base);w.localStorage.setItem('nds.auth',session);w.scrollTo=()=>{};w.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}});}});
   const w=dom.window; w.document.cookie=cookie+'; path=/';
   const routes=process.argv.slice(2).length?process.argv.slice(2):['#/'];
   await wait(3000);

@@ -45,7 +45,7 @@ async function sendBookingStatusEmail(booking, customer) {
     text: `Hi ${customer.name}, your booking ${booking.reference} scheduled for ${when} is ${statusLabels[booking.status] || booking.status}.`,
     html: layout('Service Booking Update', `<p>Hi <strong>${customer.name}</strong>,</p>
       <p>Your booking <strong>${booking.reference}</strong> scheduled for <strong>${when}</strong> is ${statusLabels[booking.status] || booking.status}.</p>
-      <p>Thank you for choosing CoolAir HVAC &amp; Refrigeration.</p>`),
+      <p>Thank you for choosing N&D'S Air Conditioning &amp; Refrigeration Services.</p>`),
   });
 }
 
@@ -54,7 +54,7 @@ async function sendMessageReplyEmail(message, body) {
     to: message.email,
     subject: `Re: ${message.subject || 'Your enquiry'}`,
     text: body,
-    html: layout('Reply from CoolAir HVAC', `<p>Hi <strong>${message.name}</strong>,</p>
+    html: layout('Reply from N&D'S Air Conditioning & Refrigeration Services', `<p>Hi <strong>${message.name}</strong>,</p>
       <p>${String(body).replace(/\n/g, '<br>')}</p>`),
   });
 }

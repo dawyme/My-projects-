@@ -241,5 +241,5 @@
     init();
   }
 
-  window.CoolAirContent = { load: init };
+  window.NDSContent = { load: init };
 })();

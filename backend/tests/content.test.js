@@ -74,9 +74,9 @@ async function main() {
   await admin.get('/api/csrf-token');
   await staff.get('/api/csrf-token');
   await anon.get('/api/csrf-token');
-  const aLogin = await admin.post('/api/auth/login', { email: process.env.SEED_ADMIN_EMAIL || 'admin@coolairhvac.com', password: process.env.SEED_ADMIN_PASSWORD || 'Admin@12345' });
+  const aLogin = await admin.post('/api/auth/login', { email: process.env.SEED_ADMIN_EMAIL || 'admin@ndsairconditioning.com', password: process.env.SEED_ADMIN_PASSWORD || 'Admin@12345' });
   admin.setBearer(aLogin.body.data.accessToken);
-  const sLogin = await staff.post('/api/auth/login', { email: process.env.SEED_STAFF_EMAIL || 'staff@coolairhvac.com', password: process.env.SEED_STAFF_PASSWORD || 'Staff@12345' });
+  const sLogin = await staff.post('/api/auth/login', { email: process.env.SEED_STAFF_EMAIL || 'staff@ndsairconditioning.com', password: process.env.SEED_STAFF_PASSWORD || 'Staff@12345' });
   staff.setBearer(sLogin.body.data.accessToken);
 
   // ---------- content pages
@@ -101,10 +101,10 @@ async function main() {
     assert.strictEqual(r.body.data.content.hero.title, 'Test Hero Title');
   });
   await test('PUT /api/content/homepage persists SEO fields', async () => {
-    const r = await admin.put('/api/content/homepage', { seo: { metaTitle: 'CoolAir Home', robots: 'index,follow' } });
+    const r = await admin.put('/api/content/homepage', { seo: { metaTitle: 'N&D'S Home', robots: 'index,follow' } });
     assert.strictEqual(r.status, 200);
     const check = await admin.get('/api/content/homepage');
-    assert.strictEqual(check.body.data.seo.metaTitle, 'CoolAir Home');
+    assert.strictEqual(check.body.data.seo.metaTitle, 'N&D'S Home');
   });
   await test('POST /api/content/homepage/autosave stores a draft', async () => {
     const r = await admin.post('/api/content/homepage/autosave', { draft: { hero: { title: 'Draft Hero' } } });

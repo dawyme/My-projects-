@@ -27,7 +27,7 @@ All Content Manager endpoints live under `/api` and are grouped as follows. Auth
 curl -X PUT http://localhost:3001/api/content/homepage \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{ "content": { "hero": { "title": "New hero title" } },
-        "seo": { "metaTitle": "CoolAir Home" } }'
+        "seo": { "metaTitle": "N&D'S Home" } }'
 
 curl -X POST http://localhost:3001/api/content/homepage/publish \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
