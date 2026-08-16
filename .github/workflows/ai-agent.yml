@@ -52,5 +52,13 @@ jobs:
       - name: Sync test database schema
         run: npx prisma db push --schema backend/prisma/schema.prisma --accept-data-loss
 
+      - name: Seed test database
+        run: npm --prefix backend run seed
+        env:
+          SEED_ADMIN_EMAIL: admin@coolairhvac.com
+          SEED_ADMIN_PASSWORD: Admin@12345
+          SEED_STAFF_EMAIL: staff@coolairhvac.com
+          SEED_STAFF_PASSWORD: Staff@12345
+
       - name: Run tests
         run: npm test
