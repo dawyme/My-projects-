@@ -14,7 +14,7 @@ const router = express.Router();
 
 const DEFAULTS = {
   company: {
-    name: 'N&D'S Air Conditioning & Refrigeration Services',
+    name: 'N&D\'S Air Conditioning & Refrigeration Services',
     tagline: 'HVAC, Refrigeration & Automotive AC Specialists',
     email: 'info@ndsairconditioning.com',
     phone: '+1 (555) 010-2030',
@@ -32,7 +32,7 @@ const DEFAULTS = {
     emergency247: true,
   },
   social: { facebook: '', instagram: '', twitter: '', linkedin: '', youtube: '', tiktok: '' },
-  email: { fromName: 'N&D'S Air Conditioning & Refrigeration Services', fromEmail: 'no-reply@ndsairconditioning.com', replyTo: 'info@ndsairconditioning.com', notifyBookings: true, notifyMessages: true },
+  email: { fromName: 'N&D\'S Air Conditioning & Refrigeration Services', fromEmail: 'no-reply@ndsairconditioning.com', replyTo: 'info@ndsairconditioning.com', notifyBookings: true, notifyMessages: true },
   payment: {
     currency: 'USD', currencySymbol: '$', taxRate: 0,
     bankTransfer: true, bankTransferDetails: 'Bank transfer — please use your order reference as the payment memo.',
@@ -41,7 +41,7 @@ const DEFAULTS = {
     paypalEnabled: false, paypalClientId: '',
     wipayEnabled: false, tilopayEnabled: false,
   },
-  seo: { title: 'N&D'S Air Conditioning & Refrigeration Services | AC, Refrigeration & Automotive AC', description: 'Professional HVAC installation, refrigeration servicing and automotive AC repair. Parts, refrigerants and compressors in stock.', keywords: 'hvac, air conditioning, refrigeration, automotive ac, compressors, refrigerants', ogImage: '/assets/logo.png', googleAnalyticsId: '', indexable: true },
+  seo: { title: 'N&D\'S Air Conditioning & Refrigeration Services | AC, Refrigeration & Automotive AC', description: 'Professional HVAC installation, refrigeration servicing and automotive AC repair. Parts, refrigerants and compressors in stock.', keywords: 'hvac, air conditioning, refrigeration, automotive ac, compressors, refrigerants', ogImage: '/assets/logo.png', googleAnalyticsId: '', indexable: true },
 };
 
 const SCHEMAS = {
@@ -132,7 +132,7 @@ router.post('/logo', protect, adminOnly, upload.single('logo'), asyncHandler(asy
 router.post('/test-email', protect, adminOnly, validate(z.object({ to: z.string().email() })), asyncHandler(async (req, res) => {
   const result = await sendMail({
     to: req.body.to,
-    subject: 'N&D'S Air Conditioning & Refrigeration Services — test email',
+    subject: 'N&D\'S Air Conditioning & Refrigeration Services — test email',
     text: 'This is a test email from your admin dashboard. Email delivery is configured correctly.',
   });
   await audit(req, 'TEST_EMAIL', 'Setting', 'email', { to: req.body.to });

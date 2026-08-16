@@ -101,10 +101,10 @@ async function main() {
     assert.strictEqual(r.body.data.content.hero.title, 'Test Hero Title');
   });
   await test('PUT /api/content/homepage persists SEO fields', async () => {
-    const r = await admin.put('/api/content/homepage', { seo: { metaTitle: 'N&D'S Home', robots: 'index,follow' } });
+    const r = await admin.put('/api/content/homepage', { seo: { metaTitle: 'N&D\'S Home', robots: 'index,follow' } });
     assert.strictEqual(r.status, 200);
     const check = await admin.get('/api/content/homepage');
-    assert.strictEqual(check.body.data.seo.metaTitle, 'N&D'S Home');
+    assert.strictEqual(check.body.data.seo.metaTitle, 'N&D\'S Home');
   });
   await test('POST /api/content/homepage/autosave stores a draft', async () => {
     const r = await admin.post('/api/content/homepage/autosave', { draft: { hero: { title: 'Draft Hero' } } });

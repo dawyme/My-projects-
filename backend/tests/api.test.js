@@ -337,7 +337,7 @@ async function main() {
     assert.strictEqual(r.body.data.status, 'READ');
   });
   await test('POST /api/messages/:id/reply stores a reply', async () => {
-    const r = await admin.post(`/api/messages/${messageId}/reply`, { body: 'Thank you for contacting N&D'S Air Conditioning & Refrigeration Services.' });
+    const r = await admin.post(`/api/messages/${messageId}/reply`, { body: 'Thank you for contacting N&D\'S Air Conditioning & Refrigeration Services.' });
     assert.strictEqual(r.status, 201);
   });
   await test('POST /api/messages/bulk archives messages', async () => {
@@ -424,7 +424,7 @@ async function main() {
   });
   await test('PUT /api/settings/company persists changes (admin only)', async () => {
     assert.strictEqual((await staff.put('/api/settings/company', { name: 'Nope' })).status, 403);
-    const r = await admin.put('/api/settings/company', { name: 'N&D'S Air Conditioning & Refrigeration Services', email: 'info@ndsairconditioning.com', phone: '+1 555 0102030' });
+    const r = await admin.put('/api/settings/company', { name: 'N&D\'S Air Conditioning & Refrigeration Services', email: 'info@ndsairconditioning.com', phone: '+1 555 0102030' });
     assert.strictEqual(r.status, 200);
     const check = await admin.get('/api/settings');
     assert.strictEqual(check.body.data.company.phone, '+1 555 0102030');
