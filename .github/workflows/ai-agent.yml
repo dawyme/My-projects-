@@ -24,14 +24,15 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U postgres -d nds_test"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
+          --health-cmd "pg_isready -U postgres -d nds_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nds_test
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/nds_test
+      NODE_ENV: test
 
     steps:
       - name: Checkout repository
@@ -49,16 +50,11 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate --schema backend/prisma/schema.prisma
 
-      - name: Sync test database schema
-        run: npx prisma db push --schema backend/prisma/schema.prisma --accept-data-loss
+      - name: Apply database schema
+        run: npx prisma db push --schema backend/prisma/schema.prisma --skip-generate
 
       - name: Seed test database
-        run: npm --prefix backend run seed
-        env:
-          SEED_ADMIN_EMAIL: admin@coolairhvac.com
-          SEED_ADMIN_PASSWORD: Admin@12345
-          SEED_STAFF_EMAIL: staff@coolairhvac.com
-          SEED_STAFF_PASSWORD: Staff@12345
+        run: node backend/prisma/seed.js
 
       - name: Run tests
         run: npm test
