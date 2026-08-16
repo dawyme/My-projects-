@@ -14,6 +14,25 @@ jobs:
   verify:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: nds_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d nds_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nds_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/nds_test
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,6 +45,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate --schema backend/prisma/schema.prisma
+
+      - name: Apply database migrations
+        run: npx prisma migrate deploy --schema backend/prisma/schema.prisma
 
       - name: Run tests
         run: npm test
