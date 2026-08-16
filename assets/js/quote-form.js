@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
             message,
         ].filter(Boolean).join('\n');
 
-        window.CoolAirSubmitQuote({ name: name, email: email, phone: phone, message: details })
+        window.NDSSSubmitQuote({ name: name, email: email, phone: phone, message: details })
             .then(function () {
                 quoteForm.style.display = 'none';
                 quoteThankYou.style.display = 'block';

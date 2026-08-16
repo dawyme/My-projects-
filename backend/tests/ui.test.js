@@ -163,10 +163,10 @@ async function main() {
   bootBundle(lw, loginPage.script);
   await until(() => lw.document.getElementById('loginForm'));
   record(!!lw.document.getElementById('loginForm'), 'Login page renders the sign-in form');
-  record(lw.document.body.textContent.includes('admin@coolairhvac.com'), 'Login page shows demo credentials');
+  record(lw.document.body.textContent.includes('admin@ndsairconditioning.com'), 'Login page shows demo credentials');
 
   // Submit invalid credentials and expect a visible error.
-  lw.document.getElementById('email').value = 'admin@coolairhvac.com';
+  lw.document.getElementById('email').value = 'admin@ndsairconditioning.com';
   lw.document.getElementById('password').value = 'definitely-wrong';
   lw.document.getElementById('loginForm').dispatchEvent(new lw.Event('submit', { bubbles: true, cancelable: true }));
   const sawError = await until(() => !lw.document.getElementById('alert').hidden);
@@ -178,10 +178,10 @@ async function main() {
   lw.document.getElementById('loginForm').dispatchEvent(new lw.Event('submit', { bubbles: true, cancelable: true }));
   await wait(400);
   const loggedIn = await until(() => {
-    try { return !!JSON.parse(lw.localStorage.getItem('coolair.auth') || '{}').accessToken; } catch { return false; }
+    try { return !!JSON.parse(lw.localStorage.getItem('nds.auth') || '{}').accessToken; } catch { return false; }
   });
   record(loggedIn, 'Login stores a session and redirects to the dashboard');
-  const session = lw.localStorage.getItem('coolair.auth');
+  const session = lw.localStorage.getItem('nds.auth');
   const cookies = lw.document.cookie;
   loginDom.window.close();
 
@@ -198,7 +198,7 @@ async function main() {
     runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true, virtualConsole,
     beforeParse(window) {
       installFetch(window, base);
-      window.localStorage.setItem('coolair.auth', session);
+      window.localStorage.setItem('nds.auth', session);
       window.scrollTo = () => {};
       window.matchMedia = window.matchMedia || (() => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
       window.URL.createObjectURL = () => 'blob:mock';

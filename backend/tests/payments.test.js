@@ -80,7 +80,7 @@ async function main() {
   await test('admin login', async () => {
     await admin.get('/api/csrf-token');
     await anon.get('/api/csrf-token');
-    const r = await admin.post('/api/auth/login', { email: 'admin@coolairhvac.com', password: 'Admin@12345' });
+    const r = await admin.post('/api/auth/login', { email: 'admin@ndsairconditioning.com', password: 'Admin@12345' });
     assert.strictEqual(r.status, 200);
     admin.setBearer(r.body.data.accessToken);
   });
@@ -352,7 +352,7 @@ async function main() {
   await test('capture is staff-permitted, refund is admin-only', async () => {
     const staff = makeClient();
     await staff.get('/api/csrf-token');
-    const login = await staff.post('/api/auth/login', { email: 'staff@coolairhvac.com', password: 'Staff@12345' });
+    const login = await staff.post('/api/auth/login', { email: 'staff@ndsairconditioning.com', password: 'Staff@12345' });
     staff.setBearer(login.body.data.accessToken);
     const r = await anon.post('/api/payments/checkout', {
       name: 'Rbac Buyer', email: `rbac.${Date.now()}@example.com`,

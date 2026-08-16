@@ -104,9 +104,9 @@
                 const method = (form.getAttribute('method') || 'POST').toUpperCase();
 
                 // Prefer the CoolAir backend when the API bridge is loaded.
-                if (window.CoolAirSubmitForm) {
+                if (window.NDSSSubmitForm) {
                     try {
-                        await window.CoolAirSubmitForm(form);
+                        await window.NDSSSubmitForm(form);
                         submitted = true;
                     } catch (error) {
                         console.warn('Backend submission failed; falling back.', error);

@@ -55,7 +55,7 @@ npm run setup          # migrate + seed
 npm run migrate && npm run seed
 ```
 
-Seeding creates an admin user (`admin@coolairhvac.com` / `Admin@12345`), the default staff user, and **sample published content** for every Content Manager module so the site and dashboard are populated out of the box.
+Seeding creates an admin user (`admin@ndsairconditioning.com` / `Admin@12345`), the default staff user, and **sample published content** for every Content Manager module so the site and dashboard are populated out of the box.
 
 ## 4. Run the app
 
