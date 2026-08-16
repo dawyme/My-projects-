@@ -1,7 +1,7 @@
 # robots.txt for N&D's Air Conditioning and Refrigeration
 
 # Sitemap location
-Sitemap: https://www.ndsairconditioning.com/sitemap.xml
+Sitemap: https://ndsairconditioning.com/sitemap.xml
 
 # User-agent directives
 User-agent: *
