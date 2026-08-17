@@ -74,3 +74,16 @@ Work order: `NEW → SCHEDULED → IN_PROGRESS → COMPLETED` or `CANCELLED`.
 
 ## Definition of Done
 A customer request becomes exactly one work order; the work order uses existing dispatch, technicians, inventory, estimate/invoice/payment and service-history systems; security and tenant boundaries are enforced; tests pass; and no unrelated N&D’S behavior changes.
+
+## Verified Checkpoint — 2026-08-17
+
+Milestone 6 service-operations core is implemented through authenticated request intake, one-to-one work-order conversion, and the initial work-order lifecycle guard.
+
+- Added `ServiceRequest` and `WorkOrder` Prisma models plus the additive `20260817000000_service_operations_core` migration.
+- Added authenticated service-request create/list/detail/convert endpoints.
+- Conversion uses an atomic transaction and unique `requestId`; repeat conversion returns the same work order.
+- Added authenticated work-order status updates with explicit transition validation; `NEW → COMPLETED` is rejected.
+- `node backend/tests/service-operations-contract.test.js` passes.
+- The broader regression run is functionally green outside pre-existing email-environment failures caused by missing `RESEND_API_KEY` (the contact-message failures cascade from that configuration error).
+
+**Next checkpoint:** Continue with Task 4 dispatch/technician handoff. Reuse the existing Booking/dispatch and Technician concepts; do not create duplicate scheduling or technician models.
