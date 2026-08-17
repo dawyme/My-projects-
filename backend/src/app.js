@@ -153,7 +153,7 @@ app.use('/admin', express.static(path.join(ROOT, 'admin'), { etag: true }));
 // ---------------------------------------------------------------- api
 app.use('/api', apiLimiter);
 app.use('/api', verifyCsrf);
-app.use(['/api/products', '/api/bookings', '/api/customers', '/api/messages', '/api/inventory', '/api/orders', '/api/users', '/api/settings', '/api/categories', '/api/services', '/api/content', '/api/site-content', '/api/media'], writeLimiter);
+app.use(['/api/products', '/api/bookings', '/api/customers', '/api/messages', '/api/inventory', '/api/orders', '/api/users', '/api/settings', '/api/categories', '/api/services', '/api/content', '/api/site-content', '/api/media', '/api/service-requests', '/api/work-orders'], writeLimiter);
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/dashboard', require('./routes/dashboard'));
@@ -180,6 +180,8 @@ app.use('/api/equipment', require('./routes/equipment'));
 app.use('/api/estimates', require('./routes/estimates'));
 app.use('/api/invoices', require('./routes/invoices'));
 app.use('/api/dispatch', require('./routes/dispatch'));
+app.use('/api/service-requests', require('./routes/service-requests'));
+app.use('/api/work-orders', require('./routes/work-orders'));
 
 // ---------------------------------------------------------------- site
 app.use('/', express.static(ROOT, { ...staticOpts, index: 'index.html', extensions: ['html'] }));
