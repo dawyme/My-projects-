@@ -71,7 +71,10 @@ function splitStatements(sql) {
     // skip them in local dev — Prisma's client-side engine emulates the FK
     // relationships at the application layer.
     .filter((s) => !/^CREATE\s+SCHEMA/i.test(s))
-    .filter((s) => !/^ALTER\s+TABLE.*ADD\s+CONSTRAINT.*FOREIGN\s+KEY/i.test(s));
+    .filter((s) => !/^ALTER\s+TABLE.*ADD\s+CONSTRAINT.*FOREIGN\s+KEY/i.test(s))
+    // SQLite does not support PostgreSQL's ALTER COLUMN ... DROP NOT NULL.
+    // The local Prisma schema already models the column as nullable.
+    .filter((s) => !/^ALTER\s+TABLE.*ALTER\s+COLUMN.*DROP\s+NOT\s+NULL/i.test(s));
 }
 
 /** SQLite runner is idempotent for CREATE statements so the shared

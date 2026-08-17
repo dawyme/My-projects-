@@ -112,11 +112,40 @@ model Customer {
   orders   Order[]
   messages ContactMessage[]
 
-  equipment Equipment[]
-  estimates Estimate[]
-  invoices  Invoice[]
+  equipment       Equipment[]
+  estimates       Estimate[]
+  invoices        Invoice[]
+  serviceRequests ServiceRequest[]
 
   @@index([email])
+}
+
+model ServiceRequest {
+  id          String    @id @default(uuid())
+  customerId  String
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  serviceType String
+  problem     String
+  address     String
+  priority    String    @default("NORMAL") // LOW NORMAL HIGH URGENT
+  status      String    @default("NEW") // NEW REVIEWING ACCEPTED CONVERTED CANCELLED
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workOrder   WorkOrder?
+
+  @@index([customerId])
+  @@index([status])
+}
+
+model WorkOrder {
+  id        String         @id @default(uuid())
+  requestId String         @unique
+  request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  status    String         @default("NEW") // NEW ASSIGNED IN_PROGRESS COMPLETED CANCELLED
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([status])
 }
 
 model Service {

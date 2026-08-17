@@ -131,6 +131,8 @@ async function reset() {
   await prisma.contactMessage.deleteMany();
   await prisma.bookingNote.deleteMany();
   await prisma.booking.deleteMany();
+  await prisma.workOrder.deleteMany();
+  await prisma.serviceRequest.deleteMany();
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
   await prisma.inventoryAdjustment.deleteMany();
