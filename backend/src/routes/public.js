@@ -179,6 +179,16 @@ router.post('/contact', publicFormLimiter, validate(z.object({
       await activity(null, 'message', `Contact email notification failed for ${created.id}: ${err.message}`);
     }
   }
+  if (normalizedEmail) {
+    try {
+      await sendMail({
+        to: normalizedEmail, subject: `We received your message — ${storedSubject}`,
+        text: `Hi ${name}, thanks for reaching out to us. We've received your enquiry and will get back to you shortly.\n\nYour message:\n${message}`,
+      });
+    } catch (err) {
+      await activity(null, 'message', `Contact customer confirmation email failed for ${created.id}: ${err.message}`);
+    }
+  }
   res.status(201).json({ success: true, data: { id: created.id }, message: 'Thank you — your message has been received.' });
 }));
 
