@@ -75,6 +75,17 @@ const ROUTES = [
   ['#/profile', 'My Profile', ['Change password', 'Sessions']],
   ['#/content', 'Website Content Manager', ['Homepage', 'About Us', 'Services', 'SEO settings', 'Publish']],
   ['#/media', 'Media Library', ['Upload', 'Folders']],
+  // Supplier Marketplace — dedicated admin section
+  ['#/supplier-marketplace', 'Supplier Marketplace', ['Supplier Marketplace', 'Connector availability', 'Start here', 'Connected integrations']],
+  ['#/suppliers', 'Suppliers', ['Add supplier', 'Trade', 'Fulfilment', 'Integration']],
+  ['#/supplier-integrations', 'Supplier Integrations', ['Available connectors', 'Add integration', 'REST / JSON API']],
+  ['#/supplier-imports', 'Import Products', ['New import', 'Template CSV', 'Status']],
+  ['#/supplier-products', 'Supplier Products', ['Supplier SKU', 'Cost', 'Mapping']],
+  ['#/supplier-fulfillment', 'Supplier Fulfillment', ['Raise from order', 'Transmission', 'Tracking']],
+  ['#/supplier-shipping', 'Supplier Shipping', ['Add shipping rule', 'Restricted products', 'Destinations']],
+  ['#/supplier-sync', 'Sync & Automation', ['Automation', 'Per-supplier schedule', 'Running now']],
+  ['#/supplier-logs', 'Sync Logs', ['Trigger', 'Processed', 'Status']],
+  ['#/supplier-settings', 'Marketplace Settings', ['Pricing defaults', 'Permissions', 'Markup rules']],
   ['#/no-such-page', 'Not found', ['Page not found']],
 ];
 
@@ -215,6 +226,18 @@ async function main() {
   record(!!doc.querySelector('.topbar') && !!doc.querySelector('#userBtn'), 'Top navigation with user menu is present');
   record(doc.querySelectorAll('.nav-link').length >= 12, 'Sidebar navigation lists every section',
     `${doc.querySelectorAll('.nav-link').length} links`);
+
+  // The Supplier Marketplace is its own top-level sidebar group with its own pages.
+  const supplierGroup = [...doc.querySelectorAll('.nav-group')]
+    .find((g) => g.querySelector('.nav-group__label')?.textContent.trim() === 'Supplier Marketplace');
+  record(!!supplierGroup, 'Sidebar has a dedicated top-level "Supplier Marketplace" group');
+  if (supplierGroup) {
+    const links = [...supplierGroup.querySelectorAll('.nav-link')].map((l) => l.textContent.trim());
+    const expected = ['Marketplace Dashboard', 'Suppliers', 'Integrations / Plugins', 'Import Products',
+      'Supplier Products', 'Fulfillment', 'Shipping', 'Sync & Automation', 'Sync Logs', 'Marketplace Settings'];
+    record(expected.every((e) => links.some((l) => l.includes(e))),
+      'Supplier Marketplace group lists all ten section pages', links.join(' | '));
+  }
   record(!!doc.querySelector('#menuToggle'), 'Mobile menu toggle exists');
   record(!!doc.querySelector('.skip-link'), 'Accessibility skip link is present');
 

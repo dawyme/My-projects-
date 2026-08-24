@@ -85,9 +85,20 @@ model Product {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  orderItems  OrderItem[]
-  adjustments InventoryAdjustment[]
-  restocks    Restock[]
+  // --- Supplier Marketplace -------------------------------------------------
+  // `quantity` above is ALWAYS N&D-owned stock and is never inflated by a
+  // supplier feed. `supplierStock` mirrors what the mapped supplier currently
+  // advertises; it only becomes sellable when `fulfillmentType` is
+  // SUPPLIER_FULFILLED or HYBRID (see lib/suppliers/inventory.js).
+  fulfillmentType String  @default("LOCAL") // LOCAL | SUPPLIER_FULFILLED | HYBRID
+  supplierStock   Int     @default(0)
+  supplierStockAt DateTime?
+  // -------------------------------------------------------------------------
+
+  orderItems        OrderItem[]
+  adjustments       InventoryAdjustment[]
+  restocks          Restock[]
+  supplierMappings  SupplierProductMapping[]
 
   @@index([categoryId])
   @@index([featured])
@@ -189,10 +200,15 @@ model Order {
   shippingPhone    String?
   shippingAddress  String?
   shippingCity     String?
+  // International dropshipping needs a destination country + postal code to
+  // resolve supplier shipping rules and country restrictions.
+  shippingCountry  String?
+  shippingPostalCode String?
   notes            String?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
   items            OrderItem[]
+  supplierFulfillments SupplierFulfillment[]
 
   @@index([status])
   @@index([customerId])
@@ -209,6 +225,10 @@ model OrderItem {
   quantity  Int     @default(1)
   unitPrice Float   @default(0)
   total     Float   @default(0)
+  // How many of `quantity` were taken from N&D-owned stock at order time; the
+  // remainder is dropshipped by the supplier. Null on rows created before the
+  // Supplier Marketplace, which are treated as fully local.
+  localQuantity Int?
 
   @@index([orderId])
   @@index([productId])
@@ -550,4 +570,386 @@ model MediaAsset {
   updatedAt DateTime @updatedAt
 
   @@index([folder])
+}
+
+// ---------------------------------------------------------------------------
+// Global Supplier Marketplace — supplier catalogues, connectors, synchronisation,
+// dropship fulfillment and worldwide shipping rules.
+//
+// Tenant model: every supplier-domain row carries `tenantId`. The platform is
+// currently single-business, so it defaults to "default"; the column exists so
+// the marketplace can be scoped per business without a data migration when
+// multi-tenancy is switched on (see docs/SUPPLIER_MARKETPLACE.md).
+//
+// JSON payloads are stored as TEXT (String) because the local dev/test database
+// is SQLite — this matches the existing `Product.gallery` / `Product.specs`
+// convention used elsewhere in this schema.
+// ---------------------------------------------------------------------------
+
+/// A trade supplier / distributor / manufacturer.
+model Supplier {
+  id                String   @id @default(uuid())
+  tenantId          String   @default("default")
+  name              String
+  code              String
+  country           String   @default("") // ISO 3166-1 alpha-2 of the supplier
+  currency          String   @default("USD")
+  website           String?
+  email             String?
+  phone             String?
+  contactName       String?
+  accountRef        String? // our account/reference number with this supplier
+  type              String   @default("GENERAL") // HVAC | REFRIGERATION | AUTOMOTIVE_AC | ELECTRICAL | PLUMBING | APPLIANCE | GENERAL | <custom>
+  fulfillmentType   String   @default("HYBRID") // LOCAL | SUPPLIER_FULFILLED | HYBRID
+  status            String   @default("ACTIVE") // ACTIVE | DISABLED | ARCHIVED
+  countriesServed   String? // JSON array of ISO codes; null/[] = worldwide
+  blockedCountries  String? // JSON array of ISO codes never served
+  shippingMethods   String? // JSON array of shipping method codes offered
+  leadTimeDays      Int      @default(0)
+  minOrderValue     Float    @default(0)
+  paymentTerms      String?
+  dropshipEnabled   Boolean  @default(true)
+  markupType        String? // PERCENT | FIXED — supplier-level default markup
+  markupValue       Float?
+  notes             String?
+  archivedAt        DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  integration   SupplierIntegration?
+  products      SupplierProduct[]
+  mappings      SupplierProductMapping[]
+  imports       SupplierCatalogImport[]
+  syncs         SupplierSync[]
+  fulfillments  SupplierFulfillment[]
+  shippingRules SupplierShippingRule[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([status])
+  @@index([type])
+}
+
+/// A configured connector/plugin binding a supplier to a transport + protocol.
+/// Secrets live ONLY in `credentialsCipher` (AES-256-GCM) and are never sent to
+/// the browser — `credentialFields` holds masked metadata for the UI.
+model SupplierIntegration {
+  id                  String    @id @default(uuid())
+  tenantId            String    @default("default")
+  supplierId          String    @unique
+  supplier            Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  name                String
+  connectorType       String // REST_JSON | GRAPHQL | CSV_FEED | XML_FEED | JSON_FEED | SFTP | MANUAL
+  baseUrl             String?
+  authType            String    @default("NONE") // NONE | API_KEY | BASIC | BEARER | OAUTH2 | SFTP
+  config              String? // JSON — non-secret connector settings (endpoints, headers, column map, SFTP host…)
+  credentialsCipher   String? // AES-256-GCM envelope: v1.<iv>.<tag>.<ct> (base64url)
+  credentialFields    String? // JSON [{name, set, fingerprint, updatedAt}] — safe for the browser
+  capabilities        String? // JSON array of capability ids the connector advertises
+  status              String    @default("NOT_CONNECTED") // NOT_CONNECTED | CONFIGURED | CONNECTED | DISABLED | ERROR
+  lastTestedAt        DateTime?
+  lastConnectedAt     DateTime?
+  lastError           String?
+  syncEnabled         Boolean   @default(false)
+  syncIntervalMinutes Int       @default(0) // 0 = manual only
+  syncTypes           String? // JSON array of sync types to run on schedule
+  lastSyncAt          DateTime?
+  lastSyncStatus      String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  syncs    SupplierSync[]
+  imports  SupplierCatalogImport[]
+
+  @@index([tenantId])
+  @@index([status])
+}
+
+/// A catalogue line as advertised by a supplier. This is NOT a storefront
+/// product — publishing creates/updates the platform `Product` via `mapping`.
+model SupplierProduct {
+  id                  String    @id @default(uuid())
+  tenantId            String    @default("default")
+  supplierId          String
+  supplier            Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplierSku         String
+  manufacturerPart    String?
+  upc                 String?
+  name                String
+  description         String?
+  brand               String?
+  categoryText        String? // supplier-side category name
+  categoryId          String? // resolved platform category, when mapping succeeds
+  supplierCost        Float     @default(0)
+  currency            String    @default("USD")
+  msrp                Float?
+  stock               Int       @default(0) // units the supplier has available
+  stockStatus         String? // supplier's own availability text (IN_STOCK, BACKORDER…)
+  imageUrl            String?
+  gallery             String? // JSON array
+  specs               String? // JSON object — arbitrary key/value, trade agnostic
+  weightKg            Float?
+  lengthCm            Float?
+  widthCm             Float?
+  heightCm            Float?
+  // Restricted goods (refrigerants, gases, batteries…). Nothing here encodes a
+  // legal opinion — every restriction is operator-configured.
+  restricted          Boolean   @default(false)
+  restrictionType     String? // e.g. REFRIGERANT | PRESSURISED | FLAMMABLE | HAZMAT | CUSTOM
+  restrictionNotes    String?
+  documentationRequired String? // JSON array of document labels the operator requires
+  allowedCountries    String? // JSON array — empty/null = follow supplier defaults
+  blockedCountries    String? // JSON array
+  allowedShippingMethods String? // JSON array — restricts carrier/service choice
+  fulfillmentType     String? // null = inherit supplier default
+  // Pricing: `priceOverride` wins over the markup engine.
+  priceOverride       Float?
+  markupOverrideType  String? // PERCENT | FIXED
+  markupOverrideValue Float?
+  sellingPrice        Float     @default(0) // last computed price (denormalised for the UI)
+  markupApplied       String? // JSON snapshot of the rule that produced sellingPrice
+  // Synchronisation bookkeeping.
+  syncStatus          String    @default("NEW") // NEW | OK | CHANGED | ERROR
+  lastSyncedAt        DateTime?
+  lastSyncError       String?
+  mappingStatus       String    @default("UNMAPPED") // UNMAPPED | AUTO | MANUAL
+  published           Boolean   @default(false)
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  mapping       SupplierProductMapping?
+  fulfillments  SupplierFulfillmentItem[]
+  shippingRules SupplierShippingRule[]
+
+  @@unique([tenantId, supplierId, supplierSku])
+  @@index([tenantId])
+  @@index([supplierId])
+  @@index([published])
+  @@index([syncStatus])
+}
+
+/// Persists "supplier SKU → platform product" so future syncs never duplicate.
+model SupplierProductMapping {
+  id                String         @id @default(uuid())
+  tenantId          String         @default("default")
+  supplierId        String
+  supplier          Supplier       @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplierProductId String         @unique
+  supplierProduct   SupplierProduct @relation(fields: [supplierProductId], references: [id], onDelete: Cascade)
+  productId         String
+  product           Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplierSku       String
+  matchKey          String         @default("SKU") // SKU | MPN | UPC | MANUAL
+  source            String         @default("AUTO") // AUTO | MANUAL
+  confidence        Int            @default(100)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@unique([tenantId, productId])
+  @@index([supplierId])
+}
+
+/// A catalogue import job. Always previewed before it is committed.
+model SupplierCatalogImport {
+  id             String    @id @default(uuid())
+  tenantId       String    @default("default")
+  supplierId     String
+  supplier       Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  integrationId  String?
+  integration    SupplierIntegration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+  source         String // CSV | XML | JSON | API | SFTP | UPLOAD
+  filename       String?
+  status         String    @default("PREVIEWING") // PREVIEWING | COMMITTED | CANCELLED | FAILED
+  rowsRead       Int       @default(0)
+  rowsCreated    Int       @default(0)
+  rowsUpdated    Int       @default(0)
+  rowsUnchanged  Int       @default(0)
+  rowsFailed     Int       @default(0)
+  preview        String? // JSON array of normalised preview rows (bounded)
+  errorLog       String? // JSON array of {row, field, message}
+  committedAt    DateTime?
+  createdBy      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([tenantId])
+  @@index([supplierId])
+  @@index([status])
+}
+
+/// A synchronisation run. Also acts as the overlap lock (one RUNNING per
+/// supplier+type at a time, enforced by `sync-engine.js`).
+model SupplierSync {
+  id               String    @id @default(uuid())
+  tenantId         String    @default("default")
+  supplierId       String
+  supplier         Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  integrationId    String?
+  integration      SupplierIntegration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+  type             String    @default("FULL") // CATALOG | PRODUCTS | INVENTORY | PRICING | FULL
+  trigger          String    @default("MANUAL") // MANUAL | SCHEDULED | RETRY | ORDER
+  status           String    @default("QUEUED") // QUEUED | RUNNING | COMPLETED | PARTIAL | FAILED | CANCELLED
+  startedAt        DateTime  @default(now())
+  finishedAt       DateTime?
+  durationMs       Int?
+  processed        Int       @default(0)
+  created          Int       @default(0)
+  updated          Int       @default(0)
+  skipped          Int       @default(0)
+  inventoryUpdates Int       @default(0)
+  priceUpdates     Int       @default(0)
+  errorCount       Int       @default(0)
+  errorLog         String? // JSON array of {sku, message}
+  attempt          Int       @default(1)
+  maxAttempts      Int       @default(3)
+  parentSyncId     String? // set when this run is a retry of an earlier one
+  batch            Int       @default(100)
+  cursor           String? // pagination cursor for resumable feeds
+  message          String?
+  createdAt        DateTime  @default(now())
+
+  logs SupplierSyncLog[]
+
+  @@index([tenantId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+/// Per-record detail lines for a sync run (inspect + retry from the UI).
+model SupplierSyncLog {
+  id                String       @id @default(uuid())
+  tenantId          String       @default("default")
+  syncId            String
+  sync              SupplierSync @relation(fields: [syncId], references: [id], onDelete: Cascade)
+  supplierId        String
+  supplierProductId String?
+  sku               String?
+  action            String // CREATE | UPDATE | SKIP | ERROR
+  field             String?
+  message           String?
+  createdAt         DateTime     @default(now())
+
+  @@index([syncId])
+  @@index([supplierId])
+  @@index([action])
+}
+
+/// A dropship/supplier fulfillment raised against a real customer `Order`.
+model SupplierFulfillment {
+  id                 String   @id @default(uuid())
+  tenantId           String   @default("default")
+  supplierId         String
+  supplier           Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  orderId            String
+  order              Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  supplierOrderId    String?
+  status             String   @default("PENDING") // PENDING | READY | SUBMITTED | ACCEPTED | PROCESSING | PARTIALLY_SHIPPED | SHIPPED | DELIVERED | CANCELLED | FAILED
+  fulfillmentType    String   @default("SUPPLIER_FULFILLED")
+  transmissionMethod String   @default("MANUAL") // API | EMAIL | MANUAL
+  transmissionStatus String   @default("NOT_SENT") // NOT_SENT | SENT | ACCEPTED | REJECTED | FAILED
+  transmissionRef    String?
+  attempts           Int      @default(0)
+  submittedAt        DateTime?
+  acceptedAt         DateTime?
+  shippedAt          DateTime?
+  deliveredAt        DateTime?
+  cancelledAt        DateTime?
+  failureReason      String?
+  trackingNumber     String?
+  carrier            String?
+  trackingUrl        String?
+  shipTo             String? // JSON {name, phone, address, city, country, postalCode}
+  shippingMethod     String?
+  shippingCost       Float    @default(0)
+  currency           String   @default("USD")
+  totalCost          Float    @default(0)
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  items SupplierFulfillmentItem[]
+
+  @@unique([tenantId, orderId, supplierId])
+  @@index([tenantId])
+  @@index([status])
+  @@index([orderId])
+}
+
+model SupplierFulfillmentItem {
+  id                String              @id @default(uuid())
+  tenantId          String              @default("default")
+  fulfillmentId     String
+  fulfillment       SupplierFulfillment @relation(fields: [fulfillmentId], references: [id], onDelete: Cascade)
+  supplierProductId String?
+  supplierProduct   SupplierProduct?    @relation(fields: [supplierProductId], references: [id], onDelete: SetNull)
+  productId         String?
+  supplierSku       String
+  name              String
+  quantity          Int       @default(1)
+  unitCost          Float     @default(0)
+  unitPrice         Float     @default(0)
+  total             Float     @default(0)
+  trackingNumber    String?
+
+  @@index([fulfillmentId])
+  @@index([supplierProductId])
+}
+
+/// Shipping rules resolved by scope: GLOBAL → CATEGORY → SUPPLIER → PRODUCT.
+/// Nothing is hard-coded worldwide: no rule matches ⇒ no quote.
+model SupplierShippingRule {
+  id                String           @id @default(uuid())
+  tenantId          String           @default("default")
+  scope             String           @default("SUPPLIER") // GLOBAL | CATEGORY | SUPPLIER | PRODUCT
+  name              String
+  supplierId        String?
+  supplier          Supplier?        @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplierProductId String?
+  supplierProduct   SupplierProduct? @relation(fields: [supplierProductId], references: [id], onDelete: Cascade)
+  categoryId        String?
+  countries         String? // JSON allow-list; null = any
+  excludedCountries String? // JSON block-list
+  regions           String? // JSON list of region codes (see lib/suppliers/countries.js)
+  method            String           @default("STANDARD")
+  methodName        String           @default("Standard shipping")
+  carrier           String?
+  baseCost          Float            @default(0)
+  perKgCost         Float            @default(0)
+  perItemCost       Float            @default(0)
+  freeOverAmount    Float?
+  minDays           Int              @default(0)
+  maxDays           Int              @default(0)
+  restricted        Boolean          @default(false) // rule only valid for restricted goods
+  restrictionNote   String?
+  isActive          Boolean          @default(true)
+  sortOrder         Int              @default(0)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([tenantId])
+  @@index([supplierId])
+  @@index([scope])
+  @@index([isActive])
+}
+
+/// Markup rules for scopes that are not supplier- or product-specific.
+/// Full precedence: PRODUCT → CATEGORY → SUPPLIER → GLOBAL.
+model SupplierMarkupRule {
+  id          String   @id @default(uuid())
+  tenantId    String   @default("default")
+  scope       String   @default("CATEGORY") // GLOBAL | CATEGORY
+  categoryId  String?
+  markupType  String   @default("PERCENT") // PERCENT | FIXED
+  markupValue Float    @default(0)
+  roundTo     Float? // optional price rounding target (e.g. 0.95 → x.95)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([scope])
+  @@index([categoryId])
 }

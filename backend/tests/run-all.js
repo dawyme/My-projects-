@@ -8,6 +8,7 @@ const SUITES = [
   ['Website Content Manager', 'content.test.js'],
   ['Payment gateways', 'payments.test.js'],
   ['Tilopay unit tests', 'tilopay-unit.test.js'],
+  ['Supplier Marketplace', 'suppliers.test.js'],
   ['Admin dashboard UI', 'ui.test.js'],
   ['Public website', 'site.test.js'],
 ];
