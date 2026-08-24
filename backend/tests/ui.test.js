@@ -342,8 +342,140 @@ async function main() {
   w.location.hash = '#/content';
   await until(() => doc.querySelector('#contentTabs [data-tab="services"]'), 12000);
   doc.querySelector('#contentTabs [data-tab="services"]').click();
-  const svcRendered = await until(() => doc.querySelector('[data-list] table tbody tr'), 12000);
+  const svcRendered = await until(() =>
+    doc.querySelector('[data-list] table tbody tr') || doc.querySelector('[data-list] .empty'), 12000);
   record(svcRendered, 'Content manager Services tab lists services');
+
+  // ---- Services collection: create/edit/publish/reorder/search/delete ----
+  // Regression coverage for the rich-field targeting bug: a collection item
+  // with two independent rich-text fields (description, content) must save
+  // and reload each field under its own key, and neither field may be
+  // silently dropped from the save payload.
+  const initialSvcRows = doc.querySelectorAll('[data-list] table tbody tr[data-id]').length;
+
+  doc.querySelector('[data-add]')?.click();
+  const svcModalOpen = await until(() => doc.querySelector('.modal-backdrop #collForm'), 8000);
+  record(svcModalOpen, 'Services "New Service" modal opens with a form');
+
+  if (svcModalOpen) {
+    const form = doc.querySelector('#collForm');
+    record(['name', 'icon', 'featured', 'sortOrder'].every((f) => form.elements[f]),
+      'Service form exposes name, icon, featured and sortOrder controls');
+
+    const richEditors = [...doc.querySelectorAll('.modal-backdrop .rte__editor')];
+    record(richEditors.length === 2, 'Service form renders two independent rich-text editors',
+      `${richEditors.length} editor(s) found`);
+
+    const DESC_MARK = `UITEST-DESC-${Date.now()}`;
+    const CONTENT_MARK = `UITEST-CONTENT-${Date.now()}`;
+    const descEditor = doc.querySelector('.modal-backdrop [data-path="description"]');
+    const contentEditor = doc.querySelector('.modal-backdrop [data-path="content"]');
+    record(!!descEditor && !!contentEditor, 'Rich editors are individually addressable by field name',
+      `description: ${!!descEditor}, content: ${!!contentEditor}`);
+
+    const svcName = `UI Test Service ${Date.now()}`;
+    if (descEditor && contentEditor) {
+      descEditor.innerHTML = `<p>${DESC_MARK}</p>`;
+      contentEditor.innerHTML = `<p>${CONTENT_MARK}</p>`;
+      form.elements.name.value = svcName;
+      form.elements.name.dispatchEvent(new w.Event('input', { bubbles: true }));
+
+      doc.querySelector('.modal-backdrop [data-save]').click();
+      const saved = await until(() => !doc.querySelector('.modal-backdrop'), 8000);
+      record(saved, 'Service save closes the modal without error');
+
+      const rowsAfterCreate = await until(() =>
+        doc.querySelectorAll('[data-list] table tbody tr[data-id]').length > initialSvcRows, 8000);
+      record(rowsAfterCreate, 'New service appears in the list after saving');
+
+      const newRow = [...doc.querySelectorAll('[data-list] table tbody tr[data-id]')]
+        .find((r) => r.textContent.includes(svcName));
+
+      if (newRow) {
+        // Reopen for edit — each rich field must reload under its own key,
+        // not the other field's (the exact failure mode of the targeting bug).
+        newRow.querySelector('[data-act="edit"]').click();
+        const editOpen = await until(() => doc.querySelector('.modal-backdrop #collForm'), 8000);
+        const editDesc = doc.querySelector('.modal-backdrop [data-path="description"]');
+        const editContent = doc.querySelector('.modal-backdrop [data-path="content"]');
+        record(editOpen && !!editDesc?.innerHTML.includes(DESC_MARK) && !editDesc.innerHTML.includes(CONTENT_MARK),
+          'Saved "Short description" reloads its own content, not the other rich field\'s',
+          editDesc ? editDesc.innerHTML.slice(0, 80) : 'field missing');
+        record(editOpen && !!editContent?.innerHTML.includes(CONTENT_MARK) && !editContent.innerHTML.includes(DESC_MARK),
+          'Saved "Full description" reloads its own content, not the other rich field\'s',
+          editContent ? editContent.innerHTML.slice(0, 80) : 'field missing');
+
+        doc.querySelector('.modal-backdrop [data-close]')?.click();
+        await wait(80);
+
+        // publish/draft toggle
+        const statusBefore = newRow.querySelector('.badge')?.textContent.trim();
+        newRow.querySelector('[data-act="toggle"]').click();
+        const toggled = await until(() => {
+          const r = [...doc.querySelectorAll('[data-list] table tbody tr[data-id]')]
+            .find((x) => x.dataset.id === newRow.dataset.id);
+          return r && r.querySelector('.badge')?.textContent.trim() !== statusBefore;
+        }, 8000);
+        record(toggled, 'Publish/draft toggle changes the item\'s status');
+
+        // reorder (move up), skipped gracefully if the row is already first
+        const rowsBeforeMove = [...doc.querySelectorAll('[data-list] table tbody tr[data-id]')];
+        const targetRow = rowsBeforeMove.find((r) => r.dataset.id === newRow.dataset.id);
+        const upBtn = targetRow?.querySelector('[data-act="move"][data-dir="-1"]');
+        if (upBtn && !upBtn.disabled) {
+          const idxBefore = rowsBeforeMove.indexOf(targetRow);
+          upBtn.click();
+          await wait(150);
+          const rowsAfterMove = [...doc.querySelectorAll('[data-list] table tbody tr[data-id]')];
+          const idxAfter = rowsAfterMove.findIndex((r) => r.dataset.id === newRow.dataset.id);
+          record(idxAfter < idxBefore, 'Reorder "move up" repositions the item in the list',
+            `was ${idxBefore}, now ${idxAfter}`);
+        }
+
+        // search/filter
+        const searchBox = doc.querySelector('[data-search]');
+        searchBox.value = svcName;
+        searchBox.dispatchEvent(new w.Event('input', { bubbles: true }));
+        const filtered = await until(() => {
+          const rows = [...doc.querySelectorAll('[data-list] table tbody tr[data-id]')];
+          return rows.length === 1 && rows[0].textContent.includes(svcName);
+        }, 8000);
+        record(filtered, 'Services search filters the list to the matching item');
+        searchBox.value = '';
+        searchBox.dispatchEvent(new w.Event('input', { bubbles: true }));
+        await until(() => doc.querySelectorAll('[data-list] table tbody tr[data-id]').length >= 1, 8000);
+
+        // cleanup: delete the disposable test row via the confirm dialog
+        const rowToDelete = [...doc.querySelectorAll('[data-list] table tbody tr[data-id]')]
+          .find((r) => r.dataset.id === newRow.dataset.id);
+        rowToDelete?.querySelector('[data-act="delete"]').click();
+        const confirmOpen = await until(() => doc.querySelector('.modal-backdrop [data-confirm]'), 5000);
+        if (confirmOpen) doc.querySelector('.modal-backdrop [data-confirm]').click();
+        const deleted = await until(() =>
+          ![...doc.querySelectorAll('[data-list] table tbody tr[data-id]')].some((r) => r.dataset.id === newRow.dataset.id), 8000);
+        record(deleted, 'Delete action removes the test item via the confirm dialog');
+      } else {
+        record(false, 'Could not locate newly created service row to verify the save round-trip');
+      }
+    }
+  }
+
+  // ---- Gallery collection: different field shape, sanity pass ----
+  doc.querySelector('#contentTabs [data-tab="gallery"]')?.click();
+  const galleryRendered = await until(() =>
+    doc.querySelector('[data-list] table tbody tr') || doc.querySelector('[data-list] .empty'), 12000);
+  record(galleryRendered, 'Content manager Gallery tab renders its list');
+
+  doc.querySelector('[data-add]')?.click();
+  const galleryModalOpen = await until(() => doc.querySelector('.modal-backdrop #collForm'), 8000);
+  record(galleryModalOpen, 'Gallery "New" modal opens with a form');
+  if (galleryModalOpen) {
+    const gForm = doc.querySelector('#collForm');
+    record(['title', 'category', 'imageUrl', 'alt', 'sortOrder'].every((f) => gForm.elements[f]),
+      'Gallery form exposes its configured fields');
+    doc.querySelector('.modal-backdrop [data-close]')?.click();
+    await wait(80);
+  }
 
   // media library renders tiles
   w.location.hash = '#/media';
