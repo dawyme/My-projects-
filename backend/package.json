@@ -16,6 +16,7 @@
     "test:api": "node tests/api.test.js",
     "test:ui": "node tests/ui.test.js",
     "test:site": "node tests/site.test.js",
+    "test:suppliers": "node tests/suppliers.test.js",
     "test:payments": "node backend/tests/payments.test.js",
     "test:tilopay": "node backend/tests/tilopay-unit.test.js"
   },

@@ -8,6 +8,9 @@ const { paginationSchema, meta } = require('../lib/pagination');
 const { badRequest, notFound } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
 const cache = require('../lib/cache');
+const orderFlow = require('../lib/order-flow');
+const { availableStock, allocate } = require('../lib/suppliers/inventory');
+const { tenantOf } = require('../lib/suppliers/tenant');
 
 const router = express.Router();
 const STATUSES = ['PENDING', 'PAID', 'SHIPPED', 'COMPLETED', 'CANCELLED'];
@@ -54,12 +57,20 @@ router.post('/', protect, validate(z.object({
   if (!customer) throw badRequest('Customer not found');
 
   const products = await prisma.product.findMany({ where: { id: { in: items.map((i) => i.productId) } } });
+  // Availability = N&D stock plus, when the product opts in, its supplier's
+  // advertised stock. Supplier units are never written into Product.quantity.
+  const allocations = {};
   const lines = items.map((i) => {
     const p = products.find((x) => x.id === i.productId);
     if (!p) throw badRequest(`Product ${i.productId} not found`);
-    if (p.quantity < i.quantity) throw badRequest(`Insufficient stock for ${p.name} (${p.quantity} available)`);
+    const available = availableStock(p);
+    if (available < i.quantity) throw badRequest(`Insufficient stock for ${p.name} (${available} available)`);
+    allocations[p.id] = allocate(p, i.quantity);
     const unitPrice = i.unitPrice ?? p.price;
-    return { productId: p.id, quantity: i.quantity, unitPrice, total: round(unitPrice * i.quantity) };
+    return {
+      productId: p.id, quantity: i.quantity, unitPrice,
+      total: round(unitPrice * i.quantity), localQuantity: allocations[p.id].local,
+    };
   });
   const subtotal = round(lines.reduce((s, l) => s + l.total, 0));
   const tax = round(subtotal * (taxRate / 100));
@@ -70,25 +81,40 @@ router.post('/', protect, validate(z.object({
       include,
     });
     for (const l of lines) {
-      await tx.product.update({ where: { id: l.productId }, data: { quantity: { decrement: l.quantity } } });
+      const local = allocations[l.productId]?.local ?? l.quantity;
+      if (local > 0) {
+        await tx.product.update({ where: { id: l.productId }, data: { quantity: { decrement: local } } });
+      }
     }
     return created;
   });
   cache.invalidate('stats');
   await audit(req, 'CREATE', 'Order', order.id, { reference: order.reference, total: order.total });
   await activity(req.user.id, 'order', `${req.user.name} created order ${order.reference}`);
-  res.status(201).json({ success: true, data: order });
+  const supplierFlow = await orderFlow.afterOrderCreated({ req, orderId: order.id });
+  res.status(201).json({
+    success: true, data: order,
+    supplierFulfillments: supplierFlow.fulfillments.map((f) => ({
+      id: f.id, supplierId: f.supplierId, status: f.status, transmissionMethod: f.transmissionMethod,
+    })),
+  });
 }));
 
 // PATCH /api/orders/:id/status
 router.patch('/:id/status', protect, validate(z.object({ status: z.enum(STATUSES) })), asyncHandler(async (req, res) => {
   const existing = await prisma.order.findUnique({ where: { id: req.params.id }, include: { items: true } });
   if (!existing) throw notFound('Order not found');
+  // Units a supplier is shipping were never taken from owned stock, so they
+  // must not be returned to it when the order is cancelled.
+  const restock = await orderFlow.restockableQuantities({
+    tenantId: tenantOf(req), orderId: existing.id, items: existing.items,
+  });
   const order = await prisma.$transaction(async (tx) => {
     // Cancelling an order returns reserved stock.
     if (req.body.status === 'CANCELLED' && existing.status !== 'CANCELLED') {
       for (const item of existing.items) {
-        await tx.product.update({ where: { id: item.productId }, data: { quantity: { increment: item.quantity } } });
+        const back = restock.get(item.productId) ?? item.quantity;
+        if (back > 0) await tx.product.update({ where: { id: item.productId }, data: { quantity: { increment: back } } });
       }
     }
     // Marking an order paid also records the payment if it was still pending.
@@ -110,10 +136,14 @@ router.patch('/:id/status', protect, validate(z.object({ status: z.enum(STATUSES
 router.delete('/:id', protect, adminOnly, asyncHandler(async (req, res) => {
   const existing = await prisma.order.findUnique({ where: { id: req.params.id }, include: { items: true } });
   if (!existing) throw notFound('Order not found');
+  const restockOnDelete = await orderFlow.restockableQuantities({
+    tenantId: tenantOf(req), orderId: existing.id, items: existing.items,
+  });
   await prisma.$transaction(async (tx) => {
     if (existing.status !== 'CANCELLED') {
       for (const item of existing.items) {
-        await tx.product.update({ where: { id: item.productId }, data: { quantity: { increment: item.quantity } } });
+        const back = restockOnDelete.get(item.productId) ?? item.quantity;
+        if (back > 0) await tx.product.update({ where: { id: item.productId }, data: { quantity: { increment: back } } });
       }
     }
     await tx.order.delete({ where: { id: existing.id } });

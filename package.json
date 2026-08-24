@@ -18,7 +18,8 @@
     "test:api": "node backend/tests/api.test.js",
     "test:ui": "node backend/tests/ui.test.js",
     "test:site": "node backend/tests/site.test.js",
-    "test:payments": "node backend/tests/payments.test.js"
+    "test:payments": "node backend/tests/payments.test.js",
+    "test:suppliers": "node backend/tests/suppliers.test.js"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",

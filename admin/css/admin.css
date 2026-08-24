@@ -310,6 +310,27 @@ html[data-theme="dark"] .bulkbar{background:rgba(8,145,178,.12);border-color:rgb
 .tab{padding:10px 15px;border:0;background:none;font:inherit;font-size:13.5px;font-weight:600;color:var(--text-muted);cursor:pointer;border-bottom:2.5px solid transparent;white-space:nowrap}
 .tab:hover{color:var(--text)}
 .tab[aria-selected="true"]{color:var(--brand-600);border-bottom-color:var(--brand-600)}
+/* Supplier Marketplace section tabs are links, not tablist buttons. */
+.tab[aria-current="page"]{color:var(--brand-600);border-bottom-color:var(--brand-600)}
+a.tab{text-decoration:none}
+.capability-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.capability{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:var(--surface-2);font-size:12.5px}
+.capability--off{opacity:.55}
+.capability__label{font-weight:660}
+.capability__desc{color:var(--text-muted);font-size:11.5px;line-height:1.35}
+.diff-row{display:grid;grid-template-columns:150px 1fr 1fr;gap:8px;font-size:12.5px;padding:4px 0;border-bottom:1px dashed var(--border)}
+.diff-row__from{color:var(--text-muted);text-decoration:line-through}
+.diff-row__to{color:var(--brand-600);font-weight:620}
+.import-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.import-summary__tile{border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;background:var(--surface-2)}
+.import-summary__value{font-size:22px;font-weight:750;line-height:1.1}
+.import-summary__label{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);font-weight:700}
+.preview-table{max-height:520px;overflow:auto}
+.secret-field{display:flex;flex-direction:column;gap:4px}
+.secret-field__hint{font-size:11.5px;color:var(--text-muted)}
+.stock-split{display:inline-flex;gap:6px;align-items:baseline;font-variant-numeric:tabular-nums}
+.stock-split__part{color:var(--text-muted);font-size:11.5px}
+
 
 .inbox{display:grid;grid-template-columns:minmax(280px,360px) 1fr;min-height:560px}
 .inbox__list{border-right:1px solid var(--border);overflow-y:auto;max-height:70vh}
