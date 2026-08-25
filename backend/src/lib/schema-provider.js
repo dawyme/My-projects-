@@ -61,19 +61,35 @@ function ensureSchemaProvider() {
         );
         fs.chmodSync(wrapperPath, 0o755);
       }
+      // Dependencies may be hoisted to the repository root node_modules or kept
+      // under backend/node_modules — resolve whichever actually exists.
+      const candidates = [
+        path.join(__dirname, "..", "..", "node_modules"),
+        path.join(__dirname, "..", "..", "..", "node_modules"),
+      ];
+      const firstExisting = (...parts) => {
+        for (const base of candidates) {
+          const p = path.join(base, ...parts);
+          if (fs.existsSync(p)) return p;
+        }
+        return null;
+      };
       const env = { ...process.env };
       if (!env.PRISMA_SCHEMA_ENGINE_BINARY && fs.existsSync(wrapperPath)) {
         env.PRISMA_SCHEMA_ENGINE_BINARY = wrapperPath;
       }
-      const libPath = path.join(__dirname, "..", "..", "node_modules", "@prisma", "client", "runtime", "library.js");
-      if (!env.PRISMA_QUERY_ENGINE_LIBRARY && fs.existsSync(libPath)) {
+      const libPath = firstExisting("@prisma", "client", "runtime", "library.js");
+      if (!env.PRISMA_QUERY_ENGINE_LIBRARY && libPath) {
         env.PRISMA_QUERY_ENGINE_LIBRARY = libPath;
       }
-      const prismaBin = path.join(binDir, "prisma");
-      spawnSync(process.execPath, [prismaBin, "generate", "--schema", schemaPath], {
+      const prismaBin = firstExisting(".bin", "prisma") || path.join(binDir, "prisma");
+      const res = spawnSync(process.execPath, [prismaBin, "generate", "--schema", schemaPath], {
         stdio: "ignore",
         env,
       });
+      if (res.status !== 0 && process.env.PRISMA_GENERATE_VERBOSE) {
+        console.warn(`[schema-provider] prisma generate exited with status ${res.status}`);
+      }
     } catch (e) {}
   }
 }

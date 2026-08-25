@@ -22,6 +22,18 @@ const NAV = [
     { path: '/customers', label: 'Customers', icon: 'users' },
     { path: '/messages', label: 'Messages', icon: 'mail', badge: 'unread' },
   ] },
+  { group: 'Supplier Marketplace', items: [
+    { path: '/supplier-marketplace', label: 'Marketplace Dashboard', icon: 'dashboard' },
+    { path: '/suppliers', label: 'Suppliers', icon: 'warehouse' },
+    { path: '/supplier-integrations', label: 'Integrations / Plugins', icon: 'plug' },
+    { path: '/supplier-imports', label: 'Import Products', icon: 'upload' },
+    { path: '/supplier-products', label: 'Supplier Products', icon: 'box' },
+    { path: '/supplier-fulfillment', label: 'Fulfillment', icon: 'truck' },
+    { path: '/supplier-shipping', label: 'Shipping', icon: 'globe' },
+    { path: '/supplier-sync', label: 'Sync & Automation', icon: 'refresh' },
+    { path: '/supplier-logs', label: 'Sync Logs', icon: 'history' },
+    { path: '/supplier-settings', label: 'Marketplace Settings', icon: 'settings' },
+  ] },
   { group: 'Administration', items: [
     { path: '/settings', label: 'Settings', icon: 'settings' },
     { path: '/users', label: 'Team', icon: 'user', adminOnly: true },
@@ -135,7 +147,7 @@ export function renderShell(user) {
     if (e.key !== 'Enter' || !search.value.trim()) return;
     const q = encodeURIComponent(search.value.trim());
     const target = location.hash.slice(1).split('?')[0] || '/products';
-    const searchable = ['/products', '/bookings', '/customers', '/messages', '/orders', '/inventory'];
+    const searchable = ['/products', '/bookings', '/customers', '/messages', '/orders', '/inventory', '/suppliers', '/supplier-products'];
     location.hash = `${searchable.includes(target) ? target : '/products'}?search=${q}`;
   });
   document.addEventListener('keydown', (e) => {
@@ -193,6 +205,17 @@ const routes = {
   '/profile': () => import('./pages/profile.js'),
   '/content': () => import('./pages/content.js'),
   '/media': () => import('./pages/media.js'),
+  // Supplier Marketplace — dedicated top-level section
+  '/supplier-marketplace': () => import('./pages/supplier-marketplace.js'),
+  '/suppliers': () => import('./pages/suppliers.js'),
+  '/supplier-integrations': () => import('./pages/supplier-integrations.js'),
+  '/supplier-imports': () => import('./pages/supplier-imports.js'),
+  '/supplier-products': () => import('./pages/supplier-products.js'),
+  '/supplier-fulfillment': () => import('./pages/supplier-fulfillment.js'),
+  '/supplier-shipping': () => import('./pages/supplier-shipping.js'),
+  '/supplier-sync': () => import('./pages/supplier-sync.js'),
+  '/supplier-logs': () => import('./pages/supplier-logs.js'),
+  '/supplier-settings': () => import('./pages/supplier-settings.js'),
 };
 
 function parseHash() {

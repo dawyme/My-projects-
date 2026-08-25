@@ -8,6 +8,7 @@ const { paginationSchema, meta, toCsv } = require('../lib/pagination');
 const { badRequest, notFound } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
 const cache = require('../lib/cache');
+const { availableStock, usesSupplierStock } = require('../lib/suppliers/inventory');
 
 const router = express.Router();
 
@@ -26,11 +27,24 @@ router.get('/', protect, validate(paginationSchema.extend({
     include: { category: { select: { name: true } } },
     orderBy: { quantity: 'asc' },
   });
-  const decorated = all.map((p) => ({
-    ...p,
-    stockStatus: p.quantity === 0 ? 'out' : p.quantity <= p.lowStockLevel ? 'low' : 'ok',
-    stockValue: Math.round(p.quantity * p.costPrice * 100) / 100,
-  }));
+  // Owned stock, supplier stock and sellable availability are reported
+  // separately. Supplier units are never counted as N&D-owned inventory, but
+  // they do make a dropship product purchasable, so the status badge follows
+  // availability while the stock *value* figures follow owned stock only.
+  const decorated = all.map((p) => {
+    const localStock = Math.max(0, Number(p.quantity) || 0);
+    const supplierStock = usesSupplierStock(p.fulfillmentType) ? Math.max(0, Number(p.supplierStock) || 0) : 0;
+    const available = availableStock(p);
+    return {
+      ...p,
+      localStock,
+      supplierStock,
+      availableStock: available,
+      stockStatus: available === 0 ? 'out' : available <= p.lowStockLevel ? 'low' : 'ok',
+      ownedStockStatus: localStock === 0 ? 'out' : localStock <= p.lowStockLevel ? 'low' : 'ok',
+      stockValue: Math.round(localStock * p.costPrice * 100) / 100,
+    };
+  });
   const filtered = q.status === 'all' ? decorated : decorated.filter((p) => p.stockStatus === q.status);
   const start = (q.page - 1) * q.limit;
   res.json({
@@ -43,6 +57,10 @@ router.get('/', protect, validate(paginationSchema.extend({
         outOfStock: decorated.filter((p) => p.stockStatus === 'out').length,
         lowStock: decorated.filter((p) => p.stockStatus === 'low').length,
         totalUnits: decorated.reduce((s, p) => s + p.quantity, 0),
+        ownedUnits: decorated.reduce((s, p) => s + p.localStock, 0),
+        supplierUnits: decorated.reduce((s, p) => s + p.supplierStock, 0),
+        availableUnits: decorated.reduce((s, p) => s + p.availableStock, 0),
+        supplierFulfilledSkus: decorated.filter((p) => p.supplierStock > 0).length,
         stockValue: Math.round(decorated.reduce((s, p) => s + p.quantity * p.costPrice, 0) * 100) / 100,
         retailValue: Math.round(decorated.reduce((s, p) => s + p.quantity * p.price, 0) * 100) / 100,
       },

@@ -21,7 +21,8 @@ cd backend && npm install && cp .env.example .env && npm run setup && npm start
 | Inventory | Stock levels, low stock alerts, adjustments, restock history, valuation report (JSON + CSV) |
 | Analytics | Monthly bookings, sales, product performance, customer growth, revenue trends, technician performance |
 | Settings | Company info, logo upload, business hours, social links, email, payments, SEO |
-| Security | CSRF, validation, rate limiting, secure cookies, XSS/SQLi protection, audit log |
+| Supplier Marketplace | Dedicated section with its own dashboard and ten pages — suppliers, integrations/plugins, catalogue import, supplier products, fulfilment, shipping, sync & automation, sync logs and settings. See [`SUPPLIER_MARKETPLACE.md`](SUPPLIER_MARKETPLACE.md) |
+| Security | CSRF, validation, rate limiting, secure cookies, XSS/SQLi protection, audit log, AES-256-GCM encrypted supplier credentials |
 
 ## Product categories
 
@@ -34,5 +35,10 @@ Compressors · Capacitors · Fan Motors · Filters · Copper Tubing · Thermosta
 cd backend && npm test
 ```
 
-Runs 182 automated checks across the API, the admin UI (headless DOM) and the
+Runs every suite — API, Website Content Manager, payment gateways, Tilopay
+units, the Supplier Marketplace (107 checks), the admin UI (headless DOM) and the
 public website forms.
+
+```bash
+npm run test:suppliers   # Supplier Marketplace only
+```

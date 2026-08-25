@@ -10,6 +10,10 @@ const { sendMail } = require('../lib/mailer');
 const cache = require('../lib/cache');
 const payments = require('../lib/payments');
 const { badRequest, notFound } = require('../lib/errors');
+const { availableStock } = require('../lib/suppliers/inventory');
+const shipping = require('../lib/suppliers/shipping');
+const { resolveCountry, COUNTRY_BY_CODE } = require('../lib/suppliers/countries');
+const fulfillmentService = require('../lib/suppliers/fulfillment');
 
 const router = express.Router();
 const reference = () => `BK-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
@@ -31,15 +35,84 @@ router.get('/products', asyncHandler(async (req, res) => {
       select: {
         id: true, sku: true, name: true, slug: true, description: true, brand: true, model: true,
         price: true, imageUrl: true, featured: true, quantity: true,
+        supplierStock: true, fulfillmentType: true,
         category: { select: { name: true, slug: true } },
       },
     }),
     prisma.product.count({ where }),
   ]);
+  // A dropshipped product legitimately has zero N&D-owned units but is still
+  // purchasable, so stock is reported as *available* stock, never owned stock.
   res.json({
     success: true,
-    data: items.map((p) => ({ ...p, inStock: p.quantity > 0, quantity: undefined })),
+    data: items.map((p) => {
+      const available = availableStock(p);
+      const { quantity, supplierStock, ...rest } = p;
+      return {
+        ...rest,
+        inStock: available > 0,
+        availableStock: available,
+        shipsFromSupplier: (p.fulfillmentType === 'SUPPLIER_FULFILLED' || p.fulfillmentType === 'HYBRID') && supplierStock > 0,
+      };
+    }),
     meta: { total, page, limit, pages: Math.ceil(total / limit) || 1 },
+  });
+}));
+
+// GET /api/public/shipping/quote — what it costs to ship an item somewhere.
+// Returns an explicit "cannot ship" rather than inventing a rate.
+router.get('/shipping/quote', validate(z.object({
+  country: z.string().trim().length(2).toUpperCase(),
+  productId: z.string().uuid().optional(),
+  quantity: z.coerce.number().int().min(1).max(999).default(1),
+}), 'query'), asyncHandler(async (req, res) => {
+  const q = req.validatedQuery;
+  const settings = await readAll();
+  const country = resolveCountry(q.country) || q.country;
+
+  if (!q.productId) {
+    return res.json({
+      success: true,
+      data: {
+        country, countryName: COUNTRY_BY_CODE[country]?.name || country,
+        shippable: true, options: [],
+        message: 'Add an item to see supplier shipping options for it.',
+      },
+    });
+  }
+
+  const product = await prisma.product.findUnique({
+    where: { id: q.productId },
+    select: { id: true, name: true, sku: true, price: true, categoryId: true, fulfillmentType: true, supplierStock: true, isActive: true },
+  });
+  if (!product || !product.isActive) throw notFound('Product not found');
+
+  const mapping = await prisma.supplierProductMapping.findFirst({
+    where: { productId: product.id },
+    include: { supplierProduct: { include: { supplier: true } } },
+  });
+
+  const result = await shipping.quote({
+    tenantId: 'default',
+    country,
+    supplier: mapping?.supplierProduct?.supplier || null,
+    supplierId: mapping?.supplierProduct?.supplierId || null,
+    supplierProduct: mapping?.supplierProduct || null,
+    categoryId: product.categoryId,
+    weightKg: (Number(mapping?.supplierProduct?.weightKg) || 0) * q.quantity,
+    quantity: q.quantity,
+    subtotal: product.price * q.quantity,
+  });
+
+  res.json({
+    success: true,
+    data: {
+      country, countryName: COUNTRY_BY_CODE[country]?.name || country,
+      currency: settings.payment.currency,
+      currencySymbol: settings.payment.currencySymbol,
+      dropshipped: Boolean(mapping?.supplierProduct),
+      ...result,
+    },
   });
 }));
 
@@ -113,7 +186,28 @@ router.get('/orders/:reference', asyncHandler(async (req, res) => {
     }
   }
 
-  res.json({ success: true, data: order });
+  // Supplier fulfilment / dropship tracking, so a customer whose items ship
+  // directly from a supplier sees the real progress and tracking number.
+  const supplierFulfillments = await fulfillmentService.forOrder({ tenantId: 'default', orderId: order.id });
+
+  res.json({
+    success: true,
+    data: {
+      ...order,
+      supplierFulfillments: supplierFulfillments.map((f) => ({
+        status: f.status,
+        supplierName: f.supplier?.name || null,
+        trackingNumber: f.trackingNumber || null,
+        carrier: f.carrier || null,
+        trackingUrl: f.trackingUrl || null,
+        shippingMethod: f.shippingMethod || null,
+        shippedAt: f.shippedAt,
+        deliveredAt: f.deliveredAt,
+        trackingSupported: Boolean(f.trackingNumber || f.trackingUrl),
+        items: f.items.map((i) => ({ sku: i.supplierSku, name: i.name, quantity: i.quantity })),
+      })),
+    },
+  });
 }));
 // GET /api/public/settings — public-safe business info
 router.get('/settings', asyncHandler(async (req, res) => {
