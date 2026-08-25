@@ -176,7 +176,7 @@
    * Generic delivery hook used by main.js for any enhanced form that this
    * module does not handle directly (e.g. #appointmentForm).
    */
-  window.CoolAirSubmitForm = function (form) {
+  window.NDSSSubmitForm = function (form) {
     var data = new FormData(form);
     var name = (data.get('name') || '').toString().trim();
     var email = (data.get('email') || '').toString().trim();
@@ -199,7 +199,7 @@
 
   /* ------------------------------------------------------------ quote */
   // quote-form.js owns the quote UI; it delegates delivery to this helper.
-  window.CoolAirSubmitQuote = function (payload) {
+  window.NDSSSubmitQuote = function (payload) {
     return post('/public/contact', {
       name: payload.name,
       email: payload.email,
@@ -227,7 +227,7 @@
           }
         });
         busy(quoteForm);
-        window.CoolAirSubmitQuote({
+        window.NDSSSubmitQuote({
           name: name, email: email,
           phone: (data.get('phone') || '').toString().trim(),
           message: summary.join('\n') || 'Quote requested via the website.',

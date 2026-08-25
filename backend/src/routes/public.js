@@ -173,7 +173,21 @@ router.post('/contact', publicFormLimiter, validate(z.object({
   await activity(null, 'message', `New contact message from ${name}`);
   const settings = await readAll();
   if (settings.email.notifyMessages) {
-    await sendMail({ to: settings.company.email, subject: `New website enquiry: ${subject || 'No subject'}`, text: `${name}${normalizedEmail ? ` <${normalizedEmail}>` : ''}${phone ? ` (${phone})` : ''}\n\n${message}` });
+    try {
+      await sendMail({ to: settings.company.email, subject: `New website enquiry: ${subject || 'No subject'}`, text: `${name}${normalizedEmail ? ` <${normalizedEmail}>` : ''}${phone ? ` (${phone})` : ''}\n\n${message}` });
+    } catch (err) {
+      await activity(null, 'message', `Contact email notification failed for ${created.id}: ${err.message}`);
+    }
+  }
+  if (normalizedEmail) {
+    try {
+      await sendMail({
+        to: normalizedEmail, subject: `We received your message — ${storedSubject}`,
+        text: `Hi ${name}, thanks for reaching out to us. We've received your enquiry and will get back to you shortly.\n\nYour message:\n${message}`,
+      });
+    } catch (err) {
+      await activity(null, 'message', `Contact customer confirmation email failed for ${created.id}: ${err.message}`);
+    }
   }
   res.status(201).json({ success: true, data: { id: created.id }, message: 'Thank you — your message has been received.' });
 }));
@@ -207,12 +221,20 @@ router.post('/bookings', publicFormLimiter, validate(z.object({
   await activity(null, 'booking', `New online booking ${booking.reference} from ${name}`);
   const settings = await readAll();
   if (settings.email.notifyBookings) {
-    sendMail({ to: settings.company.email, subject: `New booking ${booking.reference}`, text: `${name} <${lower}> booked ${service?.name || 'a service'} for ${new Date(scheduledAt).toLocaleString()}.` }).catch(() => {});
+    try {
+      await sendMail({ to: settings.company.email, subject: `New booking ${booking.reference}`, text: `${name} <${lower}> booked ${service?.name || 'a service'} for ${new Date(scheduledAt).toLocaleString()}.` });
+    } catch (err) {
+      await activity(null, 'booking', `Booking owner email notification failed for ${booking.reference}: ${err.message}`);
+    }
   }
-  sendMail({
-    to: lower, subject: `Booking received — ${booking.reference}`,
-    text: `Hi ${name}, we received your booking ${booking.reference} for ${new Date(scheduledAt).toLocaleString()}. Our team will confirm shortly.`,
-  }).catch(() => {});
+  try {
+    await sendMail({
+      to: lower, subject: `Booking received — ${booking.reference}`,
+      text: `Hi ${name}, we received your booking ${booking.reference} for ${new Date(scheduledAt).toLocaleString()}. Our team will confirm shortly.`,
+    });
+  } catch (err) {
+    await activity(null, 'booking', `Booking customer confirmation email failed for ${booking.reference}: ${err.message}`);
+  }
   res.status(201).json({ success: true, data: { reference: booking.reference }, message: 'Booking received. We will confirm shortly.' });
 }));
 

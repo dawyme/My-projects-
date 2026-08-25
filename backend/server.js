@@ -10,7 +10,7 @@ if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
 }
 
 const server = app.listen(PORT, () => {
-  console.log(`\n  CoolAir HVAC backend listening on http://localhost:${PORT}`);
+  console.log(`\n  N&D'S Air Conditioning & Refrigeration Services backend listening on http://localhost:${PORT}`);
   console.log(`  Admin dashboard:  http://localhost:${PORT}/admin/`);
   console.log(`  Public website:   http://localhost:${PORT}/`);
   console.log(`  Environment:      ${process.env.NODE_ENV || 'development'}\n`);

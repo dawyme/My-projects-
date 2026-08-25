@@ -165,18 +165,18 @@ async function main() {
   const staffPassword = process.env.SEED_STAFF_PASSWORD || 'Staff@12345';
   const admin = await prisma.user.create({
     data: {
-      name: 'Grace Adeyemi', email: (process.env.SEED_ADMIN_EMAIL || 'admin@coolairhvac.com').toLowerCase(),
+      name: 'Grace Adeyemi', email: (process.env.SEED_ADMIN_EMAIL || 'admin@ndsairconditioning.com').toLowerCase(),
       passwordHash: await bcrypt.hash(adminPassword, 12), role: 'ADMIN', phone: '+1 555 0100',
     },
   });
   const staff = await prisma.user.create({
     data: {
-      name: 'Marcus Reed', email: (process.env.SEED_STAFF_EMAIL || 'staff@coolairhvac.com').toLowerCase(),
+      name: 'Marcus Reed', email: (process.env.SEED_STAFF_EMAIL || 'staff@ndsairconditioning.com').toLowerCase(),
       passwordHash: await bcrypt.hash(staffPassword, 12), role: 'STAFF', phone: '+1 555 0101',
     },
   });
   const tech2 = await prisma.user.create({
-    data: { name: 'Ibrahim Sesay', email: 'ibrahim.sesay@coolairhvac.com', passwordHash: await bcrypt.hash(staffPassword, 12), role: 'STAFF', phone: '+1 555 0102' },
+    data: { name: 'Ibrahim Sesay', email: 'ibrahim.sesay@ndsairconditioning.com', passwordHash: await bcrypt.hash(staffPassword, 12), role: 'STAFF', phone: '+1 555 0102' },
   });
   const technicians = [staff, tech2, admin];
   console.log(`  ✔ 3 users (admin: ${admin.email})`);
@@ -193,7 +193,7 @@ async function main() {
       products.push(await prisma.product.create({
         data: {
           sku, name, slug: slug(name), brand, model: sku,
-          description: `${name} by ${brand}. Genuine ${catName.toLowerCase()} stocked and supported by CoolAir HVAC & Refrigeration.`,
+          description: `${name} by ${brand}. Genuine ${catName.toLowerCase()} stocked and supported by N&D'S Air Conditioning & Refrigeration Services.`,
           categoryId: categories[catName].id, price, costPrice, quantity,
           lowStockLevel: rand(5, 12), unit: 'unit',
           imageUrl: '/assets/images/placeholder-product.svg',

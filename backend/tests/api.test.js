@@ -85,7 +85,7 @@ async function main() {
 
   // ---------- auth
   await test('POST /api/auth/login rejects bad credentials', async () => {
-    const r = await anon.post('/api/auth/login', { email: 'admin@coolairhvac.com', password: 'wrong-password' });
+    const r = await anon.post('/api/auth/login', { email: 'admin@ndsairconditioning.com', password: 'wrong-password' });
     assert.strictEqual(r.status, 401);
   });
   await test('POST /api/auth/login validates the payload', async () => {
@@ -94,14 +94,14 @@ async function main() {
     assert.ok(Array.isArray(r.body.details));
   });
   await test('POST /api/auth/login succeeds for ADMIN', async () => {
-    const r = await admin.post('/api/auth/login', { email: process.env.SEED_ADMIN_EMAIL || 'admin@coolairhvac.com', password: process.env.SEED_ADMIN_PASSWORD || 'Admin@12345' });
+    const r = await admin.post('/api/auth/login', { email: process.env.SEED_ADMIN_EMAIL || 'admin@ndsairconditioning.com', password: process.env.SEED_ADMIN_PASSWORD || 'Admin@12345' });
     assert.strictEqual(r.status, 200);
     assert.strictEqual(r.body.data.user.role, 'ADMIN');
     assert.ok(r.body.data.accessToken);
     admin.setBearer(r.body.data.accessToken);
   });
   await test('POST /api/auth/login succeeds for STAFF', async () => {
-    const r = await staff.post('/api/auth/login', { email: process.env.SEED_STAFF_EMAIL || 'staff@coolairhvac.com', password: process.env.SEED_STAFF_PASSWORD || 'Staff@12345' });
+    const r = await staff.post('/api/auth/login', { email: process.env.SEED_STAFF_EMAIL || 'staff@ndsairconditioning.com', password: process.env.SEED_STAFF_PASSWORD || 'Staff@12345' });
     assert.strictEqual(r.status, 200);
     assert.strictEqual(r.body.data.user.role, 'STAFF');
     staff.setBearer(r.body.data.accessToken);
@@ -121,7 +121,7 @@ async function main() {
   await test('POST /api/auth/refresh rotates tokens', async () => {
     const c = makeClient();
     await c.get('/api/csrf-token');
-    const login = await c.post('/api/auth/login', { email: 'admin@coolairhvac.com', password: 'Admin@12345' });
+    const login = await c.post('/api/auth/login', { email: 'admin@ndsairconditioning.com', password: 'Admin@12345' });
     const r = await c.post('/api/auth/refresh', { refreshToken: login.body.data.refreshToken });
     assert.strictEqual(r.status, 200);
     assert.ok(r.body.data.accessToken);
@@ -131,7 +131,7 @@ async function main() {
   await test('POST /api/auth/logout revokes the session', async () => {
     const c = makeClient();
     await c.get('/api/csrf-token');
-    const login = await c.post('/api/auth/login', { email: 'staff@coolairhvac.com', password: 'Staff@12345' });
+    const login = await c.post('/api/auth/login', { email: 'staff@ndsairconditioning.com', password: 'Staff@12345' });
     const out = await c.post('/api/auth/logout', { refreshToken: login.body.data.refreshToken });
     assert.strictEqual(out.status, 200);
     const after = await c.post('/api/auth/refresh', { refreshToken: login.body.data.refreshToken });
@@ -142,7 +142,7 @@ async function main() {
   await test('CSRF blocks cookie-authenticated writes without a token', async () => {
     const res = await fetch(`${base}/api/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'admin@coolairhvac.com', password: 'Admin@12345' }),
+      body: JSON.stringify({ email: 'admin@ndsairconditioning.com', password: 'Admin@12345' }),
     });
     assert.strictEqual(res.status, 403);
   });
@@ -337,7 +337,7 @@ async function main() {
     assert.strictEqual(r.body.data.status, 'READ');
   });
   await test('POST /api/messages/:id/reply stores a reply', async () => {
-    const r = await admin.post(`/api/messages/${messageId}/reply`, { body: 'Thank you for contacting CoolAir HVAC.' });
+    const r = await admin.post(`/api/messages/${messageId}/reply`, { body: 'Thank you for contacting N&D\'S Air Conditioning & Refrigeration Services.' });
     assert.strictEqual(r.status, 201);
   });
   await test('POST /api/messages/bulk archives messages', async () => {
@@ -424,7 +424,7 @@ async function main() {
   });
   await test('PUT /api/settings/company persists changes (admin only)', async () => {
     assert.strictEqual((await staff.put('/api/settings/company', { name: 'Nope' })).status, 403);
-    const r = await admin.put('/api/settings/company', { name: 'CoolAir HVAC & Refrigeration', email: 'info@coolairhvac.com', phone: '+1 555 0102030' });
+    const r = await admin.put('/api/settings/company', { name: 'N&D\'S Air Conditioning & Refrigeration Services', email: 'info@ndsairconditioning.com', phone: '+1 555 0102030' });
     assert.strictEqual(r.status, 200);
     const check = await admin.get('/api/settings');
     assert.strictEqual(check.body.data.company.phone, '+1 555 0102030');
@@ -436,7 +436,7 @@ async function main() {
   // ---------- users / RBAC
   await test('POST /api/users is admin-only and creates staff', async () => {
     assert.strictEqual((await staff.post('/api/users', { name: 'X Y', email: 'x@y.com', password: 'Passw0rd!' })).status, 403);
-    const email = `tech.${Date.now()}@coolairhvac.com`;
+    const email = `tech.${Date.now()}@ndsairconditioning.com`;
     const created = await admin.post('/api/users', { name: 'Test Technician', email, password: 'Passw0rd123', role: 'STAFF' });
     assert.strictEqual(created.status, 201);
     const updated = await admin.put(`/api/users/${created.body.data.id}`, { isActive: false });

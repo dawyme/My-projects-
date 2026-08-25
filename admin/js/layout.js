@@ -35,10 +35,10 @@ const NAV = [
 
 /* ------------------------------------------------------------ theme */
 export function applyTheme(theme) {
-  const value = theme || localStorage.getItem('coolair.theme')
+  const value = theme || localStorage.getItem('nds.theme')
     || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   document.documentElement.dataset.theme = value;
-  localStorage.setItem('coolair.theme', value);
+  localStorage.setItem('nds.theme', value);
   const btn = qs('#themeToggle');
   if (btn) {
     btn.innerHTML = icon(value === 'dark' ? 'sun' : 'moon');
@@ -69,10 +69,10 @@ export function renderShell(user) {
     <aside class="sidebar" id="sidebar" aria-label="Main navigation">
       <div class="sidebar__brand">
         <div class="sidebar__logo">${icon('wrench')}</div>
-        <div><div class="sidebar__title">CoolAir Admin</div><div class="sidebar__sub">HVAC &middot; Refrigeration</div></div>
+        <div><div class="sidebar__title">N&D'S Admin</div><div class="sidebar__sub">HVAC &middot; Refrigeration</div></div>
       </div>
       <nav class="sidebar__nav">${navMarkup(user)}</nav>
-      <div class="sidebar__footer"><span id="companyName">CoolAir HVAC</span> &middot; v1.0</div>
+      <div class="sidebar__footer"><span id="companyName">N&D'S Air Conditioning & Refrigeration Services</span> &middot; v1.0</div>
     </aside>
     <div class="main">
       <header class="topbar">
@@ -146,7 +146,7 @@ export function renderShell(user) {
 export function setTitle(title) {
   const node = qs('#pageTitle');
   if (node) node.textContent = title;
-  document.title = `${title} · CoolAir Admin`;
+  document.title = `${title} · N&D'S Admin`;
 }
 
 export function highlightNav(path) {
