@@ -77,13 +77,18 @@ function splitStatements(sql) {
     .filter((s) => !/^ALTER\s+TABLE.*ALTER\s+COLUMN.*DROP\s+NOT\s+NULL/i.test(s));
 }
 
-/** SQLite runner is idempotent for CREATE statements so the shared
- *  PostgreSQL-generated baseline can be applied on a fresh local DB. */
+/** SQLite runner is idempotent for CREATE statements and for ADD COLUMN so a
+ *  partially-applied migration can always be replayed safely. */
 function applyStatement(db, stmt) {
   return db.execute(stmt).catch((e) => {
     const isCreate = /^CREATE\s+(TABLE|INDEX|UNIQUE\s+INDEX)/i.test(stmt);
     if (isCreate && /already exists/i.test(e.message)) {
       console.warn(`• skipped (already present): ${stmt.slice(0, 64)}…`);
+      return null;
+    }
+    const isAddColumn = /^ALTER\s+TABLE\s+"[^"]+"\s+ADD\s+COLUMN/i.test(stmt);
+    if (isAddColumn && /duplicate column name/i.test(e.message)) {
+      console.warn(`• skipped (column already present): ${stmt.slice(0, 64)}…`);
       return null;
     }
     throw e;

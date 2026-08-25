@@ -87,7 +87,7 @@ async function start({ tenantId = 'default', supplierId, type = 'FULL', trigger 
   if (await isRunning(tenantId, supplierId)) {
     throw Object.assign(new Error(`A synchronisation is already running for ${supplier.name}`), { status: 409, code: 'SYNC_IN_PROGRESS' });
   }
-  const settings = await marketplaceSettings.read();
+  const settings = await marketplaceSettings.read(tenantId);
   if (await runningCount(tenantId) >= (settings.syncConcurrency || 2)) {
     throw Object.assign(new Error('The synchronisation queue is full — try again shortly'), { status: 429, code: 'SYNC_QUEUE_FULL' });
   }
@@ -122,8 +122,8 @@ async function run(syncId) {
 
   if (!supplier) return finish(syncId, { status: 'FAILED', message: 'Supplier no longer exists' });
 
-  const settings = await marketplaceSettings.read();
-  const globalRule = await marketplaceSettings.globalMarkupRule();
+  const settings = await marketplaceSettings.read(sync.tenantId);
+  const globalRule = await marketplaceSettings.globalMarkupRule(sync.tenantId);
   const categoryRules = await prisma.supplierMarkupRule.findMany({
     where: { tenantId: sync.tenantId, scope: 'CATEGORY', isActive: true },
   });
@@ -507,7 +507,7 @@ async function cancel({ tenantId = 'default', syncId }) {
  * the same concurrency cap as manual runs.
  */
 async function runScheduled({ tenantId = 'default' } = {}) {
-  const settings = await marketplaceSettings.read();
+  const settings = await marketplaceSettings.read(tenantId);
   if (!settings.autoSyncEnabled) return { skipped: true, reason: 'Automatic synchronisation is disabled' };
 
   const integrations = await prisma.supplierIntegration.findMany({

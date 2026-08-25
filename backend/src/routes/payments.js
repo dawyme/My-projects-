@@ -8,6 +8,7 @@ const { writeLimiter } = require('../middleware/rateLimit');
 const { badRequest, notFound } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
 const { readAll } = require('./settings');
+const { DEFAULT_TENANT } = require('../lib/tenant');
 const { sendMail } = require('../lib/mailer');
 const cache = require('../lib/cache');
 const payments = require('../lib/payments');
@@ -94,7 +95,9 @@ webhookRouter.post('/:gateway', asyncHandler(async (req, res) => {
     return res.json({ received: true, handled: false });
   }
 
-  const order = await prisma.order.findUnique({ where: { reference: parsed.orderReference } });
+  // Storefront orders belong to the default tenant; gateway callbacks quote
+  // only the human-readable reference.
+  const order = await prisma.order.findFirst({ where: { businessId: DEFAULT_TENANT, reference: parsed.orderReference } });
   if (!order) {
     return res.status(404).json({ received: true, handled: false, error: 'Order not found' });
   }
@@ -128,7 +131,7 @@ const checkoutSchema = z.object({
 
 router.post('/checkout', writeLimiter, validate(checkoutSchema), asyncHandler(async (req, res) => {
   const { name, email, phone, address, city, country, postalCode, paymentMethod, items, notes } = req.body;
-  const settings = await readAll();
+  const settings = await readAll(DEFAULT_TENANT);
 
   // 1. Gate the payment method against the admin payment settings.
   try {
@@ -139,7 +142,7 @@ router.post('/checkout', writeLimiter, validate(checkoutSchema), asyncHandler(as
 
   // 2. Load products server-side — client-supplied prices are never trusted.
   const ids = [...new Set(items.map((i) => i.productId))];
-  const products = await prisma.product.findMany({ where: { id: { in: ids }, isActive: true } });
+  const products = await prisma.product.findMany({ where: { businessId: DEFAULT_TENANT, id: { in: ids }, isActive: true } });
   const byId = new Map(products.map((p) => [p.id, p]));
   // Availability counts N&D stock plus, when the product opts in, the stock its
   // mapped supplier advertises. Supplier units are never written into
@@ -163,17 +166,21 @@ router.post('/checkout', writeLimiter, validate(checkoutSchema), asyncHandler(as
   const tax = round(subtotal * ((settings.payment.taxRate || 0) / 100));
 
   // 3. Create the customer (link by email) and the order atomically.
-  const customer = await prisma.customer.upsert({
-    where: { email: email.toLowerCase() },
-    update: { name, phone: phone || undefined, address: address || undefined, city: city || undefined },
-    create: { name, email: email.toLowerCase(), phone: phone || null, address: address || null, city: city || null },
-
-  });
+  const existingCustomer = await prisma.customer.findFirst({ where: { businessId: DEFAULT_TENANT, email: email.toLowerCase() } });
+  const customer = existingCustomer
+    ? await prisma.customer.update({
+        where: { id: existingCustomer.id },
+        data: { name, phone: phone || undefined, address: address || undefined, city: city || undefined },
+      })
+    : await prisma.customer.create({
+        data: { businessId: DEFAULT_TENANT, name, email: email.toLowerCase(), phone: phone || null, address: address || null, city: city || null },
+      });
 
   const order = await prisma.$transaction(async (tx) => {
     const created = await tx.order.create({
       data: {
         reference: reference(),
+        businessId: DEFAULT_TENANT,
         customerId: customer.id,
         status: 'PENDING',
         paymentMethod,
@@ -188,7 +195,7 @@ router.post('/checkout', writeLimiter, validate(checkoutSchema), asyncHandler(as
         subtotal,
         tax,
         total: round(subtotal + tax),
-        items: { create: lines },
+        items: { create: lines.map(({ localQuantity, ...l }) => ({ ...l, businessId: DEFAULT_TENANT })) },
       },
       include: { items: { include: { product: { select: { id: true, name: true, sku: true } } } } },
     });
@@ -225,7 +232,7 @@ router.post('/checkout', writeLimiter, validate(checkoutSchema), asyncHandler(as
 
   // 6. Confirmations.
   await activity(null, 'order', `New storefront order ${order.reference} (${paymentMethod.replace(/_/g, ' ').toLowerCase()})`);
-  const notify = await readAll();
+  const notify = await readAll(DEFAULT_TENANT);
   if (notify.email.notifyBookings) {
     sendMail({
       to: notify.company.email,

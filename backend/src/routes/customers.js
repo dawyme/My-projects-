@@ -5,7 +5,8 @@ const asyncHandler = require('../lib/async');
 const { validate } = require('../middleware/validate');
 const { protect, adminOnly } = require('../middleware/auth');
 const { paginationSchema, buildOrderBy, meta, toCsv } = require('../lib/pagination');
-const { notFound } = require('../lib/errors');
+const { notFound, badRequest } = require('../lib/errors');
+const { tenantWhere } = require('../lib/tenant');
 const { audit, activity } = require('../lib/audit');
 
 const router = express.Router();
@@ -31,7 +32,7 @@ const listQuery = paginationSchema.extend({
 // GET /api/customers
 router.get('/', protect, validate(listQuery, 'query'), asyncHandler(async (req, res) => {
   const q = req.validatedQuery;
-  const where = {};
+  const where = tenantWhere(req);
   if (q.search) {
     where.OR = [
       { name: { contains: q.search } }, { email: { contains: q.search } },
@@ -66,8 +67,8 @@ router.get('/', protect, validate(listQuery, 'query'), asyncHandler(async (req, 
 
 // GET /api/customers/:id — full profile with booking + purchase history
 router.get('/:id', protect, asyncHandler(async (req, res) => {
-  const customer = await prisma.customer.findUnique({
-    where: { id: req.params.id },
+  const customer = await prisma.customer.findFirst({
+    where: tenantWhere(req, { id: req.params.id }),
     include: {
       bookings: {
         orderBy: { scheduledAt: 'desc' },
@@ -90,7 +91,10 @@ router.get('/:id', protect, asyncHandler(async (req, res) => {
 
 // POST /api/customers
 router.post('/', protect, validate(body), asyncHandler(async (req, res) => {
-  const customer = await prisma.customer.create({ data: { ...req.body, email: req.body.email.toLowerCase() } });
+  const email = req.body.email.toLowerCase();
+  const duplicate = await prisma.customer.findFirst({ where: tenantWhere(req, { email }) });
+  if (duplicate) throw badRequest('A customer with that email already exists in this business');
+  const customer = await prisma.customer.create({ data: { ...req.body, email, businessId: req.tenantId } });
   await audit(req, 'CREATE', 'Customer', customer.id, { email: customer.email });
   await activity(req.user.id, 'customer', `${req.user.name} added customer ${customer.name}`);
   res.status(201).json({ success: true, data: customer });
@@ -98,16 +102,20 @@ router.post('/', protect, validate(body), asyncHandler(async (req, res) => {
 
 // PUT /api/customers/:id
 router.put('/:id', protect, validate(body.partial()), asyncHandler(async (req, res) => {
+  const existing = await prisma.customer.findFirst({ where: tenantWhere(req, { id: req.params.id }) });
+  if (!existing) throw notFound('Customer not found');
   const data = { ...req.body };
   if (data.email) data.email = data.email.toLowerCase();
-  const customer = await prisma.customer.update({ where: { id: req.params.id }, data });
+  const customer = await prisma.customer.update({ where: { id: existing.id }, data });
   await audit(req, 'UPDATE', 'Customer', customer.id, data);
   res.json({ success: true, data: customer });
 }));
 
 // DELETE /api/customers/:id
 router.delete('/:id', protect, adminOnly, asyncHandler(async (req, res) => {
-  await prisma.customer.delete({ where: { id: req.params.id } });
+  const existing = await prisma.customer.findFirst({ where: tenantWhere(req, { id: req.params.id }) });
+  if (!existing) throw notFound('Customer not found');
+  await prisma.customer.delete({ where: { id: existing.id } });
   await audit(req, 'DELETE', 'Customer', req.params.id);
   await activity(req.user.id, 'customer', `${req.user.name} deleted a customer record`);
   res.json({ success: true, message: 'Customer deleted' });

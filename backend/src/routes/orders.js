@@ -7,6 +7,7 @@ const { protect, adminOnly } = require('../middleware/auth');
 const { paginationSchema, meta } = require('../lib/pagination');
 const { badRequest, notFound } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
+const { tenantWhere } = require('../lib/tenant');
 const cache = require('../lib/cache');
 const orderFlow = require('../lib/order-flow');
 const { availableStock, allocate } = require('../lib/suppliers/inventory');
@@ -23,7 +24,7 @@ const include = { customer: true, items: { include: { product: { select: { id: t
 router.get('/', protect, validate(paginationSchema.extend({ status: z.string().optional(), customerId: z.string().optional() }), 'query'),
   asyncHandler(async (req, res) => {
     const q = req.validatedQuery;
-    const where = {};
+    const where = tenantWhere(req);
     if (q.status) where.status = { in: q.status.split(',').map((s) => s.toUpperCase()).filter((s) => STATUSES.includes(s)) };
     if (q.customerId) where.customerId = q.customerId;
     if (q.search) where.OR = [{ reference: { contains: q.search } }, { customer: { name: { contains: q.search } } }, { customer: { email: { contains: q.search } } }];
@@ -36,7 +37,7 @@ router.get('/', protect, validate(paginationSchema.extend({ status: z.string().o
 
 // GET /api/orders/:id
 router.get('/:id', protect, asyncHandler(async (req, res) => {
-  const order = await prisma.order.findUnique({ where: { id: req.params.id }, include });
+  const order = await prisma.order.findFirst({ where: tenantWhere(req, { id: req.params.id }), include });
   if (!order) throw notFound('Order not found');
   res.json({ success: true, data: order });
 }));
@@ -53,10 +54,10 @@ router.post('/', protect, validate(z.object({
   })).min(1),
 })), asyncHandler(async (req, res) => {
   const { customerId, status, taxRate, items } = req.body;
-  const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+  const customer = await prisma.customer.findFirst({ where: tenantWhere(req, { id: customerId }) });
   if (!customer) throw badRequest('Customer not found');
 
-  const products = await prisma.product.findMany({ where: { id: { in: items.map((i) => i.productId) } } });
+  const products = await prisma.product.findMany({ where: tenantWhere(req, { id: { in: items.map((i) => i.productId) } }) });
   // Availability = N&D stock plus, when the product opts in, its supplier's
   // advertised stock. Supplier units are never written into Product.quantity.
   const allocations = {};
@@ -77,7 +78,7 @@ router.post('/', protect, validate(z.object({
 
   const order = await prisma.$transaction(async (tx) => {
     const created = await tx.order.create({
-      data: { reference: reference(), customerId, status, subtotal, tax, total: round(subtotal + tax), items: { create: lines } },
+      data: { reference: reference(), businessId: req.tenantId, customerId, status, subtotal, tax, total: round(subtotal + tax), items: { create: lines.map(({ localQuantity, ...l }) => ({ ...l, businessId: req.tenantId })) } },
       include,
     });
     for (const l of lines) {
@@ -102,7 +103,7 @@ router.post('/', protect, validate(z.object({
 
 // PATCH /api/orders/:id/status
 router.patch('/:id/status', protect, validate(z.object({ status: z.enum(STATUSES) })), asyncHandler(async (req, res) => {
-  const existing = await prisma.order.findUnique({ where: { id: req.params.id }, include: { items: true } });
+  const existing = await prisma.order.findFirst({ where: tenantWhere(req, { id: req.params.id }), include: { items: true } });
   if (!existing) throw notFound('Order not found');
   // Units a supplier is shipping were never taken from owned stock, so they
   // must not be returned to it when the order is cancelled.
@@ -134,7 +135,7 @@ router.patch('/:id/status', protect, validate(z.object({ status: z.enum(STATUSES
 
 // DELETE /api/orders/:id
 router.delete('/:id', protect, adminOnly, asyncHandler(async (req, res) => {
-  const existing = await prisma.order.findUnique({ where: { id: req.params.id }, include: { items: true } });
+  const existing = await prisma.order.findFirst({ where: tenantWhere(req, { id: req.params.id }), include: { items: true } });
   if (!existing) throw notFound('Order not found');
   const restockOnDelete = await orderFlow.restockableQuantities({
     tenantId: tenantOf(req), orderId: existing.id, items: existing.items,

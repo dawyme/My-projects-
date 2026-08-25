@@ -129,19 +129,20 @@ function validateRecord(record) {
  * Order: supplier SKU → manufacturer part number → UPC/EAN.
  * @param {object} client prisma client or an interactive-transaction handle
  */
-async function matchPlatformProduct(record, client = prisma) {
+async function matchPlatformProduct(record, client = prisma, tenantId = 'default') {
+  // Matching never crosses tenant boundaries.
   const candidates = [];
   if (record.supplierSku) candidates.push({ sku: record.supplierSku.toUpperCase(), matchKey: 'SKU', confidence: 95 });
   if (record.manufacturerPart) candidates.push({ model: record.manufacturerPart, matchKey: 'MPN', confidence: 80 });
 
   for (const candidate of candidates) {
     const { matchKey, confidence, ...where } = candidate;
-    const found = await client.product.findFirst({ where, select: { id: true, sku: true, name: true } });
+    const found = await client.product.findFirst({ where: { businessId: tenantId, ...where }, select: { id: true, sku: true, name: true } });
     if (found) return { ...found, matchKey, confidence };
   }
   if (record.upc) {
     const found = await client.product.findFirst({
-      where: { OR: [{ sku: record.upc }, { specs: { contains: record.upc } }] },
+      where: { businessId: tenantId, OR: [{ sku: record.upc }, { specs: { contains: record.upc } }] },
       select: { id: true, sku: true, name: true },
     });
     if (found) return { ...found, matchKey: 'UPC', confidence: 70 };
@@ -158,8 +159,8 @@ async function buildPreview({ tenantId = 'default', supplierId, integrationId = 
   const supplier = await prisma.supplier.findFirst({ where: { id: supplierId, tenantId } });
   if (!supplier) throw Object.assign(new Error('Supplier not found'), { status: 404 });
 
-  const settings = await marketplaceSettings.read();
-  const globalRule = await marketplaceSettings.globalMarkupRule();
+  const settings = await marketplaceSettings.read(tenantId);
+  const globalRule = await marketplaceSettings.globalMarkupRule(tenantId);
   const categoryRules = await prisma.supplierMarkupRule.findMany({ where: { tenantId, scope: 'CATEGORY', isActive: true } });
 
   const skus = records.map((r) => r.supplierSku).filter(Boolean);
@@ -186,7 +187,7 @@ async function buildPreview({ tenantId = 'default', supplierId, integrationId = 
       continue;
     }
 
-    const mapped = current?.mapping?.product || (current ? null : await matchPlatformProduct(record));
+    const mapped = current?.mapping?.product || (current ? null : await matchPlatformProduct(record, prisma, tenantId));
     const changes = current ? diffAgainst(current, record) : null;
 
     const price = priceFor({
@@ -279,10 +280,10 @@ async function commit({ tenantId = 'default', importId, publish = null, actorId 
   if (record.status === 'CANCELLED') throw Object.assign(new Error('This import was cancelled'), { status: 409 });
 
   const preview = JSON.parse(record.preview || '[]');
-  const settings = await marketplaceSettings.read();
+  const settings = await marketplaceSettings.read(tenantId);
   const supplier = await prisma.supplier.findFirst({ where: { id: record.supplierId, tenantId } });
   if (!supplier) throw Object.assign(new Error('Supplier no longer exists'), { status: 404 });
-  const globalRule = await marketplaceSettings.globalMarkupRule();
+  const globalRule = await marketplaceSettings.globalMarkupRule(tenantId);
   const categoryRules = await prisma.supplierMarkupRule.findMany({ where: { tenantId, scope: 'CATEGORY', isActive: true } });
   const categories = await prisma.category.findMany({ select: { id: true, name: true, slug: true } });
 
@@ -376,7 +377,7 @@ async function commit({ tenantId = 'default', importId, publish = null, actorId 
         if (!existingMapping) {
           const match = row.matchedProduct
             ? { id: row.matchedProduct.id, matchKey: row.matchedProduct.matchKey || 'SKU' }
-            : await matchPlatformProduct(data, tx);
+            : await matchPlatformProduct(data, tx, tenantId);
           if (match) {
             const taken = await tx.supplierProductMapping.findFirst({ where: { tenantId, productId: match.id } });
             if (!taken) {

@@ -83,7 +83,7 @@ async function afterOrderCreated({ req = null, orderId }) {
  */
 async function onOrderPaid({ req = null, orderId }) {
   try {
-    const settings = await marketplaceSettings.read();
+    const settings = await marketplaceSettings.read(req?.tenantId || 'default');
     if (!settings.autoSubmitOrders) return { submitted: 0, held: true };
     const tenantId = tenantOf(req);
     const pending = await prisma.supplierFulfillment.findMany({

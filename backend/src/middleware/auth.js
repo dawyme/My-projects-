@@ -2,6 +2,7 @@ const prisma = require('../lib/prisma');
 const { verifyAccessToken } = require('../lib/tokens');
 const { ACCESS_COOKIE } = require('../lib/cookies');
 const { unauthorized, forbidden } = require('../lib/errors');
+const { DEFAULT_TENANT } = require('../lib/tenant');
 
 function extractToken(req) {
   const header = req.headers.authorization;
@@ -21,10 +22,12 @@ async function protect(req, res, next) {
     }
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, name: true, email: true, role: true, isActive: true, avatarUrl: true, phone: true },
+      select: { id: true, name: true, email: true, role: true, isActive: true, avatarUrl: true, phone: true, businessId: true },
     });
     if (!user || !user.isActive) throw unauthorized('Account not found or disabled');
     req.user = user;
+    // Tenant scope is resolved server-side from the user record only.
+    req.tenantId = user.businessId || DEFAULT_TENANT;
     next();
   } catch (err) { next(err); }
 }
@@ -46,8 +49,9 @@ async function optionalAuth(req, res, next) {
     const payload = verifyAccessToken(token);
     req.user = await prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, name: true, email: true, role: true, isActive: true },
+      select: { id: true, name: true, email: true, role: true, isActive: true, businessId: true },
     }) || undefined;
+    if (req.user?.businessId) req.tenantId = req.user.businessId;
   } catch (_) {}
   next();
 }

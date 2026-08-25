@@ -21,14 +21,14 @@ const cache = require('../cache');
 const slugify = (s) => String(s).toLowerCase().trim()
   .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80) || 'product';
 
-async function uniqueSlug(base, ignoreId) {
+async function uniqueSlug(tenantId, base, ignoreId) {
   let slug = base;
   let n = 1;
-  // Slug collisions get a numeric suffix.
+  // Slug collisions get a numeric suffix (uniqueness is per tenant).
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    const found = await prisma.product.findUnique({ where: { slug } });
-    if (!found || found.id === ignoreId) return slug;
+    const found = await prisma.product.findFirst({ where: { businessId: tenantId, slug, NOT: { id: ignoreId || undefined } } });
+    if (!found) return slug;
     slug = `${base}-${++n}`;
   }
 }
@@ -37,18 +37,18 @@ const FALLBACK_CATEGORY = { name: 'Supplier Imports', slug: 'supplier-imports' }
 
 async function ensureCategory(tenantId, categoryId, categoryText) {
   if (categoryId) {
-    const found = await prisma.category.findUnique({ where: { id: categoryId } });
+    const found = await prisma.category.findFirst({ where: { businessId: tenantId, id: categoryId } });
     if (found) return found;
   }
   if (categoryText) {
     const slug = slugify(categoryText);
-    const found = await prisma.category.findFirst({ where: { OR: [{ slug }, { name: categoryText }] } });
+    const found = await prisma.category.findFirst({ where: { businessId: tenantId, OR: [{ slug }, { name: categoryText }] } });
     if (found) return found;
-    return prisma.category.create({ data: { name: String(categoryText).slice(0, 120), slug: await uniqueSlug(slug) } });
+    return prisma.category.create({ data: { businessId: tenantId, name: String(categoryText).slice(0, 120), slug: await uniqueSlug(tenantId, slug) } });
   }
-  const fallback = await prisma.category.findFirst({ where: { slug: FALLBACK_CATEGORY.slug } });
+  const fallback = await prisma.category.findFirst({ where: { businessId: tenantId, slug: FALLBACK_CATEGORY.slug } });
   if (fallback) return fallback;
-  return prisma.category.create({ data: { name: FALLBACK_CATEGORY.name, slug: FALLBACK_CATEGORY.slug } });
+  return prisma.category.create({ data: { businessId: tenantId, name: FALLBACK_CATEGORY.name, slug: FALLBACK_CATEGORY.slug } });
 }
 
 /** Recomputes a supplier product's selling price with the markup engine. */
@@ -57,7 +57,7 @@ async function reprice(supplierProductId, { tenantId = 'default' } = {}) {
     where: { id: supplierProductId, tenantId }, include: { supplier: true },
   });
   if (!supplierProduct) return null;
-  const globalRule = await marketplaceSettings.globalMarkupRule();
+  const globalRule = await marketplaceSettings.globalMarkupRule(tenantId);
   const categoryRules = supplierProduct.categoryId
     ? await prisma.supplierMarkupRule.findMany({ where: { tenantId, scope: 'CATEGORY', categoryId: supplierProduct.categoryId, isActive: true } })
     : [];
@@ -80,7 +80,7 @@ async function publish({ tenantId = 'default', supplierProductId, actorId = null
   });
   if (!supplierProduct) throw Object.assign(new Error('Supplier product not found'), { status: 404 });
 
-  const settings = await marketplaceSettings.read();
+  const settings = await marketplaceSettings.read(tenantId);
   const price = await reprice(supplierProduct.id, { tenantId });
   const category = await ensureCategory(tenantId, supplierProduct.categoryId, supplierProduct.categoryText);
   const fulfillmentType = FULFILLMENT_TYPES.includes(supplierProduct.fulfillmentType)
@@ -103,7 +103,7 @@ async function publish({ tenantId = 'default', supplierProductId, actorId = null
   let createdProduct = false;
 
   if (!product) {
-    const bySku = await prisma.product.findUnique({ where: { sku: supplierProduct.supplierSku.toUpperCase() } });
+    const bySku = await prisma.product.findFirst({ where: { businessId: tenantId, sku: supplierProduct.supplierSku.toUpperCase() } });
     if (bySku) product = bySku;
   }
 
@@ -124,8 +124,9 @@ async function publish({ tenantId = 'default', supplierProductId, actorId = null
   } else {
     product = await prisma.product.create({
       data: {
+        businessId: tenantId,
         sku: supplierProduct.supplierSku.toUpperCase(),
-        slug: await uniqueSlug(slugify(supplierProduct.name)),
+        slug: await uniqueSlug(tenantId, slugify(supplierProduct.name)),
         ...content,
         categoryId: category.id,
         price: price.price,
@@ -234,7 +235,7 @@ async function mirrorToProduct({ tenantId = 'default', supplierProduct, supplier
 async function mapToProduct({ tenantId = 'default', supplierProductId, productId }) {
   const supplierProduct = await prisma.supplierProduct.findFirst({ where: { id: supplierProductId, tenantId } });
   if (!supplierProduct) throw Object.assign(new Error('Supplier product not found'), { status: 404 });
-  const product = await prisma.product.findUnique({ where: { id: productId } });
+  const product = await prisma.product.findFirst({ where: { businessId: tenantId, id: productId } });
   if (!product) throw Object.assign(new Error('Platform product not found'), { status: 404 });
 
   const existing = await prisma.supplierProductMapping.findUnique({ where: { supplierProductId: supplierProduct.id } });

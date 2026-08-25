@@ -76,7 +76,7 @@ router.use(protect, scopeTenant);
 
 // GET /api/supplier-settings
 router.get('/', requirePermission('suppliers.view'), asyncHandler(async (req, res) => {
-  const settings = await marketplaceSettings.read();
+  const settings = await marketplaceSettings.read(req.tenantId);
   const grants = await permissionsFor(req.user.role);
   res.json({
     success: true,
@@ -108,7 +108,7 @@ router.get('/', requirePermission('suppliers.view'), asyncHandler(async (req, re
 router.put('/', adminOnly, validate(settingsBody), asyncHandler(async (req, res) => {
   const patch = { ...req.body };
   if (patch.roundTo !== undefined && patch.roundTo !== null && patch.roundTo <= 0) patch.roundTo = null;
-  const settings = await marketplaceSettings.write(patch);
+  const settings = await marketplaceSettings.write(patch, req.tenantId);
   if (settings.autoSyncEnabled) scheduler.start(); else scheduler.stop();
   cache.invalidate('supplier');
   cache.invalidate('stats');
@@ -118,7 +118,7 @@ router.put('/', adminOnly, validate(settingsBody), asyncHandler(async (req, res)
 
 // GET /api/supplier-settings/permissions
 router.get('/permissions', adminOnly, asyncHandler(async (req, res) => {
-  const settings = await marketplaceSettings.read();
+  const settings = await marketplaceSettings.read(req.tenantId);
   const roles = ['ADMIN', 'STAFF'];
   const out = {};
   for (const role of roles) out[role] = await permissionsFor(role);
@@ -138,9 +138,9 @@ router.put('/permissions', adminOnly, validate(z.object({
   role: z.enum(['ADMIN', 'STAFF']),
   permissions: z.array(z.union([z.literal('*'), z.enum(PERMISSION_IDS)])).max(PERMISSION_IDS.length + 1),
 })), asyncHandler(async (req, res) => {
-  const settings = await marketplaceSettings.read();
+  const settings = await marketplaceSettings.read(req.tenantId);
   const next = { ...(settings.permissions || {}), [req.body.role]: req.body.permissions };
-  await marketplaceSettings.write({ permissions: next });
+  await marketplaceSettings.write({ permissions: next }, req.tenantId);
   await audit(req, 'PERMISSIONS', 'SupplierSettings', null, { role: req.body.role, permissions: req.body.permissions });
   res.json({ success: true, data: { role: req.body.role, permissions: req.body.permissions } });
 }));
@@ -151,8 +151,8 @@ router.get('/markup-rules', requirePermission('suppliers.view'), asyncHandler(as
   const rules = await prisma.supplierMarkupRule.findMany({
     where: { tenantId }, orderBy: [{ scope: 'asc' }, { sortOrder: 'asc' }],
   });
-  const globalRule = await marketplaceSettings.globalMarkupRule();
-  const settings = await marketplaceSettings.read();
+  const globalRule = await marketplaceSettings.globalMarkupRule(req.tenantId);
+  const settings = await marketplaceSettings.read(req.tenantId);
   res.json({
     success: true,
     data: {

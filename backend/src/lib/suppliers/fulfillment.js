@@ -88,7 +88,7 @@ async function ensureForOrder({ tenantId = 'default', orderId, actorId = null, r
     }
 
     const access = evaluateCountryAccess({
-      destination: order.shippingCountry || (await marketplaceSettings.read()).defaultCountry,
+      destination: order.shippingCountry || (await marketplaceSettings.read(order?.businessId || 'default')).defaultCountry,
       supplier: supplierProduct.supplier,
       supplierProduct,
     });
@@ -122,7 +122,7 @@ async function ensureForOrder({ tenantId = 'default', orderId, actorId = null, r
 
     const quote = await shipping.quote({
       tenantId,
-      country: order.shippingCountry || (await marketplaceSettings.read()).defaultCountry,
+      country: order.shippingCountry || (await marketplaceSettings.read(order?.businessId || 'default')).defaultCountry,
       supplierId, supplier,
       supplierProduct: lines[0].supplierProduct,
       categoryId: lines[0].product.categoryId,
@@ -141,9 +141,9 @@ async function ensureForOrder({ tenantId = 'default', orderId, actorId = null, r
         fulfillmentType: 'SUPPLIER_FULFILLED',
         transmissionMethod: transmissionMethodFor(supplier),
         transmissionStatus: 'NOT_SENT',
-        shippingMethod: chosen?.method || (await marketplaceSettings.read()).defaultShippingMethod,
+        shippingMethod: chosen?.method || (await marketplaceSettings.read(order?.businessId || 'default')).defaultShippingMethod,
         shippingCost: chosen?.cost || 0,
-        currency: supplier.currency || (await marketplaceSettings.read()).defaultCurrency,
+        currency: supplier.currency || (await marketplaceSettings.read(order?.businessId || 'default')).defaultCurrency,
         totalCost: round(items.reduce((s, i) => s + i.total, 0)),
         shipTo: JSON.stringify({
           name: order.shippingName, phone: order.shippingPhone, address: order.shippingAddress,
@@ -242,7 +242,7 @@ async function submit({ tenantId = 'default', fulfillmentId, actorId = null }) {
     const emailConfig = (() => { try { return JSON.parse(integration.config || '{}'); } catch { return {}; } })();
     if (emailConfig.orderEmail) {
       const mailer = new ManualConnector({
-        supplier, integration, secrets: {}, config: emailConfig, settings: await marketplaceSettings.read(),
+        supplier, integration, secrets: {}, config: emailConfig, settings: await marketplaceSettings.read(supplier?.tenantId || 'default'),
       });
       result = await mailer.submitOrder(payload);
       await prisma.supplierFulfillment.update({

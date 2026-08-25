@@ -12,12 +12,66 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+/// A tenant (business) on the platform. Every tenant-owned row carries a
+/// `businessId`; all API queries are scoped server-side to the caller's
+/// business. The seeded row with id "default" is the N&D'S deployment and the
+/// tenant used by the public website.
+model Business {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  status    String   @default("ACTIVE") // ACTIVE | SUSPENDED
+  isDefault Boolean  @default(false)
+  phone     String?
+  email     String?
+  address   String?
+  currency  String   @default("USD")
+  taxRate   Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users                User[]
+  customers            Customer[]
+  categories           Category[]
+  products             Product[]
+  services             Service[]
+  serviceItems         ServiceItem[]
+  serviceRequests      ServiceRequest[]
+  workOrders           WorkOrder[]
+  bookings             Booking[]
+  bookingNotes         BookingNote[]
+  orders               Order[]
+  orderItems           OrderItem[]
+  contactMessages      ContactMessage[]
+  messageReplies       MessageReply[]
+  inventoryAdjustments InventoryAdjustment[]
+  restocks             Restock[]
+  activities           Activity[]
+  auditLogs            AuditLog[]
+  settings             Setting[]
+  contentPages         ContentPage[]
+  testimonials         Testimonial[]
+  galleryItems         GalleryItem[]
+  faqItems             FaqItem[]
+  promotions           PromotionItem[]
+  teamMembers          TeamMember[]
+  technicians          Technician[]
+  equipment            Equipment[]
+  serviceHistories     ServiceHistory[]
+  estimates            Estimate[]
+  invoices             Invoice[]
+  jobStatuses          JobStatus[]
+  mediaAssets          MediaAsset[]
+}
+
 model User {
   id           String    @id @default(uuid())
   name         String
   email        String    @unique
   passwordHash String
   role         String    @default("STAFF") // ADMIN | STAFF
+  businessId   String?
+  business     Business? @relation(fields: [businessId], references: [id])
   phone        String?
   avatarUrl    String?
   isActive     Boolean   @default(true)
@@ -32,8 +86,10 @@ model User {
   bookingNotes   BookingNote[]
   messageReplies MessageReply[]
   adjustments    InventoryAdjustment[]
+  workOrders     WorkOrder[]           @relation("WorkOrderTechnician")
 
   @@index([role])
+  @@index([businessId])
 }
 
 model RefreshToken {
@@ -52,21 +108,29 @@ model RefreshToken {
 
 model Category {
   id          String    @id @default(uuid())
-  name        String    @unique
-  slug        String    @unique
+  businessId  String    @default("default")
+  business    Business  @relation(fields: [businessId], references: [id])
+  name        String
+  slug        String
   description String?
   imageUrl    String?
   sortOrder   Int       @default(0)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   products    Product[]
+
+  @@unique([businessId, name])
+  @@unique([businessId, slug])
+  @@index([businessId])
 }
 
 model Product {
   id            String   @id @default(uuid())
-  sku           String   @unique
+  businessId    String   @default("default")
+  business      Business @relation(fields: [businessId], references: [id])
+  sku           String
   name          String
-  slug          String   @unique
+  slug          String
   description   String?
   brand         String?
   model         String?
@@ -90,25 +154,30 @@ model Product {
   // supplier feed. `supplierStock` mirrors what the mapped supplier currently
   // advertises; it only becomes sellable when `fulfillmentType` is
   // SUPPLIER_FULFILLED or HYBRID (see lib/suppliers/inventory.js).
-  fulfillmentType String  @default("LOCAL") // LOCAL | SUPPLIER_FULFILLED | HYBRID
-  supplierStock   Int     @default(0)
+  fulfillmentType String    @default("LOCAL") // LOCAL | SUPPLIER_FULFILLED | HYBRID
+  supplierStock   Int       @default(0)
   supplierStockAt DateTime?
   // -------------------------------------------------------------------------
 
-  orderItems        OrderItem[]
-  adjustments       InventoryAdjustment[]
-  restocks          Restock[]
-  supplierMappings  SupplierProductMapping[]
+  orderItems       OrderItem[]
+  adjustments      InventoryAdjustment[]
+  restocks         Restock[]
+  supplierMappings SupplierProductMapping[]
 
+  @@unique([businessId, sku])
+  @@unique([businessId, slug])
   @@index([categoryId])
   @@index([featured])
   @@index([isActive])
+  @@index([businessId])
 }
 
 model Customer {
   id         String   @id @default(uuid())
+  businessId String   @default("default")
+  business   Business @relation(fields: [businessId], references: [id])
   name       String
-  email      String   @unique
+  email      String
   phone      String?
   company    String?
   address    String?
@@ -127,42 +196,73 @@ model Customer {
   estimates       Estimate[]
   invoices        Invoice[]
   serviceRequests ServiceRequest[]
+  workOrders      WorkOrder[]      @relation("WorkOrderCustomer")
 
+  @@unique([businessId, email])
   @@index([email])
+  @@index([businessId])
 }
 
 model ServiceRequest {
-  id          String    @id @default(uuid())
+  id          String     @id @default(uuid())
+  businessId  String     @default("default")
+  business    Business   @relation(fields: [businessId], references: [id])
+  equipmentId String?
+  equipment   Equipment? @relation(fields: [equipmentId], references: [id])
+  serviceId   String?
+  service     Service?   @relation(fields: [serviceId], references: [id])
   customerId  String
-  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer    Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
   serviceType String
   problem     String
   address     String
-  priority    String    @default("NORMAL") // LOW NORMAL HIGH URGENT
-  status      String    @default("NEW") // NEW REVIEWING ACCEPTED CONVERTED CANCELLED
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  priority    String     @default("NORMAL") // LOW NORMAL HIGH URGENT
+  status      String     @default("NEW") // NEW REVIEWING ACCEPTED CONVERTED CANCELLED
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
   workOrder   WorkOrder?
 
   @@index([customerId])
   @@index([status])
+  @@index([businessId])
 }
 
 model WorkOrder {
-  id        String         @id @default(uuid())
-  requestId String         @unique
-  request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  status    String         @default("NEW") // NEW ASSIGNED IN_PROGRESS COMPLETED CANCELLED
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  id              String         @id @default(uuid())
+  requestId       String         @unique
+  businessId      String         @default("default")
+  business        Business       @relation(fields: [businessId], references: [id])
+  customer        Customer?      @relation("WorkOrderCustomer", fields: [customerId], references: [id])
+  customerId      String?
+  equipment       Equipment?     @relation(fields: [equipmentId], references: [id])
+  equipmentId     String?
+  technician      User?          @relation("WorkOrderTechnician", fields: [technicianId], references: [id])
+  technicianId    String?
+  booking         Booking?       @relation(fields: [bookingId], references: [id])
+  bookingId       String?        @unique
+  priority        String         @default("NORMAL") // LOW NORMAL HIGH URGENT
+  scheduledAt     DateTime?
+  completedAt     DateTime?
+  completionNotes String?
+  labour          String? // JSON array of labour lines
+  parts           String? // JSON array of parts lines
+  request         ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  status          String         @default("NEW") // NEW ASSIGNED IN_PROGRESS COMPLETED CANCELLED
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
+  @@index([businessId])
   @@index([status])
+  @@index([technicianId])
+  @@index([customerId])
 }
 
 model Service {
   id          String    @id @default(uuid())
-  name        String    @unique
-  slug        String    @unique
+  businessId  String    @default("default")
+  business    Business  @relation(fields: [businessId], references: [id])
+  name        String
+  slug        String
   description String?
   basePrice   Float     @default(0)
   durationMin Int       @default(60)
@@ -170,11 +270,18 @@ model Service {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   bookings    Booking[]
+  serviceRequests ServiceRequest[]
+
+  @@unique([businessId, name])
+  @@unique([businessId, slug])
+  @@index([businessId])
 }
 
 model Booking {
   id           String    @id @default(uuid())
-  reference    String    @unique
+  businessId   String    @default("default")
+  business     Business  @relation(fields: [businessId], references: [id])
+  reference    String
   customerId   String
   customer     Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
   serviceId    String?
@@ -193,67 +300,79 @@ model Booking {
 
   notes     BookingNote[]
   jobStatus JobStatus?
+  workOrder WorkOrder?
 
+  @@unique([businessId, reference])
   @@index([status])
   @@index([scheduledAt])
   @@index([customerId])
   @@index([technicianId])
+  @@index([businessId])
 }
 
 model BookingNote {
-  id        String   @id @default(uuid())
-  bookingId String
-  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
-  body      String
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  businessId String   @default("default")
+  business   Business @relation(fields: [businessId], references: [id])
+  bookingId  String
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  body       String
+  createdAt  DateTime @default(now())
 
   @@index([bookingId])
+  @@index([businessId])
 }
 
 model Order {
-  id               String      @id @default(uuid())
-  reference        String      @unique
-  customerId       String
-  customer         Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  status           String      @default("PENDING") // PENDING PAID SHIPPED COMPLETED CANCELLED
-  subtotal         Float       @default(0)
-  tax              Float       @default(0)
-  total            Float       @default(0)
-  paymentMethod    String      @default("CASH_ON_DELIVERY") // CASH_ON_DELIVERY BANK_TRANSFER STRIPE PAYPAL WIPAY TILOPAY
-  paymentStatus    String      @default("PENDING") // PENDING PAID FAILED REFUNDED
-  paymentReference String? // gateway transaction / session id
-  paidAt           DateTime?
-  shippingName     String?
-  shippingPhone    String?
-  shippingAddress  String?
-  shippingCity     String?
+  id                   String                @id @default(uuid())
+  businessId           String                @default("default")
+  business             Business              @relation(fields: [businessId], references: [id])
+  reference            String
+  customerId           String
+  customer             Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status               String                @default("PENDING") // PENDING PAID SHIPPED COMPLETED CANCELLED
+  subtotal             Float                 @default(0)
+  tax                  Float                 @default(0)
+  total                Float                 @default(0)
+  paymentMethod        String                @default("CASH_ON_DELIVERY") // CASH_ON_DELIVERY BANK_TRANSFER STRIPE PAYPAL WIPAY TILOPAY
+  paymentStatus        String                @default("PENDING") // PENDING PAID FAILED REFUNDED
+  paymentReference     String? // gateway transaction / session id
+  paidAt               DateTime?
+  shippingName         String?
+  shippingPhone        String?
+  shippingAddress      String?
+  shippingCity         String?
   // International dropshipping needs a destination country + postal code to
   // resolve supplier shipping rules and country restrictions.
-  shippingCountry  String?
-  shippingPostalCode String?
-  notes            String?
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-  items            OrderItem[]
+  shippingCountry      String?
+  shippingPostalCode   String?
+  notes                String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  items                OrderItem[]
   supplierFulfillments SupplierFulfillment[]
 
+  @@unique([businessId, reference])
   @@index([status])
   @@index([customerId])
   @@index([paymentMethod])
   @@index([paymentStatus])
+  @@index([businessId])
 }
 
 model OrderItem {
-  id        String  @id @default(uuid())
-  orderId   String
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-  quantity  Int     @default(1)
-  unitPrice Float   @default(0)
-  total     Float   @default(0)
+  id            String   @id @default(uuid())
+  businessId    String   @default("default")
+  business      Business @relation(fields: [businessId], references: [id])
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id])
+  quantity      Int      @default(1)
+  unitPrice     Float    @default(0)
+  total         Float    @default(0)
   // How many of `quantity` were taken from N&D-owned stock at order time; the
   // remainder is dropshipped by the supplier. Null on rows created before the
   // Supplier Marketplace, which are treated as fully local.
@@ -261,10 +380,13 @@ model OrderItem {
 
   @@index([orderId])
   @@index([productId])
+  @@index([businessId])
 }
 
 model ContactMessage {
   id         String         @id @default(uuid())
+  businessId String         @default("default")
+  business   Business       @relation(fields: [businessId], references: [id])
   name       String
   email      String?
   phone      String?
@@ -278,37 +400,46 @@ model ContactMessage {
   replies    MessageReply[]
 
   @@index([status])
+  @@index([businessId])
 }
 
 model MessageReply {
-  id        String         @id @default(uuid())
-  messageId String
-  message   ContactMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  userId    String?
-  user      User?          @relation(fields: [userId], references: [id])
-  body      String
-  sentAt    DateTime       @default(now())
+  id         String         @id @default(uuid())
+  businessId String         @default("default")
+  business   Business       @relation(fields: [businessId], references: [id])
+  messageId  String
+  message    ContactMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?          @relation(fields: [userId], references: [id])
+  body       String
+  sentAt     DateTime       @default(now())
 
   @@index([messageId])
+  @@index([businessId])
 }
 
 model InventoryAdjustment {
-  id        String   @id @default(uuid())
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
-  change    Int
-  before    Int
-  after     Int
-  reason    String
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  businessId String   @default("default")
+  business   Business @relation(fields: [businessId], references: [id])
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  change     Int
+  before     Int
+  after      Int
+  reason     String
+  createdAt  DateTime @default(now())
 
   @@index([productId])
+  @@index([businessId])
 }
 
 model Restock {
   id         String   @id @default(uuid())
+  businessId String   @default("default")
+  business   Business @relation(fields: [businessId], references: [id])
   productId  String
   product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   quantity   Int
@@ -318,40 +449,52 @@ model Restock {
   receivedAt DateTime @default(now())
 
   @@index([productId])
+  @@index([businessId])
 }
 
 model Activity {
-  id        String   @id @default(uuid())
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
-  type      String
-  message   String
-  meta      String?
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  businessId String   @default("default")
+  business   Business @relation(fields: [businessId], references: [id])
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  type       String
+  message    String
+  meta       String?
+  createdAt  DateTime @default(now())
 
   @@index([createdAt])
+  @@index([businessId])
 }
 
 model AuditLog {
-  id        String   @id @default(uuid())
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
-  action    String
-  entity    String
-  entityId  String?
-  ip        String?
-  userAgent String?
-  data      String?
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  businessId String   @default("default")
+  business   Business @relation(fields: [businessId], references: [id])
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String
+  entity     String
+  entityId   String?
+  ip         String?
+  userAgent  String?
+  data       String?
+  createdAt  DateTime @default(now())
 
   @@index([createdAt])
   @@index([entity])
+  @@index([businessId])
 }
 
 model Setting {
-  key       String   @id
-  value     String
-  updatedAt DateTime @updatedAt
+  key        String
+  businessId String   @default("default")
+  business   Business @relation(fields: [businessId], references: [id])
+  value      String
+  updatedAt  DateTime @updatedAt
+
+  @@id([businessId, key])
+  @@index([businessId])
 }
 
 // ---------------------------------------------------------------------------
@@ -363,10 +506,12 @@ model Setting {
 /// affect the live site until the page is published.
 model ContentPage {
   id              String    @id @default(uuid())
-  key             String    @unique // homepage | about | services | products-home | gallery | testimonials | faq | contact | hours | emergency | promotions | footer | seo | social | logo | banners
+  businessId      String    @default("default")
+  business        Business  @relation(fields: [businessId], references: [id])
+  key             String // homepage | about | services | products-home | gallery | testimonials | faq | contact | hours | emergency | promotions | footer | seo | social | logo | banners
   title           String
   subtitle        String?
-  slug            String?   @unique
+  slug            String?
   status          String    @default("DRAFT") // DRAFT | PUBLISHED
   content         String    @default("{}") // published JSON payload
   draft           String? // autosave JSON payload
@@ -380,14 +525,19 @@ model ContentPage {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
+  @@unique([businessId, key])
+  @@unique([businessId, slug])
   @@index([status])
+  @@index([businessId])
 }
 
 /// Services Manager — individual service records shown on the website.
 model ServiceItem {
   id          String    @id @default(uuid())
+  businessId  String    @default("default")
+  business    Business  @relation(fields: [businessId], references: [id])
   name        String
-  slug        String?   @unique
+  slug        String?
   icon        String? // font-awesome class or inline svg name
   imageUrl    String?
   description String? // short excerpt
@@ -399,13 +549,17 @@ model ServiceItem {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  @@unique([businessId, slug])
   @@index([featured])
   @@index([status])
+  @@index([businessId])
 }
 
 /// Testimonials — customer reviews shown on the website.
 model Testimonial {
   id          String    @id @default(uuid())
+  businessId  String    @default("default")
+  business    Business  @relation(fields: [businessId], references: [id])
   name        String
   company     String?
   review      String
@@ -418,11 +572,14 @@ model Testimonial {
   updatedAt   DateTime  @updatedAt
 
   @@index([status])
+  @@index([businessId])
 }
 
 /// Gallery Manager — optimised images grouped by category.
 model GalleryItem {
   id          String    @id @default(uuid())
+  businessId  String    @default("default")
+  business    Business  @relation(fields: [businessId], references: [id])
   title       String?
   alt         String?
   category    String?
@@ -436,11 +593,14 @@ model GalleryItem {
 
   @@index([status])
   @@index([category])
+  @@index([businessId])
 }
 
 /// FAQ — frequently asked questions.
 model FaqItem {
   id          String    @id @default(uuid())
+  businessId  String    @default("default")
+  business    Business  @relation(fields: [businessId], references: [id])
   question    String
   answer      String
   category    String?
@@ -451,11 +611,14 @@ model FaqItem {
   updatedAt   DateTime  @updatedAt
 
   @@index([status])
+  @@index([businessId])
 }
 
 /// Promotions — banners / deals displayed on the site.
 model PromotionItem {
   id          String    @id @default(uuid())
+  businessId  String    @default("default")
+  business    Business  @relation(fields: [businessId], references: [id])
   title       String
   body        String?
   imageUrl    String?
@@ -470,11 +633,14 @@ model PromotionItem {
   updatedAt   DateTime  @updatedAt
 
   @@index([status])
+  @@index([businessId])
 }
 
 /// About Us — team members.
 model TeamMember {
   id          String    @id @default(uuid())
+  businessId  String    @default("default")
+  business    Business  @relation(fields: [businessId], references: [id])
   name        String
   role        String?
   bio         String?
@@ -486,12 +652,15 @@ model TeamMember {
   updatedAt   DateTime  @updatedAt
 
   @@index([status])
+  @@index([businessId])
 }
 
 /// Media Manager — the site-wide media library.
 model Technician {
   id               String   @id @default(uuid())
-  employeeId       String   @unique
+  businessId       String   @default("default")
+  business         Business @relation(fields: [businessId], references: [id])
+  employeeId       String
   name             String
   phone            String?
   email            String?
@@ -504,10 +673,15 @@ model Technician {
   notes            String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  @@unique([businessId, employeeId])
+  @@index([businessId])
 }
 
 model Equipment {
   id             String           @id @default(uuid())
+  businessId     String           @default("default")
+  business       Business         @relation(fields: [businessId], references: [id])
   customerId     String
   customer       Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
   type           String
@@ -526,10 +700,16 @@ model Equipment {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   serviceHistory ServiceHistory[]
+  workOrders     WorkOrder[]
+  serviceRequests ServiceRequest[]
+
+  @@index([businessId])
 }
 
 model ServiceHistory {
   id           String    @id @default(uuid())
+  businessId   String    @default("default")
+  business     Business  @relation(fields: [businessId], references: [id])
   equipmentId  String
   equipment    Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
   serviceDate  DateTime
@@ -537,11 +717,15 @@ model ServiceHistory {
   technicianId String?
   notes        String?
   createdAt    DateTime  @default(now())
+
+  @@index([businessId])
 }
 
 model Estimate {
   id         String   @id @default(uuid())
-  reference  String   @unique
+  businessId String   @default("default")
+  business   Business @relation(fields: [businessId], references: [id])
+  reference  String
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
   status     String   @default("DRAFT")
@@ -554,11 +738,16 @@ model Estimate {
   notes      String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@unique([businessId, reference])
+  @@index([businessId])
 }
 
 model Invoice {
   id         String    @id @default(uuid())
-  reference  String    @unique
+  businessId String    @default("default")
+  business   Business  @relation(fields: [businessId], references: [id])
+  reference  String
   customerId String
   customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
   status     String    @default("PENDING")
@@ -572,33 +761,43 @@ model Invoice {
   parts      String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
+
+  @@unique([businessId, reference])
+  @@index([businessId])
 }
 
 model JobStatus {
   id           String   @id @default(uuid())
+  businessId   String   @default("default")
+  business     Business @relation(fields: [businessId], references: [id])
   bookingId    String   @unique
   booking      Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   status       String   @default("NEW")
   technicianId String?
   priority     String   @default("NORMAL")
   updatedAt    DateTime @updatedAt
+
+  @@index([businessId])
 }
 
 model MediaAsset {
-  id        String   @id @default(uuid())
-  filename  String
-  url       String
-  thumbUrl  String?
-  mimeType  String
-  size      Int      @default(0)
-  width     Int?
-  height    Int?
-  folder    String   @default("/")
-  alt       String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(uuid())
+  businessId String   @default("default")
+  business   Business @relation(fields: [businessId], references: [id])
+  filename   String
+  url        String
+  thumbUrl   String?
+  mimeType   String
+  size       Int      @default(0)
+  width      Int?
+  height     Int?
+  folder     String   @default("/")
+  alt        String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([folder])
+  @@index([businessId])
 }
 
 // ---------------------------------------------------------------------------
@@ -617,33 +816,33 @@ model MediaAsset {
 
 /// A trade supplier / distributor / manufacturer.
 model Supplier {
-  id                String   @id @default(uuid())
-  tenantId          String   @default("default")
-  name              String
-  code              String
-  country           String   @default("") // ISO 3166-1 alpha-2 of the supplier
-  currency          String   @default("USD")
-  website           String?
-  email             String?
-  phone             String?
-  contactName       String?
-  accountRef        String? // our account/reference number with this supplier
-  type              String   @default("GENERAL") // HVAC | REFRIGERATION | AUTOMOTIVE_AC | ELECTRICAL | PLUMBING | APPLIANCE | GENERAL | <custom>
-  fulfillmentType   String   @default("HYBRID") // LOCAL | SUPPLIER_FULFILLED | HYBRID
-  status            String   @default("ACTIVE") // ACTIVE | DISABLED | ARCHIVED
-  countriesServed   String? // JSON array of ISO codes; null/[] = worldwide
-  blockedCountries  String? // JSON array of ISO codes never served
-  shippingMethods   String? // JSON array of shipping method codes offered
-  leadTimeDays      Int      @default(0)
-  minOrderValue     Float    @default(0)
-  paymentTerms      String?
-  dropshipEnabled   Boolean  @default(true)
-  markupType        String? // PERCENT | FIXED — supplier-level default markup
-  markupValue       Float?
-  notes             String?
-  archivedAt        DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id               String    @id @default(uuid())
+  tenantId         String    @default("default")
+  name             String
+  code             String
+  country          String    @default("") // ISO 3166-1 alpha-2 of the supplier
+  currency         String    @default("USD")
+  website          String?
+  email            String?
+  phone            String?
+  contactName      String?
+  accountRef       String? // our account/reference number with this supplier
+  type             String    @default("GENERAL") // HVAC | REFRIGERATION | AUTOMOTIVE_AC | ELECTRICAL | PLUMBING | APPLIANCE | GENERAL | <custom>
+  fulfillmentType  String    @default("HYBRID") // LOCAL | SUPPLIER_FULFILLED | HYBRID
+  status           String    @default("ACTIVE") // ACTIVE | DISABLED | ARCHIVED
+  countriesServed  String? // JSON array of ISO codes; null/[] = worldwide
+  blockedCountries String? // JSON array of ISO codes never served
+  shippingMethods  String? // JSON array of shipping method codes offered
+  leadTimeDays     Int       @default(0)
+  minOrderValue    Float     @default(0)
+  paymentTerms     String?
+  dropshipEnabled  Boolean   @default(true)
+  markupType       String? // PERCENT | FIXED — supplier-level default markup
+  markupValue      Float?
+  notes            String?
+  archivedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   integration   SupplierIntegration?
   products      SupplierProduct[]
@@ -687,8 +886,8 @@ model SupplierIntegration {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  syncs    SupplierSync[]
-  imports  SupplierCatalogImport[]
+  syncs   SupplierSync[]
+  imports SupplierCatalogImport[]
 
   @@index([tenantId])
   @@index([status])
@@ -697,55 +896,55 @@ model SupplierIntegration {
 /// A catalogue line as advertised by a supplier. This is NOT a storefront
 /// product — publishing creates/updates the platform `Product` via `mapping`.
 model SupplierProduct {
-  id                  String    @id @default(uuid())
-  tenantId            String    @default("default")
-  supplierId          String
-  supplier            Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  supplierSku         String
-  manufacturerPart    String?
-  upc                 String?
-  name                String
-  description         String?
-  brand               String?
-  categoryText        String? // supplier-side category name
-  categoryId          String? // resolved platform category, when mapping succeeds
-  supplierCost        Float     @default(0)
-  currency            String    @default("USD")
-  msrp                Float?
-  stock               Int       @default(0) // units the supplier has available
-  stockStatus         String? // supplier's own availability text (IN_STOCK, BACKORDER…)
-  imageUrl            String?
-  gallery             String? // JSON array
-  specs               String? // JSON object — arbitrary key/value, trade agnostic
-  weightKg            Float?
-  lengthCm            Float?
-  widthCm             Float?
-  heightCm            Float?
+  id                     String    @id @default(uuid())
+  tenantId               String    @default("default")
+  supplierId             String
+  supplier               Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplierSku            String
+  manufacturerPart       String?
+  upc                    String?
+  name                   String
+  description            String?
+  brand                  String?
+  categoryText           String? // supplier-side category name
+  categoryId             String? // resolved platform category, when mapping succeeds
+  supplierCost           Float     @default(0)
+  currency               String    @default("USD")
+  msrp                   Float?
+  stock                  Int       @default(0) // units the supplier has available
+  stockStatus            String? // supplier's own availability text (IN_STOCK, BACKORDER…)
+  imageUrl               String?
+  gallery                String? // JSON array
+  specs                  String? // JSON object — arbitrary key/value, trade agnostic
+  weightKg               Float?
+  lengthCm               Float?
+  widthCm                Float?
+  heightCm               Float?
   // Restricted goods (refrigerants, gases, batteries…). Nothing here encodes a
   // legal opinion — every restriction is operator-configured.
-  restricted          Boolean   @default(false)
-  restrictionType     String? // e.g. REFRIGERANT | PRESSURISED | FLAMMABLE | HAZMAT | CUSTOM
-  restrictionNotes    String?
-  documentationRequired String? // JSON array of document labels the operator requires
-  allowedCountries    String? // JSON array — empty/null = follow supplier defaults
-  blockedCountries    String? // JSON array
+  restricted             Boolean   @default(false)
+  restrictionType        String? // e.g. REFRIGERANT | PRESSURISED | FLAMMABLE | HAZMAT | CUSTOM
+  restrictionNotes       String?
+  documentationRequired  String? // JSON array of document labels the operator requires
+  allowedCountries       String? // JSON array — empty/null = follow supplier defaults
+  blockedCountries       String? // JSON array
   allowedShippingMethods String? // JSON array — restricts carrier/service choice
-  fulfillmentType     String? // null = inherit supplier default
+  fulfillmentType        String? // null = inherit supplier default
   // Pricing: `priceOverride` wins over the markup engine.
-  priceOverride       Float?
-  markupOverrideType  String? // PERCENT | FIXED
-  markupOverrideValue Float?
-  sellingPrice        Float     @default(0) // last computed price (denormalised for the UI)
-  markupApplied       String? // JSON snapshot of the rule that produced sellingPrice
+  priceOverride          Float?
+  markupOverrideType     String? // PERCENT | FIXED
+  markupOverrideValue    Float?
+  sellingPrice           Float     @default(0) // last computed price (denormalised for the UI)
+  markupApplied          String? // JSON snapshot of the rule that produced sellingPrice
   // Synchronisation bookkeeping.
-  syncStatus          String    @default("NEW") // NEW | OK | CHANGED | ERROR
-  lastSyncedAt        DateTime?
-  lastSyncError       String?
-  mappingStatus       String    @default("UNMAPPED") // UNMAPPED | AUTO | MANUAL
-  published           Boolean   @default(false)
-  isActive            Boolean   @default(true)
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  syncStatus             String    @default("NEW") // NEW | OK | CHANGED | ERROR
+  lastSyncedAt           DateTime?
+  lastSyncError          String?
+  mappingStatus          String    @default("UNMAPPED") // UNMAPPED | AUTO | MANUAL
+  published              Boolean   @default(false)
+  isActive               Boolean   @default(true)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   mapping       SupplierProductMapping?
   fulfillments  SupplierFulfillmentItem[]
@@ -760,20 +959,20 @@ model SupplierProduct {
 
 /// Persists "supplier SKU → platform product" so future syncs never duplicate.
 model SupplierProductMapping {
-  id                String         @id @default(uuid())
-  tenantId          String         @default("default")
+  id                String          @id @default(uuid())
+  tenantId          String          @default("default")
   supplierId        String
-  supplier          Supplier       @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  supplierProductId String         @unique
+  supplier          Supplier        @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplierProductId String          @unique
   supplierProduct   SupplierProduct @relation(fields: [supplierProductId], references: [id], onDelete: Cascade)
   productId         String
-  product           Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product           Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
   supplierSku       String
-  matchKey          String         @default("SKU") // SKU | MPN | UPC | MANUAL
-  source            String         @default("AUTO") // AUTO | MANUAL
-  confidence        Int            @default(100)
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  matchKey          String          @default("SKU") // SKU | MPN | UPC | MANUAL
+  source            String          @default("AUTO") // AUTO | MANUAL
+  confidence        Int             @default(100)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   @@unique([tenantId, productId])
   @@index([supplierId])
@@ -781,26 +980,26 @@ model SupplierProductMapping {
 
 /// A catalogue import job. Always previewed before it is committed.
 model SupplierCatalogImport {
-  id             String    @id @default(uuid())
-  tenantId       String    @default("default")
-  supplierId     String
-  supplier       Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  integrationId  String?
-  integration    SupplierIntegration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
-  source         String // CSV | XML | JSON | API | SFTP | UPLOAD
-  filename       String?
-  status         String    @default("PREVIEWING") // PREVIEWING | COMMITTED | CANCELLED | FAILED
-  rowsRead       Int       @default(0)
-  rowsCreated    Int       @default(0)
-  rowsUpdated    Int       @default(0)
-  rowsUnchanged  Int       @default(0)
-  rowsFailed     Int       @default(0)
-  preview        String? // JSON array of normalised preview rows (bounded)
-  errorLog       String? // JSON array of {row, field, message}
-  committedAt    DateTime?
-  createdBy      String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id            String               @id @default(uuid())
+  tenantId      String               @default("default")
+  supplierId    String
+  supplier      Supplier             @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  integrationId String?
+  integration   SupplierIntegration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+  source        String // CSV | XML | JSON | API | SFTP | UPLOAD
+  filename      String?
+  status        String               @default("PREVIEWING") // PREVIEWING | COMMITTED | CANCELLED | FAILED
+  rowsRead      Int                  @default(0)
+  rowsCreated   Int                  @default(0)
+  rowsUpdated   Int                  @default(0)
+  rowsUnchanged Int                  @default(0)
+  rowsFailed    Int                  @default(0)
+  preview       String? // JSON array of normalised preview rows (bounded)
+  errorLog      String? // JSON array of {row, field, message}
+  committedAt   DateTime?
+  createdBy     String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 
   @@index([tenantId])
   @@index([supplierId])
@@ -810,33 +1009,33 @@ model SupplierCatalogImport {
 /// A synchronisation run. Also acts as the overlap lock (one RUNNING per
 /// supplier+type at a time, enforced by `sync-engine.js`).
 model SupplierSync {
-  id               String    @id @default(uuid())
-  tenantId         String    @default("default")
+  id               String               @id @default(uuid())
+  tenantId         String               @default("default")
   supplierId       String
-  supplier         Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplier         Supplier             @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   integrationId    String?
   integration      SupplierIntegration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
-  type             String    @default("FULL") // CATALOG | PRODUCTS | INVENTORY | PRICING | FULL
-  trigger          String    @default("MANUAL") // MANUAL | SCHEDULED | RETRY | ORDER
-  status           String    @default("QUEUED") // QUEUED | RUNNING | COMPLETED | PARTIAL | FAILED | CANCELLED
-  startedAt        DateTime  @default(now())
+  type             String               @default("FULL") // CATALOG | PRODUCTS | INVENTORY | PRICING | FULL
+  trigger          String               @default("MANUAL") // MANUAL | SCHEDULED | RETRY | ORDER
+  status           String               @default("QUEUED") // QUEUED | RUNNING | COMPLETED | PARTIAL | FAILED | CANCELLED
+  startedAt        DateTime             @default(now())
   finishedAt       DateTime?
   durationMs       Int?
-  processed        Int       @default(0)
-  created          Int       @default(0)
-  updated          Int       @default(0)
-  skipped          Int       @default(0)
-  inventoryUpdates Int       @default(0)
-  priceUpdates     Int       @default(0)
-  errorCount       Int       @default(0)
+  processed        Int                  @default(0)
+  created          Int                  @default(0)
+  updated          Int                  @default(0)
+  skipped          Int                  @default(0)
+  inventoryUpdates Int                  @default(0)
+  priceUpdates     Int                  @default(0)
+  errorCount       Int                  @default(0)
   errorLog         String? // JSON array of {sku, message}
-  attempt          Int       @default(1)
-  maxAttempts      Int       @default(3)
+  attempt          Int                  @default(1)
+  maxAttempts      Int                  @default(3)
   parentSyncId     String? // set when this run is a retry of an earlier one
-  batch            Int       @default(100)
+  batch            Int                  @default(100)
   cursor           String? // pagination cursor for resumable feeds
   message          String?
-  createdAt        DateTime  @default(now())
+  createdAt        DateTime             @default(now())
 
   logs SupplierSyncLog[]
 
@@ -867,19 +1066,19 @@ model SupplierSyncLog {
 
 /// A dropship/supplier fulfillment raised against a real customer `Order`.
 model SupplierFulfillment {
-  id                 String   @id @default(uuid())
-  tenantId           String   @default("default")
+  id                 String    @id @default(uuid())
+  tenantId           String    @default("default")
   supplierId         String
-  supplier           Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplier           Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   orderId            String
-  order              Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order              Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   supplierOrderId    String?
-  status             String   @default("PENDING") // PENDING | READY | SUBMITTED | ACCEPTED | PROCESSING | PARTIALLY_SHIPPED | SHIPPED | DELIVERED | CANCELLED | FAILED
-  fulfillmentType    String   @default("SUPPLIER_FULFILLED")
-  transmissionMethod String   @default("MANUAL") // API | EMAIL | MANUAL
-  transmissionStatus String   @default("NOT_SENT") // NOT_SENT | SENT | ACCEPTED | REJECTED | FAILED
+  status             String    @default("PENDING") // PENDING | READY | SUBMITTED | ACCEPTED | PROCESSING | PARTIALLY_SHIPPED | SHIPPED | DELIVERED | CANCELLED | FAILED
+  fulfillmentType    String    @default("SUPPLIER_FULFILLED")
+  transmissionMethod String    @default("MANUAL") // API | EMAIL | MANUAL
+  transmissionStatus String    @default("NOT_SENT") // NOT_SENT | SENT | ACCEPTED | REJECTED | FAILED
   transmissionRef    String?
-  attempts           Int      @default(0)
+  attempts           Int       @default(0)
   submittedAt        DateTime?
   acceptedAt         DateTime?
   shippedAt          DateTime?
@@ -891,12 +1090,12 @@ model SupplierFulfillment {
   trackingUrl        String?
   shipTo             String? // JSON {name, phone, address, city, country, postalCode}
   shippingMethod     String?
-  shippingCost       Float    @default(0)
-  currency           String   @default("USD")
-  totalCost          Float    @default(0)
+  shippingCost       Float     @default(0)
+  currency           String    @default("USD")
+  totalCost          Float     @default(0)
   notes              String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   items SupplierFulfillmentItem[]
 
@@ -916,10 +1115,10 @@ model SupplierFulfillmentItem {
   productId         String?
   supplierSku       String
   name              String
-  quantity          Int       @default(1)
-  unitCost          Float     @default(0)
-  unitPrice         Float     @default(0)
-  total             Float     @default(0)
+  quantity          Int                 @default(1)
+  unitCost          Float               @default(0)
+  unitPrice         Float               @default(0)
+  total             Float               @default(0)
   trackingNumber    String?
 
   @@index([fulfillmentId])

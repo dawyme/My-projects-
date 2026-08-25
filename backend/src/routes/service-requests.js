@@ -4,13 +4,18 @@ const prisma = require('../lib/prisma');
 const asyncHandler = require('../lib/async');
 const { validate } = require('../middleware/validate');
 const { protect } = require('../middleware/auth');
-const { notFound } = require('../lib/errors');
-const { audit } = require('../lib/audit');
+const { tenantWhere } = require('../lib/tenant');
+const { badRequest, notFound } = require('../lib/errors');
+const { audit, activity } = require('../lib/audit');
 
 const router = express.Router();
 
+const STATUSES = ['NEW', 'REVIEWING', 'ACCEPTED', 'CONVERTED', 'CANCELLED'];
+
 const createBody = z.object({
   customerId: z.string().trim().min(1),
+  equipmentId: z.string().uuid().nullable().optional(),
+  serviceId: z.string().uuid().nullable().optional(),
   serviceType: z.string().trim().min(1).max(120),
   problem: z.string().trim().min(1).max(4000),
   address: z.string().trim().min(1).max(300),
@@ -18,56 +23,121 @@ const createBody = z.object({
 });
 
 const listQuery = z.object({
-  status: z.enum(['NEW', 'REVIEWING', 'ACCEPTED', 'CONVERTED', 'CANCELLED']).optional(),
+  status: z.string().optional(),
+  customerId: z.string().optional(),
+  priority: z.string().optional(),
+  search: z.string().optional(),
 });
+
+/** Validates that referenced parent rows belong to the caller's tenant. */
+async function resolveReferences(req, { customerId, equipmentId, serviceId }) {
+  const customer = await prisma.customer.findFirst({ where: tenantWhere(req, { id: customerId }), select: { id: true } });
+  if (!customer) throw notFound('Customer not found');
+  if (equipmentId) {
+    const equipment = await prisma.equipment.findFirst({ where: tenantWhere(req, { id: equipmentId }), select: { id: true } });
+    if (!equipment) throw badRequest('Equipment not found');
+  }
+  if (serviceId) {
+    const service = await prisma.service.findFirst({ where: tenantWhere(req, { id: serviceId }), select: { id: true } });
+    if (!service) throw badRequest('Service not found');
+  }
+}
 
 // GET /api/service-requests
 router.get('/', protect, validate(listQuery, 'query'), asyncHandler(async (req, res) => {
-  const where = req.validatedQuery.status ? { status: req.validatedQuery.status } : {};
+  const q = req.validatedQuery;
+  const where = tenantWhere(req);
+  if (q.status) where.status = { in: q.status.split(',').map((s) => s.trim().toUpperCase()).filter((s) => STATUSES.includes(s)) };
+  if (q.customerId) where.customerId = q.customerId;
+  if (q.priority) where.priority = { in: q.priority.split(',').map((s) => s.trim().toUpperCase()) };
+  if (q.search) {
+    where.OR = [
+      { serviceType: { contains: q.search } }, { problem: { contains: q.search } },
+      { address: { contains: q.search } }, { customer: { name: { contains: q.search } } },
+    ];
+  }
   const requests = await prisma.serviceRequest.findMany({
     where,
-    orderBy: { createdAt: 'desc' },
-    include: { customer: true },
+    orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }],
+    include: {
+      customer: { select: { id: true, name: true, email: true, phone: true } },
+      equipment: { select: { id: true, type: true, brand: true, model: true } },
+      workOrder: { select: { id: true, status: true } },
+    },
   });
   res.json({ success: true, data: requests });
 }));
 
 // POST /api/service-requests
 router.post('/', protect, validate(createBody), asyncHandler(async (req, res) => {
-  const customer = await prisma.customer.findUnique({
-    where: { id: req.body.customerId },
-    select: { id: true },
-  });
-  if (!customer) throw notFound('Customer not found');
-
-  const request = await prisma.serviceRequest.create({ data: req.body });
+  await resolveReferences(req, req.body);
+  const request = await prisma.serviceRequest.create({ data: { ...req.body, businessId: req.tenantId } });
   await audit(req, 'CREATE', 'ServiceRequest', request.id, {
     customerId: request.customerId,
     serviceType: request.serviceType,
   });
+  await activity(req.user.id, 'service-request', `${req.user.name} logged a service request (${request.serviceType})`, undefined, req);
   res.status(201).json({ success: true, data: request });
 }));
 
 // GET /api/service-requests/:id
 router.get('/:id', protect, asyncHandler(async (req, res) => {
-  const request = await prisma.serviceRequest.findUnique({
-    where: { id: req.params.id },
-    include: { customer: true, workOrder: true },
+  const request = await prisma.serviceRequest.findFirst({
+    where: tenantWhere(req, { id: req.params.id }),
+    include: {
+      customer: true,
+      equipment: true,
+      workOrder: true,
+    },
   });
   if (!request) throw notFound('Service request not found');
   res.json({ success: true, data: request });
 }));
 
-// POST /api/service-requests/:id/convert
+// PATCH /api/service-requests/:id/status — intake review workflow
+router.patch('/:id/status', protect,
+  validate(z.object({ status: z.enum(STATUSES) })),
+  asyncHandler(async (req, res) => {
+    const request = await prisma.serviceRequest.findFirst({ where: tenantWhere(req, { id: req.params.id }) });
+    if (!request) throw notFound('Service request not found');
+
+    const next = req.body.status;
+    const allowed = {
+      NEW: ['REVIEWING', 'ACCEPTED', 'CANCELLED'],
+      REVIEWING: ['ACCEPTED', 'CANCELLED'],
+      ACCEPTED: ['CONVERTED', 'CANCELLED'],
+      CONVERTED: [],
+      CANCELLED: [],
+    };
+    if (next === request.status) {
+      return res.json({ success: true, data: request });
+    }
+    if (!allowed[request.status]?.includes(next)) {
+      throw badRequest(`Service request cannot transition from ${request.status} to ${next}`);
+    }
+    const updated = await prisma.serviceRequest.update({ where: { id: request.id }, data: { status: next } });
+    await audit(req, 'STATUS_CHANGE', 'ServiceRequest', request.id, { from: request.status, to: next });
+    res.json({ success: true, data: updated });
+  }));
+
+// POST /api/service-requests/:id/convert — creates exactly one work order
 router.post('/:id/convert', protect, asyncHandler(async (req, res) => {
   const result = await prisma.$transaction(async (tx) => {
-    const request = await tx.serviceRequest.findUnique({ where: { id: req.params.id } });
+    const request = await tx.serviceRequest.findFirst({
+      where: { id: req.params.id, businessId: req.tenantId },
+    });
     if (!request) throw notFound('Service request not found');
 
     const existing = await tx.workOrder.findUnique({ where: { requestId: request.id } });
     const workOrder = await tx.workOrder.upsert({
       where: { requestId: request.id },
-      create: { requestId: request.id },
+      create: {
+        requestId: request.id,
+        businessId: req.tenantId,
+        customerId: request.customerId,
+        equipmentId: request.equipmentId,
+        priority: request.priority,
+      },
       update: {},
     });
     if (request.status !== 'CONVERTED') {
@@ -81,6 +151,7 @@ router.post('/:id/convert', protect, asyncHandler(async (req, res) => {
 
   if (result.created) {
     await audit(req, 'CONVERT', 'ServiceRequest', req.params.id, { workOrderId: result.workOrder.id });
+    await activity(req.user.id, 'work-order', `${req.user.name} converted a service request into a work order`, undefined, req);
   }
   res.status(result.created ? 201 : 200).json({ success: true, data: result.workOrder });
 }));

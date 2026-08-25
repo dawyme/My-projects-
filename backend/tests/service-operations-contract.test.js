@@ -53,7 +53,7 @@ async function main() {
     client.setCsrfToken(csrf.body.data.csrfToken);
 
     const login = await client.post('/api/auth/login', {
-      email: process.env.SEED_ADMIN_EMAIL || 'admin@coolairhvac.com',
+      email: process.env.SEED_ADMIN_EMAIL || 'admin@ndsairconditioning.com',
       password: process.env.SEED_ADMIN_PASSWORD || 'Admin@12345',
     });
     assert.strictEqual(login.status, 200, 'admin authentication must work');

@@ -9,6 +9,7 @@ const { badRequest, notFound } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
 const { revokeAllForUser } = require('../lib/tokens');
 const { publicUser } = require('./auth');
+const { isPlatformAdmin } = require('../lib/tenant');
 
 const router = express.Router();
 const ROLES = ['ADMIN', 'STAFF'];
@@ -16,10 +17,11 @@ const ROLES = ['ADMIN', 'STAFF'];
 // GET /api/users — staff can read the roster (needed for technician assignment)
 router.get('/', protect, asyncHandler(async (req, res) => {
   const users = await prisma.user.findMany({
+    where: isPlatformAdmin(req) ? undefined : { OR: [{ businessId: req.tenantId }, { businessId: null }] },
     orderBy: { name: 'asc' },
     select: {
       id: true, name: true, email: true, role: true, phone: true, avatarUrl: true,
-      isActive: true, lastLoginAt: true, createdAt: true,
+      isActive: true, lastLoginAt: true, createdAt: true, businessId: true,
       _count: { select: { bookings: true } },
     },
   });
@@ -35,8 +37,11 @@ router.post('/', protect, adminOnly, validate(z.object({
   phone: z.string().trim().max(40).optional().nullable(),
 })), asyncHandler(async (req, res) => {
   const { password, ...rest } = req.body;
+  // Tenants can only create users inside their own business; platform admins
+  // may place the new user in any tenant via an explicit businessId.
+  const businessId = isPlatformAdmin(req) ? (rest.businessId || null) : req.tenantId;
   const user = await prisma.user.create({
-    data: { ...rest, email: rest.email.toLowerCase(), passwordHash: await bcrypt.hash(password, 12) },
+    data: { ...rest, businessId, email: rest.email.toLowerCase(), passwordHash: await bcrypt.hash(password, 12) },
   });
   await audit(req, 'CREATE', 'User', user.id, { email: user.email, role: user.role });
   await activity(req.user.id, 'user', `${req.user.name} created ${user.role.toLowerCase()} account for ${user.name}`);
@@ -54,12 +59,15 @@ router.put('/:id', protect, adminOnly, validate(z.object({
 })), asyncHandler(async (req, res) => {
   const target = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!target) throw notFound('User not found');
-  const { password, ...data } = req.body;
+  if (!isPlatformAdmin(req) && target.businessId && target.businessId !== req.tenantId) {
+    throw notFound('User not found'); // another tenant's staff — do not reveal
+  }
+  const { password, businessId, ...data } = req.body;
   if (data.email) data.email = data.email.toLowerCase();
 
-  // Guard: never leave the system without an active admin.
+  // Guard: never leave the tenant (or the platform) without an active admin.
   if ((data.role && data.role !== 'ADMIN' && target.role === 'ADMIN') || (data.isActive === false && target.role === 'ADMIN')) {
-    const admins = await prisma.user.count({ where: { role: 'ADMIN', isActive: true, NOT: { id: target.id } } });
+    const admins = await prisma.user.count({ where: { role: 'ADMIN', isActive: true, NOT: { id: target.id }, OR: [{ businessId: target.businessId }] } });
     if (admins === 0) throw badRequest('At least one active administrator must remain');
   }
   if (password) data.passwordHash = await bcrypt.hash(password, 12);
@@ -75,8 +83,11 @@ router.delete('/:id', protect, adminOnly, asyncHandler(async (req, res) => {
   if (req.params.id === req.user.id) throw badRequest('You cannot delete your own account');
   const target = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!target) throw notFound('User not found');
+  if (!isPlatformAdmin(req) && target.businessId && target.businessId !== req.tenantId) {
+    throw notFound('User not found'); // another tenant's staff — do not reveal
+  }
   if (target.role === 'ADMIN') {
-    const admins = await prisma.user.count({ where: { role: 'ADMIN', isActive: true, NOT: { id: target.id } } });
+    const admins = await prisma.user.count({ where: { role: 'ADMIN', isActive: true, NOT: { id: target.id }, OR: [{ businessId: target.businessId }] } });
     if (admins === 0) throw badRequest('At least one active administrator must remain');
   }
   await prisma.booking.updateMany({ where: { technicianId: target.id }, data: { technicianId: null } });

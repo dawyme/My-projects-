@@ -63,7 +63,7 @@ function stop() {
 }
 
 async function status() {
-  const settings = await marketplaceSettings.read();
+  const settings = await marketplaceSettings.read('default'); // automation sweeps the platform's default tenant
   return {
     running: Boolean(timer),
     autoSyncEnabled: settings.autoSyncEnabled,

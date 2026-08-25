@@ -84,8 +84,8 @@ const SCHEMAS = {
   }),
 };
 
-async function readAll() {
-  const rows = await prisma.setting.findMany();
+async function readAll(tenantId = 'default') {
+  const rows = await prisma.setting.findMany({ where: { businessId: tenantId } });
   const stored = Object.fromEntries(rows.map((r) => [r.key, JSON.parse(r.value)]));
   const out = {};
   for (const key of Object.keys(DEFAULTS)) out[key] = { ...DEFAULTS[key], ...(stored[key] || {}) };
@@ -94,7 +94,7 @@ async function readAll() {
 
 // GET /api/settings
 router.get('/', protect, asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await cache.wrap('settings:all', 15000, readAll) });
+  res.json({ success: true, data: await cache.wrap(`settings:all:${req.tenantId}`, 15000, () => readAll(req.tenantId)) });
 }));
 
 // PUT /api/settings/:section
@@ -107,11 +107,11 @@ router.put('/:section', protect, adminOnly, asyncHandler(async (req, res) => {
     throw badRequest('Validation failed', parsed.error.issues.map((i) => ({ field: i.path.join('.'), message: i.message })));
   }
   await prisma.setting.upsert({
-    where: { key: section },
+    where: { businessId_key: { businessId: req.tenantId, key: section } },
     update: { value: JSON.stringify(parsed.data) },
-    create: { key: section, value: JSON.stringify(parsed.data) },
+    create: { businessId: req.tenantId, key: section, value: JSON.stringify(parsed.data) },
   });
-  cache.invalidate('settings');
+  cache.invalidate(`settings:all:${req.tenantId}`);
   await audit(req, 'UPDATE_SETTINGS', 'Setting', section, parsed.data);
   res.json({ success: true, data: { [section]: parsed.data } });
 }));
@@ -120,10 +120,10 @@ router.put('/:section', protect, adminOnly, asyncHandler(async (req, res) => {
 router.post('/logo', protect, adminOnly, upload.single('logo'), asyncHandler(async (req, res) => {
   if (!req.file) throw badRequest('No logo uploaded (field name: logo)');
   const logoUrl = await persistImage(req.file);
-  const current = await readAll();
+  const current = await readAll(req.tenantId);
   const value = { ...current.company, logoUrl };
-  await prisma.setting.upsert({ where: { key: 'company' }, update: { value: JSON.stringify(value) }, create: { key: 'company', value: JSON.stringify(value) } });
-  cache.invalidate('settings');
+  await prisma.setting.upsert({ where: { businessId_key: { businessId: req.tenantId, key: 'company' } }, update: { value: JSON.stringify(value) }, create: { businessId: req.tenantId, key: 'company', value: JSON.stringify(value) } });
+  cache.invalidate(`settings:all:${req.tenantId}`);
   await audit(req, 'UPLOAD_LOGO', 'Setting', 'company', { logoUrl });
   res.json({ success: true, data: { logoUrl } });
 }));

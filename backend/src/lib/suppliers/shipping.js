@@ -80,7 +80,7 @@ async function quote({
   tenantId = 'default', country, supplierId = null, supplier = null, supplierProduct = null,
   categoryId = null, weightKg = 0, quantity = 1, subtotal = 0,
 }) {
-  const settings = await marketplaceSettings.read();
+  const settings = await marketplaceSettings.read(tenantId);
   const destination = String(country || '').toUpperCase();
 
   const platformBlocked = expandCountries(settings.blockedCountries || []);
@@ -164,7 +164,7 @@ async function quote({
  * shipping cost plus anything that cannot be shipped.
  */
 async function quoteOrder({ tenantId = 'default', order, lines }) {
-  const settings = await marketplaceSettings.read();
+  const settings = await marketplaceSettings.read(tenantId);
   const country = String(order?.shippingCountry || settings.defaultCountry || '').toUpperCase();
   const results = [];
   let total = 0;

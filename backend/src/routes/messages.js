@@ -8,6 +8,7 @@ const { paginationSchema, buildOrderBy, meta } = require('../lib/pagination');
 const { notFound } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
 const { sendMessageReplyEmail } = require('../lib/mailer');
+const { tenantWhere } = require('../lib/tenant');
 const cache = require('../lib/cache');
 
 const router = express.Router();
@@ -21,7 +22,7 @@ const listQuery = paginationSchema.extend({
 // GET /api/messages
 router.get('/', protect, validate(listQuery, 'query'), asyncHandler(async (req, res) => {
   const q = req.validatedQuery;
-  const where = {};
+  const where = tenantWhere(req);
   if (q.status) where.status = { in: q.status.split(',').map((s) => s.trim().toUpperCase()).filter((s) => STATUSES.includes(s)) };
   if (q.search) {
     where.OR = [
@@ -45,8 +46,8 @@ router.get('/', protect, validate(listQuery, 'query'), asyncHandler(async (req, 
 
 // GET /api/messages/:id — reading marks it as READ
 router.get('/:id', protect, asyncHandler(async (req, res) => {
-  const message = await prisma.contactMessage.findUnique({
-    where: { id: req.params.id },
+  const message = await prisma.contactMessage.findFirst({
+    where: tenantWhere(req, { id: req.params.id }),
     include: { replies: { orderBy: { sentAt: 'asc' }, include: { user: { select: { name: true } } } }, customer: true },
   });
   if (!message) throw notFound('Message not found');
@@ -62,7 +63,9 @@ router.get('/:id', protect, asyncHandler(async (req, res) => {
 router.patch('/:id/status', protect,
   validate(z.object({ status: z.enum(STATUSES) })),
   asyncHandler(async (req, res) => {
-    const message = await prisma.contactMessage.update({ where: { id: req.params.id }, data: { status: req.body.status } });
+    const existing = await prisma.contactMessage.findFirst({ where: tenantWhere(req, { id: req.params.id }) });
+    if (!existing) throw notFound('Message not found');
+    const message = await prisma.contactMessage.update({ where: { id: existing.id }, data: { status: req.body.status } });
     cache.invalidate('stats');
     await audit(req, 'STATUS_CHANGE', 'ContactMessage', message.id, { status: message.status });
     res.json({ success: true, data: message });
@@ -72,10 +75,10 @@ router.patch('/:id/status', protect,
 router.post('/:id/reply', protect,
   validate(z.object({ body: z.string().trim().min(1).max(5000) })),
   asyncHandler(async (req, res) => {
-    const message = await prisma.contactMessage.findUnique({ where: { id: req.params.id } });
+    const message = await prisma.contactMessage.findFirst({ where: tenantWhere(req, { id: req.params.id }) });
     if (!message) throw notFound('Message not found');
     const reply = await prisma.messageReply.create({
-      data: { messageId: message.id, userId: req.user.id, body: req.body.body },
+      data: { messageId: message.id, businessId: req.tenantId, userId: req.user.id, body: req.body.body },
       include: { user: { select: { name: true } } },
     });
     await prisma.contactMessage.update({ where: { id: message.id }, data: { status: 'READ' } });
@@ -97,10 +100,10 @@ router.post('/bulk', protect,
     let result;
     if (action === 'delete') {
       if (req.user.role !== 'ADMIN') return res.status(403).json({ success: false, error: 'Only admins can delete messages' });
-      result = await prisma.contactMessage.deleteMany({ where: { id: { in: ids } } });
+      result = await prisma.contactMessage.deleteMany({ where: tenantWhere(req, { id: { in: ids } }) });
     } else {
       const status = action === 'archive' ? 'ARCHIVED' : action.toUpperCase();
-      result = await prisma.contactMessage.updateMany({ where: { id: { in: ids } }, data: { status } });
+      result = await prisma.contactMessage.updateMany({ where: tenantWhere(req, { id: { in: ids } }), data: { status } });
     }
     cache.invalidate('stats');
     await audit(req, `BULK_${action.toUpperCase()}`, 'ContactMessage', null, { count: result.count });
@@ -109,9 +112,11 @@ router.post('/bulk', protect,
 
 // DELETE /api/messages/:id
 router.delete('/:id', protect, adminOnly, asyncHandler(async (req, res) => {
-  await prisma.contactMessage.delete({ where: { id: req.params.id } });
+  const existing = await prisma.contactMessage.findFirst({ where: tenantWhere(req, { id: req.params.id }) });
+  if (!existing) throw notFound('Message not found');
+  await prisma.contactMessage.delete({ where: { id: existing.id } });
   cache.invalidate('stats');
-  await audit(req, 'DELETE', 'ContactMessage', req.params.id);
+  await audit(req, 'DELETE', 'ContactMessage', existing.id);
   res.json({ success: true, message: 'Message deleted' });
 }));
 

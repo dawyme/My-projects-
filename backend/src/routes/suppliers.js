@@ -230,7 +230,7 @@ router.get('/connectors', requirePermission('suppliers.view'), asyncHandler(asyn
 
 // GET /api/suppliers/types — vocabularies the forms need
 router.get('/types', requirePermission('suppliers.view'), asyncHandler(async (req, res) => {
-  const settings = await marketplaceSettings.read();
+  const settings = await marketplaceSettings.read(req.tenantId);
   res.json({
     success: true,
     data: {

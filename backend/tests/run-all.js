@@ -5,6 +5,7 @@ const path = require('path');
 
 const SUITES = [
   ['API endpoints', 'api.test.js'],
+  ['Service operations contract', 'service-operations-contract.test.js'],
   ['Website Content Manager', 'content.test.js'],
   ['Payment gateways', 'payments.test.js'],
   ['Tilopay unit tests', 'tilopay-unit.test.js'],

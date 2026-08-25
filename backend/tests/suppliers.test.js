@@ -833,7 +833,7 @@ async function main() {
     await admin.post(`/api/supplier-products/${data[0].id}/publish`);
     const r = await admin.post('/api/supplier-syncs', { supplierId, type: 'INVENTORY', wait: true });
     assert.strictEqual(r.body.data.status, 'COMPLETED', r.body.data.message);
-    const product = await prisma.product.findUnique({ where: { sku: 'TST-AC-12K' } });
+    const product = await prisma.product.findFirst({ where: { sku: 'TST-AC-12K' } });
     assert.strictEqual(product.supplierStock, 77);
     assert.strictEqual(product.quantity, 0, 'owned stock must never be written by a supplier sync');
     supplierState.products[0].stock = 40;
@@ -995,7 +995,7 @@ async function main() {
   let customerId = null;
   let dropshipOrderId = null;
   await test('a customer can check out a supplier-fulfilled product with zero N&D stock', async () => {
-    const product = await prisma.product.findUnique({ where: { sku: 'TST-AC-12K' } });
+    const product = await prisma.product.findFirst({ where: { sku: 'TST-AC-12K' } });
     assert.strictEqual(product.quantity, 0, 'precondition: no owned stock');
     const r = await anon.post('/api/payments/checkout', {
       name: 'Dropship Customer', email: 'dropship.customer@example.com', phone: '+1 868 555 0100',
@@ -1010,7 +1010,7 @@ async function main() {
   });
 
   await test('checkout does not drive owned stock negative for dropshipped units', async () => {
-    const product = await prisma.product.findUnique({ where: { sku: 'TST-AC-12K' } });
+    const product = await prisma.product.findFirst({ where: { sku: 'TST-AC-12K' } });
     assert.strictEqual(product.quantity, 0, 'no owned stock was consumed by a dropship line');
     const order = await prisma.order.findUnique({ where: { id: dropshipOrderId }, include: { items: true } });
     assert.strictEqual(order.shippingCountry, 'TT');
@@ -1083,7 +1083,7 @@ async function main() {
   });
 
   await test('a hybrid order splits between N&D stock and the supplier', async () => {
-    const product = await prisma.product.findUnique({ where: { sku: 'CSV-AC-9K' } });
+    const product = await prisma.product.findFirst({ where: { sku: 'CSV-AC-9K' } });
     await prisma.product.update({ where: { id: product.id }, data: { quantity: 1, fulfillmentType: 'HYBRID', supplierStock: 25 } });
     const r = await anon.post('/api/payments/checkout', {
       name: 'Hybrid Customer', email: 'hybrid.customer@example.com',
@@ -1102,7 +1102,7 @@ async function main() {
   await test('cancelling a fulfilment notifies the supplier when it can', async () => {
     const spList = await admin.getJ('/api/supplier-products', { supplierId, search: 'TST-COMP-5T' });
     await admin.post(`/api/supplier-products/${spList.data[0].id}/publish`);
-    const product = await prisma.product.findUnique({ where: { sku: 'TST-COMP-5T' } });
+    const product = await prisma.product.findFirst({ where: { sku: 'TST-COMP-5T' } });
     assert.ok(product, 'the compressor should now exist in the platform catalogue');
     const order = await anon.post('/api/payments/checkout', {
       name: 'Cancel Customer', email: 'cancel.customer@example.com', city: 'Arima',
@@ -1122,7 +1122,7 @@ async function main() {
   });
 
   await test('cancelling an order returns only the N&D-owned units to stock', async () => {
-    const product = await prisma.product.findUnique({ where: { sku: 'CSV-AC-9K' } });
+    const product = await prisma.product.findFirst({ where: { sku: 'CSV-AC-9K' } });
     await prisma.product.update({ where: { id: product.id }, data: { quantity: 2, supplierStock: 25, fulfillmentType: 'HYBRID' } });
     const r = await anon.post('/api/payments/checkout', {
       name: 'Restock Customer', email: 'restock.customer@example.com', city: 'Chaguanas',
@@ -1389,8 +1389,10 @@ async function teardown() {
   await prisma.supplierCatalogImport.deleteMany({ where: { supplierId: { in: supplierIds } } });
   await prisma.supplierProductMapping.deleteMany({ where: { supplierId: { in: supplierIds } } });
   await prisma.supplierProduct.deleteMany({ where: { supplierId: { in: supplierIds } } });
-  // Orphans left behind by earlier interrupted runs.
+  // Orphans left behind by earlier interrupted runs — match by supplier SKU so
+  // mappings onto long-lived catalogue rows are cleaned up too.
   await prisma.supplierProductMapping.deleteMany({ where: { product: { sku: { in: testSkus } } } });
+  await prisma.supplierProductMapping.deleteMany({ where: { supplierSku: { in: testSkus } } });
   await prisma.supplierProduct.deleteMany({ where: { supplierSku: { in: testSkus } } });
   await prisma.product.deleteMany({ where: { sku: { in: testSkus } } });
   await prisma.supplierShippingRule.deleteMany({ where: { supplierId: { in: supplierIds } } });

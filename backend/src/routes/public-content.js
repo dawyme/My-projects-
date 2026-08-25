@@ -16,8 +16,8 @@ const PAGE_PATH = {
 const PUBLIC_COLLECTIONS = ['services', 'testimonials', 'gallery', 'faqs', 'promotions', 'team'];
 
 async function publishedPages() {
-  return cache.wrap('public:content:pages', 15000, async () => {
-    const pages = await prisma.contentPage.findMany({ where: { status: 'PUBLISHED' } });
+  return cache.wrap('public:content:pages:default', 15000, async () => {
+    const pages = await prisma.contentPage.findMany({ where: { businessId: 'default', status: 'PUBLISHED' } });
     const map = {};
     for (const p of pages) {
       map[p.key] = {
@@ -53,7 +53,7 @@ router.get('/site-content/:collection', asyncHandler(async (req, res) => {
   if (!PUBLIC_COLLECTIONS.includes(name)) throw notFound(`Unknown collection '${name}'`);
   const items = await prisma[name === 'services' ? 'serviceItem' : {
     testimonials: 'testimonial', gallery: 'galleryItem', faqs: 'faqItem', promotions: 'promotionItem', team: 'teamMember',
-  }[name]].findMany({ where: { status: 'PUBLISHED' }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] });
+  }[name]].findMany({ where: { businessId: 'default', status: 'PUBLISHED' }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] });
   res.json({ success: true, data: items });
 }));
 
@@ -63,7 +63,7 @@ router.get('/site-content/:collection/:slug', asyncHandler(async (req, res) => {
   const model = { services: 'serviceItem', testimonials: 'testimonial', gallery: 'galleryItem', faqs: 'faqItem', promotions: 'promotionItem', team: 'teamMember' }[name];
   if (!model) throw notFound(`Unknown collection '${name}'`);
   const item = await prisma[model].findFirst({
-    where: { status: 'PUBLISHED', OR: [{ id: req.params.slug }, { slug: req.params.slug }] },
+    where: { businessId: 'default', status: 'PUBLISHED', OR: [{ id: req.params.slug }, { slug: req.params.slug }] },
   });
   if (!item) throw notFound(`${name} item not found`);
   res.json({ success: true, data: item });
@@ -72,7 +72,7 @@ router.get('/site-content/:collection/:slug', asyncHandler(async (req, res) => {
 // GET /api/public/media — public media feed (optionally filtered by folder)
 router.get('/media', asyncHandler(async (req, res) => {
   const where = req.query.folder ? { folder: String(req.query.folder) } : {};
-  const items = await cache.wrap('public:media', 30000, () => prisma.mediaAsset.findMany({ where, orderBy: { createdAt: 'desc' }, take: 200 }));
+  const items = await cache.wrap('public:media:default', 30000, () => prisma.mediaAsset.findMany({ where: { ...where, businessId: 'default' }, orderBy: { createdAt: 'desc' }, take: 200 }));
   res.json({ success: true, data: items });
 }));
 
@@ -81,9 +81,9 @@ router.get('/sitemap', asyncHandler(async (req, res) => {
   const pages = await publishedPages();
   const base = (pages.seo?.content?.canonicalBase) || 'https://www.ndsairconditioning.com';
   const [products, services, serviceItems] = await Promise.all([
-    prisma.product.findMany({ where: { isActive: true }, select: { slug: true, updatedAt: true } }),
-    prisma.service.findMany({ where: { isActive: true }, select: { slug: true, updatedAt: true } }),
-    prisma.serviceItem.findMany({ where: { status: 'PUBLISHED' }, select: { slug: true, updatedAt: true } }),
+    prisma.product.findMany({ where: { businessId: 'default', isActive: true }, select: { slug: true, updatedAt: true } }),
+    prisma.service.findMany({ where: { businessId: 'default', isActive: true }, select: { slug: true, updatedAt: true } }),
+    prisma.serviceItem.findMany({ where: { businessId: 'default', status: 'PUBLISHED' }, select: { slug: true, updatedAt: true } }),
   ]);
   const urls = [];
   const push = (loc, mod = 'weekly', prio = '0.8') => urls.push(`  <url><loc>${base}${loc}</loc><changefreq>${mod}</changefreq><priority>${prio}</priority></url>`);

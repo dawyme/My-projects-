@@ -128,7 +128,7 @@ router.patch('/automation', requirePermission('sync.manage'), validate(z.object(
   for (const key of ['syncIntervalMinutes', 'syncConcurrency', 'batchSize', 'maxSyncAttempts']) {
     if (req.body[key] !== undefined) patch[key] = req.body[key];
   }
-  const settings = await marketplaceSettings.write(patch);
+  const settings = await marketplaceSettings.write(patch, req.tenantId);
   if (settings.autoSyncEnabled) scheduler.start();
   cache.invalidate('supplier');
   await audit(req, 'AUTOMATION', 'SupplierSettings', null, patch);

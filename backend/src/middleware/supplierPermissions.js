@@ -32,8 +32,8 @@ function granted(grants, permission) {
 }
 
 /** The effective permission list for a role, including operator overrides. */
-async function permissionsFor(role) {
-  const settings = await marketplaceSettings.read();
+async function permissionsFor(role, tenantId = 'default') {
+  const settings = await marketplaceSettings.read(tenantId);
   const policy = settings.permissions || {};
   if (Array.isArray(policy[role])) return policy[role];
   return marketplaceSettings.DEFAULTS.permissions[role] || [];
@@ -44,7 +44,7 @@ const requirePermission = (permission) => async (req, res, next) => {
   try {
     if (!req.user) return next(unauthorized('Authentication required'));
     if (!PERMISSIONS[permission]) return next(new Error(`Unknown supplier permission "${permission}"`));
-    const grants = await permissionsFor(req.user.role);
+    const grants = await permissionsFor(req.user.role, req.tenantId);
     if (!granted(grants, permission)) {
       return next(forbidden(`Your role does not include the "${PERMISSIONS[permission].label}" permission`));
     }
@@ -56,7 +56,7 @@ const requirePermission = (permission) => async (req, res, next) => {
 /** Attaches the caller's marketplace permissions for UI-driven rendering. */
 async function attach(req) {
   if (!req.user) return [];
-  const grants = await permissionsFor(req.user.role);
+  const grants = await permissionsFor(req.user.role, req.tenantId);
   req.supplierPermissions = grants;
   return grants;
 }

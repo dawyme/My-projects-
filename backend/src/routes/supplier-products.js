@@ -153,7 +153,7 @@ router.get('/price-preview', requirePermission('pricing.manage'), validate(z.obj
 }), 'query'), asyncHandler(async (req, res) => {
   const q = req.validatedQuery;
   const tenantId = tenantOf(req);
-  const globalRule = await marketplaceSettings.globalMarkupRule();
+  const globalRule = await marketplaceSettings.globalMarkupRule(req.tenantId);
 
   let supplierProduct = null;
   let supplier = null;

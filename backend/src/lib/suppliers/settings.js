@@ -60,32 +60,37 @@ const DEFAULTS = {
   ],
 };
 
-let cached = null;
+// Settings are tenant-owned: each business gets its own marketplace
+// configuration, keyed by the Setting table's composite (businessId, key).
+const cacheByTenant = new Map();
 
-async function read() {
-  if (cached) return cached;
-  const row = await prisma.setting.findUnique({ where: { key: KEY } });
+async function read(tenantId = 'default') {
+  if (cacheByTenant.has(tenantId)) return cacheByTenant.get(tenantId);
+  const row = await prisma.setting.findUnique({
+    where: { businessId_key: { businessId: tenantId, key: KEY } },
+  });
   let stored = {};
   if (row) {
     try { stored = JSON.parse(row.value); } catch { stored = {}; }
   }
-  cached = {
+  const merged = {
     ...DEFAULTS,
     ...stored,
     permissions: { ...DEFAULTS.permissions, ...(stored.permissions || {}) },
     fxRates: { ...DEFAULTS.fxRates, ...(stored.fxRates || {}) },
   };
-  return cached;
+  cacheByTenant.set(tenantId, merged);
+  return merged;
 }
 
 function invalidate() {
-  cached = null;
+  cacheByTenant.clear();
   cache.invalidate('supplier');
 }
 
 /** Merges a partial patch into the stored settings. */
-async function write(patch = {}) {
-  const current = await read();
+async function write(patch = {}, tenantId = 'default') {
+  const current = await read(tenantId);
   const next = {
     ...current,
     ...patch,
@@ -94,17 +99,17 @@ async function write(patch = {}) {
   };
   delete next.permissions['*'];
   await prisma.setting.upsert({
-    where: { key: KEY },
+    where: { businessId_key: { businessId: tenantId, key: KEY } },
     update: { value: JSON.stringify(next) },
-    create: { key: KEY, value: JSON.stringify(next) },
+    create: { businessId: tenantId, key: KEY, value: JSON.stringify(next) },
   });
   invalidate();
   return next;
 }
 
 /** The global markup rule expressed as a SupplierMarkupRule-shaped object. */
-async function globalMarkupRule() {
-  const s = await read();
+async function globalMarkupRule(tenantId = 'default') {
+  const s = await read(tenantId);
   return {
     id: 'global',
     scope: 'GLOBAL',
