@@ -9,7 +9,7 @@ const cors = require('cors');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
 
-const { apiLimiter, writeLimiter } = require('./middleware/rateLimit');
+const { apiLimiter, writeLimiter, supplierWriteLimiter } = require('./middleware/rateLimit');
 const { issueCsrf, verifyCsrf } = require('./middleware/csrf');
 const { sanitizeBody } = require('./middleware/validate');
 const { notFoundHandler, errorHandler } = require('./middleware/error');
@@ -153,7 +153,14 @@ app.use('/admin', express.static(path.join(ROOT, 'admin'), { etag: true }));
 // ---------------------------------------------------------------- api
 app.use('/api', apiLimiter);
 app.use('/api', verifyCsrf);
-app.use(['/api/products', '/api/bookings', '/api/customers', '/api/messages', '/api/inventory', '/api/orders', '/api/users', '/api/settings', '/api/categories', '/api/services', '/api/content', '/api/site-content', '/api/media'], writeLimiter);
+app.use(['/api/products', '/api/bookings', '/api/customers', '/api/messages', '/api/inventory', '/api/orders', '/api/users', '/api/settings', '/api/categories', '/api/services', '/api/content', '/api/site-content', '/api/media', '/api/service-requests', '/api/work-orders', '/api/business'], writeLimiter);
+// Supplier Marketplace writes are bursty by nature (imports, bulk publish,
+// sync triggers) and get their own budget.
+app.use([
+  '/api/suppliers', '/api/supplier-integrations', '/api/supplier-products',
+  '/api/supplier-imports', '/api/supplier-syncs', '/api/supplier-fulfillments',
+  '/api/supplier-shipping', '/api/supplier-settings',
+], supplierWriteLimiter);
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/dashboard', require('./routes/dashboard'));
@@ -169,6 +176,8 @@ app.use('/api/payments', require('./routes/payments'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/business', require('./routes/business'));
+app.use('/api/businesses', require('./routes/business'));
 app.use('/api/audit-logs', require('./routes/audit'));
 app.use('/api/public', require('./routes/public'));
 app.use('/api/public', require('./routes/public-content'));
@@ -180,6 +189,18 @@ app.use('/api/equipment', require('./routes/equipment'));
 app.use('/api/estimates', require('./routes/estimates'));
 app.use('/api/invoices', require('./routes/invoices'));
 app.use('/api/dispatch', require('./routes/dispatch'));
+app.use('/api/service-requests', require('./routes/service-requests'));
+app.use('/api/work-orders', require('./routes/work-orders'));
+
+// ---- Supplier Marketplace (dedicated admin section) ----
+app.use('/api/suppliers', require('./routes/suppliers'));
+app.use('/api/supplier-integrations', require('./routes/supplier-integrations'));
+app.use('/api/supplier-products', require('./routes/supplier-products'));
+app.use('/api/supplier-imports', require('./routes/supplier-imports'));
+app.use('/api/supplier-syncs', require('./routes/supplier-syncs'));
+app.use('/api/supplier-fulfillments', require('./routes/supplier-fulfillments'));
+app.use('/api/supplier-shipping', require('./routes/supplier-shipping'));
+app.use('/api/supplier-settings', require('./routes/supplier-settings'));
 
 // ---------------------------------------------------------------- site
 app.use('/', express.static(ROOT, { ...staticOpts, index: 'index.html', extensions: ['html'] }));

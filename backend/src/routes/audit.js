@@ -4,6 +4,7 @@ const prisma = require('../lib/prisma');
 const asyncHandler = require('../lib/async');
 const { validate } = require('../middleware/validate');
 const { protect, adminOnly } = require('../middleware/auth');
+const { tenantWhere, isPlatformAdmin } = require('../lib/tenant');
 const { paginationSchema, meta, toCsv } = require('../lib/pagination');
 
 const router = express.Router();
@@ -16,7 +17,7 @@ router.get('/', protect, adminOnly, validate(paginationSchema.extend({
   format: z.enum(['json', 'csv']).default('json'),
 }), 'query'), asyncHandler(async (req, res) => {
   const q = req.validatedQuery;
-  const where = {};
+  const where = isPlatformAdmin(req) ? {} : tenantWhere(req);
   if (q.entity) where.entity = q.entity;
   if (q.action) where.action = q.action;
   if (q.userId) where.userId = q.userId;

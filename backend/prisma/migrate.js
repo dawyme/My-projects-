@@ -71,11 +71,14 @@ function splitStatements(sql) {
     // skip them in local dev — Prisma's client-side engine emulates the FK
     // relationships at the application layer.
     .filter((s) => !/^CREATE\s+SCHEMA/i.test(s))
-    .filter((s) => !/^ALTER\s+TABLE.*ADD\s+CONSTRAINT.*FOREIGN\s+KEY/i.test(s));
+    .filter((s) => !/^ALTER\s+TABLE.*ADD\s+CONSTRAINT.*FOREIGN\s+KEY/i.test(s))
+    // SQLite does not support PostgreSQL's ALTER COLUMN ... DROP NOT NULL.
+    // The local Prisma schema already models the column as nullable.
+    .filter((s) => !/^ALTER\s+TABLE.*ALTER\s+COLUMN.*DROP\s+NOT\s+NULL/i.test(s));
 }
 
-/** SQLite runner is idempotent for CREATE statements so the shared
- *  PostgreSQL-generated baseline can be applied on a fresh local DB. */
+/** SQLite runner is idempotent for CREATE statements and for ADD COLUMN so a
+ *  partially-applied migration can always be replayed safely. */
 function applyStatement(db, stmt) {
   return db.execute(stmt).catch((e) => {
     const isCreate = /^CREATE\s+(TABLE|INDEX|UNIQUE\s+INDEX)/i.test(stmt);
@@ -83,9 +86,48 @@ function applyStatement(db, stmt) {
       console.warn(`• skipped (already present): ${stmt.slice(0, 64)}…`);
       return null;
     }
+    const isAddColumn = /^ALTER\s+TABLE\s+"[^"]+"\s+ADD\s+COLUMN/i.test(stmt);
+    if (isAddColumn && /duplicate column name/i.test(e.message)) {
+      console.warn(`• skipped (column already present): ${stmt.slice(0, 64)}…`);
+      return null;
+    }
     throw e;
   });
 }
+
+/**
+ * PostgreSQL can relax a column with `ALTER TABLE … ALTER COLUMN … DROP NOT NULL`;
+ * SQLite cannot alter columns in place. Rebuild the table without the constraint
+ * (the documented SQLite 12-step procedure, reduced to what the migrations use).
+ */
+async function sqliteDropNotNull(db, table, column) {
+  const { rows } = await db.execute(
+    `SELECT sql FROM sqlite_master WHERE type IN ('table','index') AND tbl_name = '${table}'`
+  );
+  const original = rows.find((r) => r.sql && /^CREATE\s+TABLE/i.test(r.sql))?.sql;
+  if (!original) throw new Error(`Table "${table}" not found for ALTER COLUMN`);
+
+  // Drop `NOT NULL` from the single column definition, leaving the rest intact.
+  const colRe = new RegExp(`("${column}"[^,\\n]*?)(\\s+NOT\\s+NULL)`, 'i');
+  if (!colRe.test(original)) return null; // already nullable — nothing to do
+  const rebuilt = original.replace(colRe, '$1');
+
+  const tmp = `__${table}_rebuilt`;
+  const cols = (original.match(/^\s*"([^"]+)"\s/gm) || []).map((c) => `"${c.trim().replace(/"/g, '')}"`);
+  await db.execute(`DROP TABLE IF EXISTS "${tmp}"`);
+  await db.execute(rebuilt.replace(/^CREATE\s+TABLE\s+"?[\w]+"?/i, `CREATE TABLE "${tmp}"`));
+  await db.execute(`INSERT INTO "${tmp}" (${cols.join(', ')}) SELECT ${cols.join(', ')} FROM "${table}"`);
+  await db.execute(`DROP TABLE "${table}"`);
+  await db.execute(`ALTER TABLE "${tmp}" RENAME TO "${table}"`);
+
+  // Indexes were dropped with the table — recreate the non-PK ones.
+  for (const r of rows) {
+    if (r.sql && /^CREATE\s+(UNIQUE\s+)?INDEX/i.test(r.sql)) await db.execute(r.sql);
+  }
+  return table;
+}
+
+const DROP_NOT_NULL = /^ALTER\s+TABLE\s+"?([\w]+)"?\s+ALTER\s+COLUMN\s+"?([\w]+)"?\s+DROP\s+NOT\s+NULL$/i;
 
 async function main() {
   const { createClient } = require('@libsql/client');
@@ -115,7 +157,15 @@ async function main() {
     if (applied.has(name)) { console.log(`• already applied: ${name}`); continue; }
     const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, name, 'migration.sql'), 'utf8');
     const statements = splitStatements(sql);
-    for (const stmt of statements) await applyStatement(db, stmt);
+    for (const stmt of statements) {
+      const relaxed = stmt.match(DROP_NOT_NULL);
+      if (relaxed) {
+        await sqliteDropNotNull(db, relaxed[1], relaxed[2]);
+        console.log(`  • relaxed NOT NULL on ${relaxed[1]}.${relaxed[2]} (SQLite table rebuild)`);
+        continue;
+      }
+      await applyStatement(db, stmt);
+    }
     await db.execute({
       sql: 'INSERT INTO _prisma_migrations (id, checksum, finished_at, migration_name, applied_steps_count) VALUES (?, ?, current_timestamp, ?, ?)',
       args: [crypto.randomUUID(), crypto.createHash('sha256').update(sql).digest('hex'), name, statements.length],

@@ -7,7 +7,9 @@ const { protect } = require('../middleware/auth');
 const { paginationSchema, meta, toCsv } = require('../lib/pagination');
 const { badRequest, notFound } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
+const { tenantWhere } = require('../lib/tenant');
 const cache = require('../lib/cache');
+const { availableStock, usesSupplierStock } = require('../lib/suppliers/inventory');
 
 const router = express.Router();
 
@@ -17,7 +19,7 @@ router.get('/', protect, validate(paginationSchema.extend({
   categoryId: z.string().optional(),
 }), 'query'), asyncHandler(async (req, res) => {
   const q = req.validatedQuery;
-  const where = { isActive: true };
+  const where = { ...tenantWhere(req), isActive: true };
   if (q.categoryId) where.categoryId = q.categoryId;
   if (q.search) where.OR = [{ name: { contains: q.search } }, { sku: { contains: q.search } }];
 
@@ -26,11 +28,24 @@ router.get('/', protect, validate(paginationSchema.extend({
     include: { category: { select: { name: true } } },
     orderBy: { quantity: 'asc' },
   });
-  const decorated = all.map((p) => ({
-    ...p,
-    stockStatus: p.quantity === 0 ? 'out' : p.quantity <= p.lowStockLevel ? 'low' : 'ok',
-    stockValue: Math.round(p.quantity * p.costPrice * 100) / 100,
-  }));
+  // Owned stock, supplier stock and sellable availability are reported
+  // separately. Supplier units are never counted as N&D-owned inventory, but
+  // they do make a dropship product purchasable, so the status badge follows
+  // availability while the stock *value* figures follow owned stock only.
+  const decorated = all.map((p) => {
+    const localStock = Math.max(0, Number(p.quantity) || 0);
+    const supplierStock = usesSupplierStock(p.fulfillmentType) ? Math.max(0, Number(p.supplierStock) || 0) : 0;
+    const available = availableStock(p);
+    return {
+      ...p,
+      localStock,
+      supplierStock,
+      availableStock: available,
+      stockStatus: available === 0 ? 'out' : available <= p.lowStockLevel ? 'low' : 'ok',
+      ownedStockStatus: localStock === 0 ? 'out' : localStock <= p.lowStockLevel ? 'low' : 'ok',
+      stockValue: Math.round(localStock * p.costPrice * 100) / 100,
+    };
+  });
   const filtered = q.status === 'all' ? decorated : decorated.filter((p) => p.stockStatus === q.status);
   const start = (q.page - 1) * q.limit;
   res.json({
@@ -43,6 +58,10 @@ router.get('/', protect, validate(paginationSchema.extend({
         outOfStock: decorated.filter((p) => p.stockStatus === 'out').length,
         lowStock: decorated.filter((p) => p.stockStatus === 'low').length,
         totalUnits: decorated.reduce((s, p) => s + p.quantity, 0),
+        ownedUnits: decorated.reduce((s, p) => s + p.localStock, 0),
+        supplierUnits: decorated.reduce((s, p) => s + p.supplierStock, 0),
+        availableUnits: decorated.reduce((s, p) => s + p.availableStock, 0),
+        supplierFulfilledSkus: decorated.filter((p) => p.supplierStock > 0).length,
         stockValue: Math.round(decorated.reduce((s, p) => s + p.quantity * p.costPrice, 0) * 100) / 100,
         retailValue: Math.round(decorated.reduce((s, p) => s + p.quantity * p.price, 0) * 100) / 100,
       },
@@ -53,7 +72,7 @@ router.get('/', protect, validate(paginationSchema.extend({
 // GET /api/inventory/alerts
 router.get('/alerts', protect, asyncHandler(async (req, res) => {
   const products = await prisma.product.findMany({
-    where: { isActive: true }, include: { category: { select: { name: true } } }, orderBy: { quantity: 'asc' },
+    where: { ...tenantWhere(req), isActive: true }, include: { category: { select: { name: true } } }, orderBy: { quantity: 'asc' },
   });
   const alerts = products
     .filter((p) => p.quantity <= p.lowStockLevel)
@@ -72,7 +91,7 @@ router.post('/adjust', protect, validate(z.object({
   reason: z.string().trim().min(2).max(200),
 })), asyncHandler(async (req, res) => {
   const { productId, change, reason } = req.body;
-  const product = await prisma.product.findUnique({ where: { id: productId } });
+  const product = await prisma.product.findFirst({ where: tenantWhere(req, { id: productId }) });
   if (!product) throw notFound('Product not found');
   const after = product.quantity + change;
   if (after < 0) throw badRequest(`Adjustment would make stock negative (current ${product.quantity})`);
@@ -80,7 +99,7 @@ router.post('/adjust', protect, validate(z.object({
   const [updated, adjustment] = await prisma.$transaction([
     prisma.product.update({ where: { id: productId }, data: { quantity: after } }),
     prisma.inventoryAdjustment.create({
-      data: { productId, userId: req.user.id, change, before: product.quantity, after, reason },
+      data: { productId, businessId: req.tenantId, userId: req.user.id, change, before: product.quantity, after, reason },
     }),
   ]);
   cache.invalidate('stats');
@@ -98,7 +117,7 @@ router.post('/restock', protect, validate(z.object({
   reference: z.string().trim().max(80).optional().nullable(),
 })), asyncHandler(async (req, res) => {
   const { productId, quantity, unitCost, supplier, reference } = req.body;
-  const product = await prisma.product.findUnique({ where: { id: productId } });
+  const product = await prisma.product.findFirst({ where: tenantWhere(req, { id: productId }) });
   if (!product) throw notFound('Product not found');
 
   const [updated, restock] = await prisma.$transaction([
@@ -106,10 +125,10 @@ router.post('/restock', protect, validate(z.object({
       where: { id: productId },
       data: { quantity: product.quantity + quantity, ...(unitCost > 0 ? { costPrice: unitCost } : {}) },
     }),
-    prisma.restock.create({ data: { productId, quantity, unitCost, supplier: supplier || null, reference: reference || null } }),
+    prisma.restock.create({ data: { productId, businessId: req.tenantId, quantity, unitCost, supplier: supplier || null, reference: reference || null } }),
   ]);
   await prisma.inventoryAdjustment.create({
-    data: { productId, userId: req.user.id, change: quantity, before: product.quantity, after: product.quantity + quantity, reason: `Restock${supplier ? ` from ${supplier}` : ''}` },
+    data: { productId, businessId: req.tenantId, userId: req.user.id, change: quantity, before: product.quantity, after: product.quantity + quantity, reason: `Restock${supplier ? ` from ${supplier}` : ''}` },
   });
   cache.invalidate('stats');
   await audit(req, 'RESTOCK', 'Product', productId, { quantity, supplier });
@@ -121,7 +140,7 @@ router.post('/restock', protect, validate(z.object({
 router.get('/restocks', protect, validate(paginationSchema.extend({ productId: z.string().optional() }), 'query'),
   asyncHandler(async (req, res) => {
     const q = req.validatedQuery;
-    const where = q.productId ? { productId: q.productId } : {};
+    const where = tenantWhere(req, q.productId ? { productId: q.productId } : {});
     const [items, total] = await Promise.all([
       prisma.restock.findMany({
         where, orderBy: { receivedAt: q.order }, skip: (q.page - 1) * q.limit, take: q.limit,
@@ -136,7 +155,7 @@ router.get('/restocks', protect, validate(paginationSchema.extend({ productId: z
 router.get('/adjustments', protect, validate(paginationSchema.extend({ productId: z.string().optional() }), 'query'),
   asyncHandler(async (req, res) => {
     const q = req.validatedQuery;
-    const where = q.productId ? { productId: q.productId } : {};
+    const where = tenantWhere(req, q.productId ? { productId: q.productId } : {});
     const [items, total] = await Promise.all([
       prisma.inventoryAdjustment.findMany({
         where, orderBy: { createdAt: q.order }, skip: (q.page - 1) * q.limit, take: q.limit,
@@ -150,7 +169,7 @@ router.get('/adjustments', protect, validate(paginationSchema.extend({ productId
 // GET /api/inventory/report?format=json|csv
 router.get('/report', protect, asyncHandler(async (req, res) => {
   const products = await prisma.product.findMany({
-    where: { isActive: true }, include: { category: { select: { name: true } } }, orderBy: { name: 'asc' },
+    where: { ...tenantWhere(req), isActive: true }, include: { category: { select: { name: true } } }, orderBy: { name: 'asc' },
   });
   const rows = products.map((p) => ({
     sku: p.sku, name: p.name, category: p.category?.name || '',

@@ -9,16 +9,24 @@ if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
   process.exit(1);
 }
 
+const { scheduler } = require('./src/lib/suppliers');
+
 const server = app.listen(PORT, () => {
   console.log(`\n  N&D'S Air Conditioning & Refrigeration Services backend listening on http://localhost:${PORT}`);
   console.log(`  Admin dashboard:  http://localhost:${PORT}/admin/`);
   console.log(`  Public website:   http://localhost:${PORT}/`);
   console.log(`  Environment:      ${process.env.NODE_ENV || 'development'}\n`);
+
+  // Supplier Marketplace: in-process scheduler for automatic supplier syncs.
+  // Runs on ONE instance only — set SUPPLIER_SCHEDULER_DISABLED=true elsewhere.
+  const schedulerState = scheduler.start();
+  console.log(`  Supplier sync scheduler: ${schedulerState.started ? `every ${schedulerState.intervalMs / 1000}s` : schedulerState.reason}\n`);
 });
 
 async function shutdown(signal) {
   console.log(`\n${signal} received — shutting down gracefully.`);
   server.close(async () => {
+    scheduler.stop();
     await prisma.$disconnect().catch(() => {});
     process.exit(0);
   });

@@ -5,6 +5,7 @@ const asyncHandler = require('../lib/async');
 const { protect, adminOnly } = require('../middleware/auth');
 const { badRequest, notFound } = require('../lib/errors');
 const { audit } = require('../lib/audit');
+const { tenantWhere } = require('../lib/tenant');
 const cache = require('../lib/cache');
 
 const router = express.Router();
@@ -143,6 +144,7 @@ router.get('/:collection', protect, asyncHandler(async (req, res) => {
     const s = String(req.query.search).slice(0, 120);
     where.OR = c.searchFields.map((f) => ({ [f]: { contains: s } }));
   }
+  where.businessId = req.tenantId;
   const sort = req.query.sort && c.allowedSort.includes(req.query.sort) ? req.query.sort : c.defaultSort;
   const order = req.query.order === 'desc' ? 'desc' : (sort === 'sortOrder' ? 'asc' : 'desc');
   const [items, total] = await Promise.all([
@@ -156,7 +158,7 @@ router.get('/:collection', protect, asyncHandler(async (req, res) => {
 router.get('/:collection/:id', protect, asyncHandler(async (req, res) => {
   const conf = listConfig(req.params.collection);
   if (!conf) throw notFound(`Unknown collection '${req.params.collection}'`);
-  const item = await conf.db.findUnique({ where: { id: req.params.id } });
+  const item = await conf.db.findFirst({ where: tenantWhere(req, { id: req.params.id }) });
   if (!item) throw notFound(`${req.params.collection} item not found`);
   res.json({ success: true, data: item });
 }));
@@ -167,8 +169,9 @@ router.post('/:collection', protect, asyncHandler(async (req, res) => {
   if (!conf) throw notFound(`Unknown collection '${req.params.collection}'`);
   const data = parse(req.body, conf.c.schema);
   if (conf.c.model === 'serviceItem' && data.name) data.slug = slugify(data.name) || undefined;
+  data.businessId = req.tenantId;
   const item = await conf.db.create({ data });
-  cache.invalidate('public:content');
+  cache.invalidate('public:content:default');
   await audit(req, 'CREATE', conf.c.model, item.id, { name: item.name || item.title || item.question });
   res.status(201).json({ success: true, data: item });
 }));
@@ -177,12 +180,12 @@ router.post('/:collection', protect, asyncHandler(async (req, res) => {
 router.put('/:collection/:id', protect, asyncHandler(async (req, res) => {
   const conf = listConfig(req.params.collection);
   if (!conf) throw notFound(`Unknown collection '${req.params.collection}'`);
-  const existing = await conf.db.findUnique({ where: { id: req.params.id } });
+  const existing = await conf.db.findFirst({ where: tenantWhere(req, { id: req.params.id }) });
   if (!existing) throw notFound(`${req.params.collection} item not found`);
   const data = parse(req.body, conf.c.schema.partial());
   if (conf.c.model === 'serviceItem' && data.name) data.slug = slugify(data.name) || undefined;
   const item = await conf.db.update({ where: { id: req.params.id }, data });
-  cache.invalidate('public:content');
+  cache.invalidate('public:content:default');
   await audit(req, 'UPDATE', conf.c.model, item.id, data);
   res.json({ success: true, data: item });
 }));
@@ -191,10 +194,10 @@ router.put('/:collection/:id', protect, asyncHandler(async (req, res) => {
 router.delete('/:collection/:id', protect, adminOnly, asyncHandler(async (req, res) => {
   const conf = listConfig(req.params.collection);
   if (!conf) throw notFound(`Unknown collection '${req.params.collection}'`);
-  const existing = await conf.db.findUnique({ where: { id: req.params.id } });
+  const existing = await conf.db.findFirst({ where: tenantWhere(req, { id: req.params.id }) });
   if (!existing) throw notFound(`${req.params.collection} item not found`);
-  await conf.db.delete({ where: { id: req.params.id } });
-  cache.invalidate('public:content');
+  await conf.db.delete({ where: { id: existing.id } });
+  cache.invalidate('public:content:default');
   await audit(req, 'DELETE', conf.c.model, req.params.id);
   res.json({ success: true, message: `${req.params.collection} item deleted` });
 }));
@@ -203,10 +206,10 @@ router.delete('/:collection/:id', protect, adminOnly, asyncHandler(async (req, r
 router.post('/:collection/:id/publish', protect, adminOnly, asyncHandler(async (req, res) => {
   const conf = listConfig(req.params.collection);
   if (!conf) throw notFound(`Unknown collection '${req.params.collection}'`);
-  const existing = await conf.db.findUnique({ where: { id: req.params.id } });
+  const existing = await conf.db.findFirst({ where: tenantWhere(req, { id: req.params.id }) });
   if (!existing) throw notFound(`${req.params.collection} item not found`);
-  const item = await conf.db.update({ where: { id: req.params.id }, data: { status: 'PUBLISHED', publishedAt: new Date() } });
-  cache.invalidate('public:content');
+  const item = await conf.db.update({ where: { id: existing.id }, data: { status: 'PUBLISHED', publishedAt: new Date() } });
+  cache.invalidate('public:content:default');
   await audit(req, 'PUBLISH', conf.c.model, item.id);
   res.json({ success: true, data: item });
 }));
@@ -215,10 +218,10 @@ router.post('/:collection/:id/publish', protect, adminOnly, asyncHandler(async (
 router.post('/:collection/:id/draft', protect, adminOnly, asyncHandler(async (req, res) => {
   const conf = listConfig(req.params.collection);
   if (!conf) throw notFound(`Unknown collection '${req.params.collection}'`);
-  const existing = await conf.db.findUnique({ where: { id: req.params.id } });
+  const existing = await conf.db.findFirst({ where: tenantWhere(req, { id: req.params.id }) });
   if (!existing) throw notFound(`${req.params.collection} item not found`);
-  const item = await conf.db.update({ where: { id: req.params.id }, data: { status: 'DRAFT' } });
-  cache.invalidate('public:content');
+  const item = await conf.db.update({ where: { id: existing.id }, data: { status: 'DRAFT' } });
+  cache.invalidate('public:content:default');
   await audit(req, 'UNPUBLISH', conf.c.model, item.id);
   res.json({ success: true, data: item });
 }));
@@ -230,8 +233,12 @@ router.post('/:collection/reorder', protect, adminOnly, asyncHandler(async (req,
   const parsed = parse(req.body, z.object({
     items: z.array(z.object({ id: z.string(), sortOrder: z.coerce.number().int() })).min(1),
   }));
-  await prisma.$transaction(parsed.items.map((it) => conf.db.update({ where: { id: it.id }, data: { sortOrder: it.sortOrder } })));
-  cache.invalidate('public:content');
+  const tenantItems = await conf.db.findMany({ where: tenantWhere(req, { id: { in: parsed.items.map((it) => it.id) } }), select: { id: true } });
+  const tenantIds = new Set(tenantItems.map((it) => it.id));
+  await prisma.$transaction(parsed.items
+    .filter((it) => tenantIds.has(it.id))
+    .map((it) => conf.db.update({ where: { id: it.id }, data: { sortOrder: it.sortOrder } })));
+  cache.invalidate('public:content:default');
   await audit(req, 'REORDER', conf.c.model, req.params.collection, { count: parsed.items.length });
   res.json({ success: true, message: 'Order updated' });
 }));

@@ -8,6 +8,7 @@ const { paginationSchema, buildOrderBy, meta, toCsv } = require('../lib/paginati
 const { badRequest, notFound } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
 const { sendBookingStatusEmail } = require('../lib/mailer');
+const { tenantWhere } = require('../lib/tenant');
 const cache = require('../lib/cache');
 
 const router = express.Router();
@@ -42,16 +43,35 @@ const include = {
   notes: { orderBy: { createdAt: 'desc' }, include: { user: { select: { name: true } } } },
 };
 
-async function resolveCustomer(input) {
+/** Resolves or creates the booking customer strictly inside the tenant. */
+async function resolveCustomer(req, input) {
   if (input.customerId) {
-    const c = await prisma.customer.findUnique({ where: { id: input.customerId } });
+    const c = await prisma.customer.findFirst({ where: tenantWhere(req, { id: input.customerId }) });
     if (!c) throw badRequest('Customer not found');
     return c;
   }
   const email = input.customer.email.toLowerCase();
-  const existing = await prisma.customer.findUnique({ where: { email } });
+  const existing = await prisma.customer.findFirst({ where: tenantWhere(req, { email }) });
   if (existing) return existing;
-  return prisma.customer.create({ data: { ...input.customer, email } });
+  return prisma.customer.create({ data: { ...input.customer, email, businessId: req.tenantId } });
+}
+
+/** Validates that a referenced service belongs to the tenant. */
+async function resolveService(req, serviceId) {
+  if (!serviceId) return null;
+  const service = await prisma.service.findFirst({ where: tenantWhere(req, { id: serviceId }) });
+  if (!service) throw badRequest('Service not found');
+  return service;
+}
+
+/** Validates that a technician user belongs to the tenant and is active. */
+async function resolveTechnician(req, technicianId) {
+  if (!technicianId) return null;
+  const tech = await prisma.user.findFirst({
+    where: { id: technicianId, isActive: true, OR: [{ businessId: req.tenantId }, { businessId: null }] },
+  });
+  if (!tech) throw badRequest('Technician not found or inactive');
+  return tech;
 }
 
 const listQuery = paginationSchema.extend({
@@ -66,7 +86,7 @@ const listQuery = paginationSchema.extend({
 // GET /api/bookings
 router.get('/', protect, validate(listQuery, 'query'), asyncHandler(async (req, res) => {
   const q = req.validatedQuery;
-  const where = {};
+  const where = tenantWhere(req);
   if (q.status) where.status = { in: q.status.split(',').map((s) => s.trim().toUpperCase()).filter((s) => STATUSES.includes(s)) };
   if (q.technicianId) where.technicianId = q.technicianId === 'unassigned' ? null : q.technicianId;
   if (q.customerId) where.customerId = q.customerId;
@@ -112,13 +132,21 @@ router.get('/', protect, validate(listQuery, 'query'), asyncHandler(async (req, 
   res.json({ success: true, data: items, meta: meta(total, q.page, q.limit) });
 }));
 
-// GET /api/bookings/calendar?month=YYYY-MM
+// GET /api/bookings/calendar?month=YYYY-MM[&technicianId=&status=]
 router.get('/calendar', protect, asyncHandler(async (req, res) => {
   const month = /^\d{4}-\d{2}$/.test(req.query.month || '') ? req.query.month : new Date().toISOString().slice(0, 7);
   const start = new Date(`${month}-01T00:00:00.000Z`);
   const end = new Date(start); end.setUTCMonth(end.getUTCMonth() + 1);
+  const where = { ...tenantWhere(req), scheduledAt: { gte: start, lt: end } };
+  if (req.query.technicianId) {
+    where.technicianId = req.query.technicianId === 'unassigned' ? null : String(req.query.technicianId);
+  }
+  if (req.query.status) {
+    const statuses = String(req.query.status).split(',').map((s) => s.trim().toUpperCase()).filter((s) => STATUSES.includes(s));
+    if (statuses.length) where.status = { in: statuses };
+  }
   const bookings = await prisma.booking.findMany({
-    where: { scheduledAt: { gte: start, lt: end } },
+    where,
     orderBy: { scheduledAt: 'asc' },
     include: { customer: { select: { name: true } }, service: { select: { name: true } }, technician: { select: { name: true } } },
   });
@@ -136,10 +164,10 @@ router.get('/calendar', protect, asyncHandler(async (req, res) => {
 
 // GET /api/bookings/:id
 router.get('/:id', protect, asyncHandler(async (req, res) => {
-  const booking = await prisma.booking.findUnique({ where: { id: req.params.id }, include });
+  const booking = await prisma.booking.findFirst({ where: tenantWhere(req, { id: req.params.id }), include });
   if (!booking) throw notFound('Booking not found');
   const history = await prisma.booking.findMany({
-    where: { customerId: booking.customerId, NOT: { id: booking.id } },
+    where: { businessId: req.tenantId, customerId: booking.customerId, NOT: { id: booking.id } },
     orderBy: { scheduledAt: 'desc' }, take: 10,
     select: { id: true, reference: true, status: true, scheduledAt: true, price: true },
   });
@@ -148,10 +176,13 @@ router.get('/:id', protect, asyncHandler(async (req, res) => {
 
 // POST /api/bookings
 router.post('/', protect, validate(createBody), asyncHandler(async (req, res) => {
-  const customer = await resolveCustomer(req.body);
+  const customer = await resolveCustomer(req, req.body);
+  await resolveService(req, req.body.serviceId);
+  await resolveTechnician(req, req.body.technicianId);
   const booking = await prisma.booking.create({
     data: {
       reference: reference(),
+      businessId: req.tenantId,
       customerId: customer.id,
       serviceId: req.body.serviceId || null,
       technicianId: req.body.technicianId || null,
@@ -184,9 +215,11 @@ const updateBody = z.object({
   notify: z.coerce.boolean().default(true),
 });
 router.put('/:id', protect, validate(updateBody), asyncHandler(async (req, res) => {
-  const existing = await prisma.booking.findUnique({ where: { id: req.params.id }, include: { customer: true } });
+  const existing = await prisma.booking.findFirst({ where: tenantWhere(req, { id: req.params.id }), include: { customer: true } });
   if (!existing) throw notFound('Booking not found');
   const { notify, ...data } = req.body;
+  if (data.serviceId !== undefined) await resolveService(req, data.serviceId);
+  if (data.technicianId !== undefined) await resolveTechnician(req, data.technicianId);
   if (data.status === 'COMPLETED' && existing.status !== 'COMPLETED') data.completedAt = new Date();
   if (data.status && data.status !== 'COMPLETED') data.completedAt = null;
 
@@ -204,7 +237,7 @@ router.put('/:id', protect, validate(updateBody), asyncHandler(async (req, res) 
 router.patch('/:id/status', protect,
   validate(z.object({ status: z.enum(STATUSES), notify: z.coerce.boolean().default(true) })),
   asyncHandler(async (req, res) => {
-    const existing = await prisma.booking.findUnique({ where: { id: req.params.id } });
+    const existing = await prisma.booking.findFirst({ where: tenantWhere(req, { id: req.params.id }) });
     if (!existing) throw notFound('Booking not found');
     const booking = await prisma.booking.update({
       where: { id: existing.id },
@@ -225,12 +258,11 @@ router.patch('/:id/status', protect,
 router.patch('/:id/assign', protect,
   validate(z.object({ technicianId: z.string().uuid().nullable() })),
   asyncHandler(async (req, res) => {
-    if (req.body.technicianId) {
-      const tech = await prisma.user.findUnique({ where: { id: req.body.technicianId } });
-      if (!tech || !tech.isActive) throw badRequest('Technician not found or inactive');
-    }
+    const existing = await prisma.booking.findFirst({ where: tenantWhere(req, { id: req.params.id }) });
+    if (!existing) throw notFound('Booking not found');
+    if (req.body.technicianId) await resolveTechnician(req, req.body.technicianId);
     const booking = await prisma.booking.update({
-      where: { id: req.params.id }, data: { technicianId: req.body.technicianId }, include,
+      where: { id: existing.id }, data: { technicianId: req.body.technicianId }, include,
     });
     await audit(req, 'ASSIGN', 'Booking', booking.id, { technicianId: req.body.technicianId });
     await activity(req.user.id, 'booking',
@@ -242,10 +274,10 @@ router.patch('/:id/assign', protect,
 router.post('/:id/notes', protect,
   validate(z.object({ body: z.string().trim().min(1).max(2000) })),
   asyncHandler(async (req, res) => {
-    const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
+    const booking = await prisma.booking.findFirst({ where: tenantWhere(req, { id: req.params.id }) });
     if (!booking) throw notFound('Booking not found');
     const note = await prisma.bookingNote.create({
-      data: { bookingId: booking.id, userId: req.user.id, body: req.body.body },
+      data: { bookingId: booking.id, businessId: req.tenantId, userId: req.user.id, body: req.body.body },
       include: { user: { select: { name: true } } },
     });
     await audit(req, 'NOTE', 'Booking', booking.id);
@@ -254,16 +286,22 @@ router.post('/:id/notes', protect,
 
 // DELETE /api/bookings/:id/notes/:noteId
 router.delete('/:id/notes/:noteId', protect, asyncHandler(async (req, res) => {
-  await prisma.bookingNote.delete({ where: { id: req.params.noteId } });
-  await audit(req, 'NOTE_DELETE', 'Booking', req.params.id);
+  const booking = await prisma.booking.findFirst({ where: tenantWhere(req, { id: req.params.id }) });
+  if (!booking) throw notFound('Booking not found');
+  const note = await prisma.bookingNote.findFirst({ where: { id: req.params.noteId, bookingId: booking.id } });
+  if (!note) throw notFound('Note not found');
+  await prisma.bookingNote.delete({ where: { id: note.id } });
+  await audit(req, 'NOTE_DELETE', 'Booking', booking.id);
   res.json({ success: true, message: 'Note deleted' });
 }));
 
 // DELETE /api/bookings/:id
 router.delete('/:id', protect, adminOnly, asyncHandler(async (req, res) => {
-  await prisma.booking.delete({ where: { id: req.params.id } });
+  const existing = await prisma.booking.findFirst({ where: tenantWhere(req, { id: req.params.id }) });
+  if (!existing) throw notFound('Booking not found');
+  await prisma.booking.delete({ where: { id: existing.id } });
   cache.invalidate('stats');
-  await audit(req, 'DELETE', 'Booking', req.params.id);
+  await audit(req, 'DELETE', 'Booking', existing.id);
   res.json({ success: true, message: 'Booking deleted' });
 }));
 

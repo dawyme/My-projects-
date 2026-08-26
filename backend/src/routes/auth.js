@@ -23,6 +23,7 @@ const loginSchema = z.object({
 
 const publicUser = (u) => ({
   id: u.id, name: u.name, email: u.email, role: u.role,
+  businessId: u.businessId || null,
   phone: u.phone || null, avatarUrl: u.avatarUrl || null, lastLoginAt: u.lastLoginAt || null,
 });
 
@@ -76,9 +77,12 @@ router.post('/refresh', asyncHandler(async (req, res) => {
 
 // GET /api/auth/me
 router.get('/me', protect, asyncHandler(async (req, res) => {
-  const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+  const user = await prisma.user.findUnique({
+    where: { id: req.user.id },
+    include: { business: { select: { id: true, name: true, slug: true, status: true, currency: true, taxRate: true } } },
+  });
   if (!user) throw unauthorized('Account not found');
-  res.json({ success: true, data: { user: publicUser(user) } });
+  res.json({ success: true, data: { user: publicUser(user), business: user.business || null, tenantId: req.tenantId } });
 }));
 
 // PATCH /api/auth/me — update own profile

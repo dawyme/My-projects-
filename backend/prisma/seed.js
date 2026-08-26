@@ -130,6 +130,14 @@ async function reset() {
   await prisma.messageReply.deleteMany();
   await prisma.contactMessage.deleteMany();
   await prisma.bookingNote.deleteMany();
+  await prisma.workOrder.deleteMany();
+  await prisma.serviceRequest.deleteMany();
+  await prisma.serviceHistory.deleteMany();
+  await prisma.equipment.deleteMany();
+  await prisma.estimate.deleteMany();
+  await prisma.invoice.deleteMany();
+  await prisma.jobStatus.deleteMany();
+  await prisma.technician.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
@@ -158,6 +166,23 @@ async function main() {
   console.log('Seeding database…');
   await reset();
 
+  // ---- default tenant (N&D'S) + platform admin
+  // The "default" business owns the public website and every pre-existing
+  // record. Platform admins (businessId: null) manage the tenant roster.
+  const business = await prisma.business.upsert({
+    where: { id: 'default' },
+    update: { isDefault: true },
+    create: {
+      id: 'default',
+      name: "N&D'S Air Conditioning & Refrigeration Services",
+      slug: 'nds',
+      isDefault: true,
+      phone: '+1 (555) 010-2030',
+      email: 'info@ndsairconditioning.com',
+      address: '124 Industrial Way, Springfield',
+    },
+  });
+
   // ---- users
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'Admin@12345';
   const staffPassword = process.env.SEED_STAFF_PASSWORD || 'Staff@12345';
@@ -165,19 +190,28 @@ async function main() {
     data: {
       name: 'Grace Adeyemi', email: (process.env.SEED_ADMIN_EMAIL || 'admin@ndsairconditioning.com').toLowerCase(),
       passwordHash: await bcrypt.hash(adminPassword, 12), role: 'ADMIN', phone: '+1 555 0100',
+      businessId: business.id,
     },
   });
   const staff = await prisma.user.create({
     data: {
       name: 'Marcus Reed', email: (process.env.SEED_STAFF_EMAIL || 'staff@ndsairconditioning.com').toLowerCase(),
       passwordHash: await bcrypt.hash(staffPassword, 12), role: 'STAFF', phone: '+1 555 0101',
+      businessId: business.id,
     },
   });
   const tech2 = await prisma.user.create({
-    data: { name: 'Ibrahim Sesay', email: 'ibrahim.sesay@ndsairconditioning.com', passwordHash: await bcrypt.hash(staffPassword, 12), role: 'STAFF', phone: '+1 555 0102' },
+    data: { name: 'Ibrahim Sesay', email: 'ibrahim.sesay@ndsairconditioning.com', passwordHash: await bcrypt.hash(staffPassword, 12), role: 'STAFF', phone: '+1 555 0102', businessId: business.id },
+  });
+  await prisma.user.create({
+    data: {
+      name: 'Platform Owner', email: (process.env.SEED_PLATFORM_EMAIL || 'platform@ndsairconditioning.com').toLowerCase(),
+      passwordHash: await bcrypt.hash(process.env.SEED_PLATFORM_PASSWORD || 'Platform@12345', 12),
+      role: 'ADMIN', phone: '+1 555 0103', businessId: null, // platform admin — no tenant
+    },
   });
   const technicians = [staff, tech2, admin];
-  console.log(`  ✔ 3 users (admin: ${admin.email})`);
+  console.log(`  ✔ 4 users (admin: ${admin.email}, platform: platform@ndsairconditioning.com)`);
 
   // ---- categories & products
   const categories = {};
@@ -350,9 +384,9 @@ async function main() {
   for (const key of Object.keys(PAGE_DEFAULTS)) {
     const def = PAGE_DEFAULTS[key];
     await prisma.contentPage.upsert({
-      where: { key },
+      where: { businessId_key: { businessId: 'default', key } },
       update: {},
-      create: { key, title: def.title, slug: key, content: serialize(def.content), status: 'PUBLISHED', publishedAt: new Date() },
+      create: { businessId: 'default', key, title: def.title, slug: key, content: serialize(def.content), status: 'PUBLISHED', publishedAt: new Date() },
     });
   }
   console.log(`  ✔ ${Object.keys(PAGE_DEFAULTS).length} content pages (published)`);

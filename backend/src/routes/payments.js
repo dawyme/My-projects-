@@ -8,9 +8,12 @@ const { writeLimiter } = require('../middleware/rateLimit');
 const { badRequest, notFound } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
 const { readAll } = require('./settings');
+const { DEFAULT_TENANT } = require('../lib/tenant');
 const { sendMail } = require('../lib/mailer');
 const cache = require('../lib/cache');
 const payments = require('../lib/payments');
+const orderFlow = require('../lib/order-flow');
+const { availableStock, allocate } = require('../lib/suppliers/inventory');
 
 const webhookRouter = express.Router();
 const router = express.Router();
@@ -42,13 +45,16 @@ async function captureOrder(orderId, { transactionId, actorReq, note } = {}) {
         ...(note ? { notes: note } : {}),
       },
     });
-  }).then((order) => {
+  }).then(async (order) => {
     cache.invalidate('stats');
     if (actorReq) {
       audit(actorReq, 'PAYMENT_CAPTURED', 'Order', order.id, {
         reference: order.reference, method: order.paymentMethod, total: order.total,
       }).catch(() => {});
     }
+    // Money is in: hand the order to supplier fulfilment. Never throws into the
+    // payment path — problems are recorded on the fulfilment record instead.
+    await orderFlow.onOrderPaid({ req: actorReq, orderId: order.id });
     return order;
   });
 }
@@ -89,7 +95,9 @@ webhookRouter.post('/:gateway', asyncHandler(async (req, res) => {
     return res.json({ received: true, handled: false });
   }
 
-  const order = await prisma.order.findUnique({ where: { reference: parsed.orderReference } });
+  // Storefront orders belong to the default tenant; gateway callbacks quote
+  // only the human-readable reference.
+  const order = await prisma.order.findFirst({ where: { businessId: DEFAULT_TENANT, reference: parsed.orderReference } });
   if (!order) {
     return res.status(404).json({ received: true, handled: false, error: 'Order not found' });
   }
@@ -109,6 +117,10 @@ const checkoutSchema = z.object({
   phone: z.string().trim().max(40).optional().nullable(),
   address: z.string().trim().max(300).optional().nullable(),
   city: z.string().trim().max(80).optional().nullable(),
+  // International shipping: needed to resolve supplier shipping rules and
+  // country restrictions for dropshipped lines.
+  country: z.string().trim().length(2).toUpperCase().optional().nullable(),
+  postalCode: z.string().trim().max(20).optional().nullable(),
   paymentMethod: z.enum(payments.PAYMENT_METHODS),
   items: z.array(z.object({
     productId: z.string().uuid(),
@@ -118,8 +130,8 @@ const checkoutSchema = z.object({
 });
 
 router.post('/checkout', writeLimiter, validate(checkoutSchema), asyncHandler(async (req, res) => {
-  const { name, email, phone, address, city, paymentMethod, items, notes } = req.body;
-  const settings = await readAll();
+  const { name, email, phone, address, city, country, postalCode, paymentMethod, items, notes } = req.body;
+  const settings = await readAll(DEFAULT_TENANT);
 
   // 1. Gate the payment method against the admin payment settings.
   try {
@@ -130,32 +142,45 @@ router.post('/checkout', writeLimiter, validate(checkoutSchema), asyncHandler(as
 
   // 2. Load products server-side — client-supplied prices are never trusted.
   const ids = [...new Set(items.map((i) => i.productId))];
-  const products = await prisma.product.findMany({ where: { id: { in: ids }, isActive: true } });
+  const products = await prisma.product.findMany({ where: { businessId: DEFAULT_TENANT, id: { in: ids }, isActive: true } });
   const byId = new Map(products.map((p) => [p.id, p]));
+  // Availability counts N&D stock plus, when the product opts in, the stock its
+  // mapped supplier advertises. Supplier units are never written into
+  // Product.quantity — they are fulfilled by the supplier instead.
+  const allocations = {};
   const lines = items.map((i) => {
     const p = byId.get(i.productId);
     if (!p) throw badRequest(`Product ${i.productId} is not available`);
-    if (p.quantity < i.quantity) {
-      throw badRequest(`Insufficient stock for ${p.name} (${p.quantity} available)`);
+    const available = availableStock(p);
+    if (available < i.quantity) {
+      throw badRequest(`Insufficient stock for ${p.name} (${available} available)`);
     }
+    allocations[p.id] = allocate(p, i.quantity);
     const total = round(p.price * i.quantity);
-    return { productId: p.id, quantity: i.quantity, unitPrice: p.price, total };
+    // `localQuantity` records the split so fulfilment and restock both know how
+    // much of this line was ever N&D-owned stock.
+    return { productId: p.id, quantity: i.quantity, unitPrice: p.price, total, localQuantity: allocations[p.id].local };
   });
 
   const subtotal = round(lines.reduce((s, l) => s + l.total, 0));
   const tax = round(subtotal * ((settings.payment.taxRate || 0) / 100));
 
   // 3. Create the customer (link by email) and the order atomically.
-  const customer = await prisma.customer.upsert({
-    where: { email: email.toLowerCase() },
-    update: { name, phone: phone || undefined, address: address || undefined, city: city || undefined },
-    create: { name, email: email.toLowerCase(), phone: phone || null, address: address || null, city: city || null },
-  });
+  const existingCustomer = await prisma.customer.findFirst({ where: { businessId: DEFAULT_TENANT, email: email.toLowerCase() } });
+  const customer = existingCustomer
+    ? await prisma.customer.update({
+        where: { id: existingCustomer.id },
+        data: { name, phone: phone || undefined, address: address || undefined, city: city || undefined },
+      })
+    : await prisma.customer.create({
+        data: { businessId: DEFAULT_TENANT, name, email: email.toLowerCase(), phone: phone || null, address: address || null, city: city || null },
+      });
 
   const order = await prisma.$transaction(async (tx) => {
     const created = await tx.order.create({
       data: {
         reference: reference(),
+        businessId: DEFAULT_TENANT,
         customerId: customer.id,
         status: 'PENDING',
         paymentMethod,
@@ -164,21 +189,31 @@ router.post('/checkout', writeLimiter, validate(checkoutSchema), asyncHandler(as
         shippingPhone: phone || null,
         shippingAddress: address || null,
         shippingCity: city || null,
+        shippingCountry: country || null,
+        shippingPostalCode: postalCode || null,
         notes: notes || null,
         subtotal,
         tax,
         total: round(subtotal + tax),
-        items: { create: lines },
+        items: { create: lines.map((l) => ({ ...l, businessId: DEFAULT_TENANT })) },
       },
       include: { items: { include: { product: { select: { id: true, name: true, sku: true } } } } },
     });
     for (const l of lines) {
-      await tx.product.update({ where: { id: l.productId }, data: { quantity: { decrement: l.quantity } } });
+      // Only N&D-owned units are deducted. The dropshipped remainder becomes a
+      // supplier fulfilment below.
+      const local = allocations[l.productId]?.local ?? l.quantity;
+      if (local > 0) {
+        await tx.product.update({ where: { id: l.productId }, data: { quantity: { decrement: local } } });
+      }
     }
     return created;
   });
   cache.invalidate('stats');
   await audit(req, 'CREATE', 'Order', order.id, { reference: order.reference, total: order.total, method: paymentMethod });
+
+  // 3b. Raise supplier fulfilments for any dropshipped remainder.
+  const supplierFlow = await orderFlow.afterOrderCreated({ req, orderId: order.id });
 
   // 4. Start the payment method.
   const baseUrl = `${req.protocol}://${req.get('host')}`;
@@ -197,7 +232,7 @@ router.post('/checkout', writeLimiter, validate(checkoutSchema), asyncHandler(as
 
   // 6. Confirmations.
   await activity(null, 'order', `New storefront order ${order.reference} (${paymentMethod.replace(/_/g, ' ').toLowerCase()})`);
-  const notify = await readAll();
+  const notify = await readAll(DEFAULT_TENANT);
   if (notify.email.notifyBookings) {
     sendMail({
       to: notify.company.email,
@@ -227,6 +262,9 @@ router.post('/checkout', writeLimiter, validate(checkoutSchema), asyncHandler(as
         sandbox: Boolean(payment.sandbox),
         instructions: payment.instructions || null,
       },
+      supplierFulfillment: supplierFlow.fulfillments.length
+        ? { count: supplierFlow.fulfillments.length, note: 'Some items ship directly from our supplier.' }
+        : null,
       message: payment.sandbox
         ? 'Order placed in test mode — no real payment was taken.'
         : 'Order placed. Follow the payment steps to complete your purchase.',

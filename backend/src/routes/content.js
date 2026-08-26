@@ -7,6 +7,7 @@ const { protect, adminOnly } = require('../middleware/auth');
 const { upload, persistMedia } = require('../middleware/upload');
 const { badRequest, notFound } = require('../lib/errors');
 const { audit } = require('../lib/audit');
+const { tenantWhere } = require('../lib/tenant');
 const cache = require('../lib/cache');
 
 const router = express.Router();
@@ -133,13 +134,14 @@ function deepMerge(base, extra) {
   return out;
 }
 
-async function ensurePage(key) {
+async function ensurePage(req, key) {
   const def = PAGE_DEFAULTS[key];
   if (!def) return null;
-  const existing = await prisma.contentPage.findUnique({ where: { key } });
+  const existing = await prisma.contentPage.findFirst({ where: tenantWhere(req, { key }) });
   if (existing) return existing;
   return prisma.contentPage.create({
     data: {
+      businessId: req.tenantId,
       key,
       title: def.title,
       slug: key,
@@ -151,8 +153,9 @@ async function ensurePage(key) {
 
 // GET /api/content — list all pages (ensures defaults exist)
 router.get('/', protect, asyncHandler(async (req, res) => {
-  await Promise.all(Object.keys(PAGE_DEFAULTS).map(ensurePage));
+  await Promise.all(Object.keys(PAGE_DEFAULTS).map((k) => ensurePage(req, k)));
   const pages = await prisma.contentPage.findMany({
+    where: tenantWhere(req),
     orderBy: [{ title: 'asc' }],
     select: {
       id: true, key: true, title: true, status: true, publishedAt: true, updatedAt: true,
@@ -164,7 +167,7 @@ router.get('/', protect, asyncHandler(async (req, res) => {
 
 // GET /api/content/:key — get a single page (content + draft + seo)
 router.get('/:key', protect, asyncHandler(async (req, res) => {
-  const page = await ensurePage(req.params.key);
+  const page = await ensurePage(req, req.params.key);
   if (!page) throw notFound(`Unknown content page '${req.params.key}'`);
   res.json({
     success: true,
@@ -193,7 +196,7 @@ const pageBody = z.object({
 
 // PUT /api/content/:key — update working content (does not publish)
 router.put('/:key', protect, validate(pageBody), asyncHandler(async (req, res) => {
-  const page = await ensurePage(req.params.key);
+  const page = await ensurePage(req, req.params.key);
   if (!page) throw notFound(`Unknown content page '${req.params.key}'`);
   const data = {};
   if (req.body.content !== undefined) data.content = serialize(req.body.content);
@@ -207,14 +210,14 @@ router.put('/:key', protect, validate(pageBody), asyncHandler(async (req, res) =
     data.robots = req.body.seo.robots ?? 'index,follow';
   }
   const updated = await prisma.contentPage.update({ where: { id: page.id }, data });
-  cache.invalidate('public:content');
+  cache.invalidate('public:content:default');
   await audit(req, 'UPDATE_CONTENT', 'ContentPage', updated.id, { key: updated.key });
   res.json({ success: true, data: { key: updated.key, status: updated.status, content: JSON.parse(updated.content) } });
 }));
 
 // POST /api/content/:key/autosave — persist an in-progress draft
 router.post('/:key/autosave', protect, validate(z.object({ draft: z.record(z.any()) })), asyncHandler(async (req, res) => {
-  const page = await ensurePage(req.params.key);
+  const page = await ensurePage(req, req.params.key);
   if (!page) throw notFound(`Unknown content page '${req.params.key}'`);
   const updated = await prisma.contentPage.update({
     where: { id: page.id },
@@ -225,7 +228,7 @@ router.post('/:key/autosave', protect, validate(z.object({ draft: z.record(z.any
 
 // POST /api/content/:key/publish — publish content (optionally from provided body)
 router.post('/:key/publish', protect, adminOnly, validate(z.object({ content: z.record(z.any()).optional(), seo: SEO_SCHEMA.optional() }).optional()), asyncHandler(async (req, res) => {
-  const page = await ensurePage(req.params.key);
+  const page = await ensurePage(req, req.params.key);
   if (!page) throw notFound(`Unknown content page '${req.params.key}'`);
   const data = { status: 'PUBLISHED', publishedAt: new Date() };
   if (req.body?.content !== undefined) data.content = serialize(req.body.content);
@@ -238,17 +241,17 @@ router.post('/:key/publish', protect, adminOnly, validate(z.object({ content: z.
     data.robots = req.body.seo.robots ?? page.robots;
   }
   const updated = await prisma.contentPage.update({ where: { id: page.id }, data });
-  cache.invalidate('public:content');
+  cache.invalidate('public:content:default');
   await audit(req, 'PUBLISH_CONTENT', 'ContentPage', updated.id, { key: updated.key });
   res.json({ success: true, data: { key: updated.key, status: updated.status, publishedAt: updated.publishedAt }, message: 'Page published' });
 }));
 
 // POST /api/content/:key/draft — revert to draft
 router.post('/:key/draft', protect, adminOnly, asyncHandler(async (req, res) => {
-  const page = await ensurePage(req.params.key);
+  const page = await ensurePage(req, req.params.key);
   if (!page) throw notFound(`Unknown content page '${req.params.key}'`);
   const updated = await prisma.contentPage.update({ where: { id: page.id }, data: { status: 'DRAFT' } });
-  cache.invalidate('public:content');
+  cache.invalidate('public:content:default');
   await audit(req, 'UNPUBLISH_CONTENT', 'ContentPage', updated.id, { key: updated.key });
   res.json({ success: true, data: { key: updated.key, status: updated.status } });
 }));
@@ -256,7 +259,7 @@ router.post('/:key/draft', protect, adminOnly, asyncHandler(async (req, res) => 
 // POST /api/content/:key/upload — upload an image associated with a page
 router.post('/:key/upload', protect, upload.single('image'), asyncHandler(async (req, res) => {
   if (!req.file) throw badRequest('No image uploaded (field name: image)');
-  const page = await ensurePage(req.params.key);
+  const page = await ensurePage(req, req.params.key);
   if (!page) throw notFound(`Unknown content page '${req.params.key}'`);
   const meta = await persistMedia(req.file, { folder: `/content/${req.params.key}` });
   const asset = await prisma.mediaAsset.create({ data: meta });

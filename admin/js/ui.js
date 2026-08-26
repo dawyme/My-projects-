@@ -60,6 +60,17 @@ const STATUS_TONE = {
   ADMIN: 'purple', STAFF: 'info',
   LOW: 'muted', NORMAL: 'info', HIGH: 'warning', URGENT: 'danger',
   ok: 'success', low: 'warning', out: 'danger', critical: 'danger', warning: 'warning',
+  // Supplier Marketplace
+  ACTIVE: 'success', DISABLED: 'muted',
+  NOT_CONNECTED: 'muted', CONFIGURED: 'info', CONNECTED: 'success', ERROR: 'danger',
+  NEW: 'info', CHANGED: 'warning',
+  UNMAPPED: 'warning', AUTO: 'info', MANUAL: 'purple',
+  QUEUED: 'info', RUNNING: 'purple', PARTIAL: 'warning', FAILED: 'danger',
+  PREVIEWING: 'info', COMMITTED: 'success',
+  READY: 'info', SUBMITTED: 'purple', ACCEPTED: 'info', PROCESSING: 'purple',
+  PARTIALLY_SHIPPED: 'warning', DELIVERED: 'success',
+  NOT_SENT: 'muted', SENT: 'info', REJECTED: 'danger',
+  SUPPLIER_FULFILLED: 'purple', HYBRID: 'info', LOCAL: 'muted',
 };
 export const statusBadge = (status, label) =>
   `<span class="badge badge--${STATUS_TONE[status] || 'muted'}">${esc(label || titleCase(status))}</span>`;
@@ -113,6 +124,16 @@ const ICONS = {
   image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
   share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>',
   eyeOff: '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="m1 1 22 22"/>',
+  truck: '<path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7V8Z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
+  plug: '<path d="M9 2v6M15 2v6"/><path d="M6 8h12v3a6 6 0 0 1-6 6 6 6 0 0 1-6-6V8Z"/><path d="M12 17v5"/>',
+  globe: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  pulse: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  warehouse: '<path d="M22 8 12 3 2 8v13h20V8Z"/><path d="M6 21V12h12v9"/><path d="M10 21v-5h4v5"/>',
+  cloud: '<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10Z"/>',
+  pin: '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/>',
+  percent: '<path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+  history: '<path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/>',
 };
 export const icon = (name, cls = '') =>
   `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ICONS.box}</svg>`;

@@ -6,10 +6,15 @@ const { validate } = require('../middleware/validate');
 const { publicFormLimiter } = require('../middleware/rateLimit');
 const { activity } = require('../lib/audit');
 const { readAll } = require('./settings');
+const { DEFAULT_TENANT } = require('../lib/tenant');
 const { sendMail } = require('../lib/mailer');
 const cache = require('../lib/cache');
 const payments = require('../lib/payments');
 const { badRequest, notFound } = require('../lib/errors');
+const { availableStock } = require('../lib/suppliers/inventory');
+const shipping = require('../lib/suppliers/shipping');
+const { resolveCountry, COUNTRY_BY_CODE } = require('../lib/suppliers/countries');
+const fulfillmentService = require('../lib/suppliers/fulfillment');
 
 const router = express.Router();
 const reference = () => `BK-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
@@ -18,7 +23,7 @@ const reference = () => `BK-${Date.now().toString(36).toUpperCase()}-${Math.rand
 router.get('/products', asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page || '1', 10));
   const limit = Math.min(48, Math.max(1, parseInt(req.query.limit || '12', 10)));
-  const where = { isActive: true };
+  const where = { businessId: DEFAULT_TENANT, isActive: true };
   if (req.query.category) where.category = { slug: String(req.query.category) };
   if (req.query.featured === 'true') where.featured = true;
   if (req.query.search) {
@@ -31,21 +36,91 @@ router.get('/products', asyncHandler(async (req, res) => {
       select: {
         id: true, sku: true, name: true, slug: true, description: true, brand: true, model: true,
         price: true, imageUrl: true, featured: true, quantity: true,
+        supplierStock: true, fulfillmentType: true,
         category: { select: { name: true, slug: true } },
       },
     }),
     prisma.product.count({ where }),
   ]);
+  // A dropshipped product legitimately has zero N&D-owned units but is still
+  // purchasable, so stock is reported as *available* stock, never owned stock.
   res.json({
     success: true,
-    data: items.map((p) => ({ ...p, inStock: p.quantity > 0, quantity: undefined })),
+    data: items.map((p) => {
+      const available = availableStock(p);
+      const { quantity, supplierStock, ...rest } = p;
+      return {
+        ...rest,
+        inStock: available > 0,
+        availableStock: available,
+        shipsFromSupplier: (p.fulfillmentType === 'SUPPLIER_FULFILLED' || p.fulfillmentType === 'HYBRID') && supplierStock > 0,
+      };
+    }),
     meta: { total, page, limit, pages: Math.ceil(total / limit) || 1 },
+  });
+}));
+
+// GET /api/public/shipping/quote — what it costs to ship an item somewhere.
+// Returns an explicit "cannot ship" rather than inventing a rate.
+router.get('/shipping/quote', validate(z.object({
+  country: z.string().trim().length(2).toUpperCase(),
+  productId: z.string().uuid().optional(),
+  quantity: z.coerce.number().int().min(1).max(999).default(1),
+}), 'query'), asyncHandler(async (req, res) => {
+  const q = req.validatedQuery;
+  const settings = await readAll(DEFAULT_TENANT);
+  const country = resolveCountry(q.country) || q.country;
+
+  if (!q.productId) {
+    return res.json({
+      success: true,
+      data: {
+        country, countryName: COUNTRY_BY_CODE[country]?.name || country,
+        shippable: true, options: [],
+        message: 'Add an item to see supplier shipping options for it.',
+      },
+    });
+  }
+
+  const product = await prisma.product.findUnique({
+    where: { id: q.productId },
+    select: { id: true, name: true, sku: true, price: true, categoryId: true, fulfillmentType: true, supplierStock: true, isActive: true },
+  });
+  if (!product || !product.isActive) throw notFound('Product not found');
+
+  const mapping = await prisma.supplierProductMapping.findFirst({
+    where: { productId: product.id },
+    include: { supplierProduct: { include: { supplier: true } } },
+  });
+
+  const result = await shipping.quote({
+    tenantId: 'default',
+    country,
+    supplier: mapping?.supplierProduct?.supplier || null,
+    supplierId: mapping?.supplierProduct?.supplierId || null,
+    supplierProduct: mapping?.supplierProduct || null,
+    categoryId: product.categoryId,
+    weightKg: (Number(mapping?.supplierProduct?.weightKg) || 0) * q.quantity,
+    quantity: q.quantity,
+    subtotal: product.price * q.quantity,
+  });
+
+  res.json({
+    success: true,
+    data: {
+      country, countryName: COUNTRY_BY_CODE[country]?.name || country,
+      currency: settings.payment.currency,
+      currencySymbol: settings.payment.currencySymbol,
+      dropshipped: Boolean(mapping?.supplierProduct),
+      ...result,
+    },
   });
 }));
 
 // GET /api/public/categories
 router.get('/categories', asyncHandler(async (req, res) => {
   const data = await cache.wrap('public:categories', 60000, () => prisma.category.findMany({
+    where: { businessId: DEFAULT_TENANT },
     orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     select: { name: true, slug: true, description: true, imageUrl: true, _count: { select: { products: true } } },
   }));
@@ -55,7 +130,7 @@ router.get('/categories', asyncHandler(async (req, res) => {
 // GET /api/public/services
 router.get('/services', asyncHandler(async (req, res) => {
   const data = await prisma.service.findMany({
-    where: { isActive: true }, orderBy: { name: 'asc' },
+    where: { businessId: DEFAULT_TENANT, isActive: true }, orderBy: { name: 'asc' },
     select: { id: true, name: true, slug: true, description: true, basePrice: true, durationMin: true },
   });
   res.json({ success: true, data });
@@ -65,8 +140,8 @@ router.get('/services', asyncHandler(async (req, res) => {
 // For Tilopay orders still PENDING, consults the Tilopay /consult endpoint
 // to check whether the payment was approved, then captures if so.
 router.get('/orders/:reference', asyncHandler(async (req, res) => {
-  const order = await prisma.order.findUnique({
-    where: { reference: req.params.reference },
+  const order = await prisma.order.findFirst({
+    where: { businessId: DEFAULT_TENANT, reference: req.params.reference },
     select: {
       id: true, reference: true, status: true, paymentMethod: true,
       paymentStatus: true, total: true, createdAt: true, paidAt: true,
@@ -94,8 +169,8 @@ router.get('/orders/:reference', asyncHandler(async (req, res) => {
         cache.invalidate('stats');
         await activity(null, 'payment', `Tilopay payment confirmed for ${order.reference}`);
         // Re-fetch after capture.
-        const updated = await prisma.order.findUnique({
-          where: { reference: req.params.reference },
+        const updated = await prisma.order.findFirst({
+          where: { businessId: DEFAULT_TENANT, reference: req.params.reference },
           select: {
             id: true, reference: true, status: true, paymentMethod: true,
             paymentStatus: true, total: true, createdAt: true, paidAt: true,
@@ -113,11 +188,32 @@ router.get('/orders/:reference', asyncHandler(async (req, res) => {
     }
   }
 
-  res.json({ success: true, data: order });
+  // Supplier fulfilment / dropship tracking, so a customer whose items ship
+  // directly from a supplier sees the real progress and tracking number.
+  const supplierFulfillments = await fulfillmentService.forOrder({ tenantId: 'default', orderId: order.id });
+
+  res.json({
+    success: true,
+    data: {
+      ...order,
+      supplierFulfillments: supplierFulfillments.map((f) => ({
+        status: f.status,
+        supplierName: f.supplier?.name || null,
+        trackingNumber: f.trackingNumber || null,
+        carrier: f.carrier || null,
+        trackingUrl: f.trackingUrl || null,
+        shippingMethod: f.shippingMethod || null,
+        shippedAt: f.shippedAt,
+        deliveredAt: f.deliveredAt,
+        trackingSupported: Boolean(f.trackingNumber || f.trackingUrl),
+        items: f.items.map((i) => ({ sku: i.supplierSku, name: i.name, quantity: i.quantity })),
+      })),
+    },
+  });
 }));
 // GET /api/public/settings — public-safe business info
 router.get('/settings', asyncHandler(async (req, res) => {
-  const all = await readAll();
+  const all = await readAll(DEFAULT_TENANT);
   const p = all.payment;
   const PAYMENT_METHOD_LABELS = {
     CASH_ON_DELIVERY: 'Cash on Delivery',
@@ -162,16 +258,18 @@ router.post('/contact', publicFormLimiter, validate(z.object({
 })), asyncHandler(async (req, res) => {
   const { name, email, phone, subject, serviceType, message } = req.body;
   const normalizedEmail = email ? email.toLowerCase() : null;
-  const customer = normalizedEmail ? await prisma.customer.findUnique({ where: { email: normalizedEmail } }) : null;
+  const customer = normalizedEmail
+    ? await prisma.customer.findFirst({ where: { businessId: DEFAULT_TENANT, email: normalizedEmail } })
+    : null;
   const selectedService = serviceType || 'General Inquiry';
   const storedSubject = subject || `${selectedService} enquiry`;
   const storedBody = `Service Type: ${selectedService}\n\n${message}`;
   const created = await prisma.contactMessage.create({
-    data: { name, email: normalizedEmail || null, phone: phone || null, subject: storedSubject, body: storedBody, customerId: customer?.id || null },
+    data: { businessId: DEFAULT_TENANT, name, email: normalizedEmail || null, phone: phone || null, subject: storedSubject, body: storedBody, customerId: customer?.id || null },
   });
   cache.invalidate('stats');
   await activity(null, 'message', `New contact message from ${name}`);
-  const settings = await readAll();
+  const settings = await readAll(DEFAULT_TENANT);
   if (settings.email.notifyMessages) {
     try {
       await sendMail({ to: settings.company.email, subject: `New website enquiry: ${subject || 'No subject'}`, text: `${name}${normalizedEmail ? ` <${normalizedEmail}>` : ''}${phone ? ` (${phone})` : ''}\n\n${message}` });
@@ -204,22 +302,23 @@ router.post('/bookings', publicFormLimiter, validate(z.object({
 })), asyncHandler(async (req, res) => {
   const { name, email, phone, address, serviceId, scheduledAt, description } = req.body;
   const lower = email.toLowerCase();
-  const customer = await prisma.customer.upsert({
-    where: { email: lower },
-    update: { name, phone: phone || undefined, address: address || undefined },
-    create: { name, email: lower, phone: phone || null, address: address || null },
-  });
-  const service = serviceId ? await prisma.service.findUnique({ where: { id: serviceId } }) : null;
+  const existingCustomer = await prisma.customer.findFirst({ where: { businessId: DEFAULT_TENANT, email: lower } });
+  const customer = existingCustomer
+    ? await prisma.customer.update({ where: { id: existingCustomer.id }, data: { name, phone: phone || undefined, address: address || undefined } })
+    : await prisma.customer.create({ data: { businessId: DEFAULT_TENANT, name, email: lower, phone: phone || null, address: address || null } });
+  const service = serviceId
+    ? await prisma.service.findFirst({ where: { businessId: DEFAULT_TENANT, id: serviceId } })
+    : null;
   const booking = await prisma.booking.create({
     data: {
-      reference: reference(), customerId: customer.id, serviceId: service?.id || null,
+      reference: reference(), businessId: DEFAULT_TENANT, customerId: customer.id, serviceId: service?.id || null,
       scheduledAt, address: address || customer.address || null, description: description || null,
       price: service?.basePrice || 0, status: 'PENDING',
     },
   });
   cache.invalidate('stats');
   await activity(null, 'booking', `New online booking ${booking.reference} from ${name}`);
-  const settings = await readAll();
+  const settings = await readAll(DEFAULT_TENANT);
   if (settings.email.notifyBookings) {
     try {
       await sendMail({ to: settings.company.email, subject: `New booking ${booking.reference}`, text: `${name} <${lower}> booked ${service?.name || 'a service'} for ${new Date(scheduledAt).toLocaleString()}.` });

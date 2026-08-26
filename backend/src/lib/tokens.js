@@ -16,7 +16,7 @@ function refreshSecret() {
 
 function signAccessToken(user) {
   return jwt.sign(
-    { sub: user.id, email: user.email, role: user.role, name: user.name, typ: 'access' },
+    { sub: user.id, email: user.email, role: user.role, name: user.name, biz: user.businessId ?? null, typ: 'access' },
     accessSecret(),
     { expiresIn: ACCESS_TTL, issuer: 'hvac-admin' }
   );

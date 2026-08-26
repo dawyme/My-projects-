@@ -3,6 +3,7 @@ const { z } = require('zod');
 const prisma = require('../lib/prisma');
 const asyncHandler = require('../lib/async');
 const { protect } = require('../middleware/auth');
+const { tenantWhere } = require('../lib/tenant');
 const { validate } = require('../middleware/validate');
 const cache = require('../lib/cache');
 
@@ -30,16 +31,17 @@ const rangeQuery = z.object({ months: z.coerce.number().int().min(1).max(24).def
 // GET /api/analytics/overview — every chart series in one payload
 router.get('/overview', protect, validate(rangeQuery, 'query'), asyncHandler(async (req, res) => {
   const months = req.validatedQuery.months;
-  const data = await cache.wrap(`stats:analytics:${months}`, 30000, async () => {
+  const data = await cache.wrap(`stats:analytics:${req.tenantId}:${months}`, 30000, async () => {
+    const scope = tenantWhere(req);
     const buckets = monthBuckets(months);
     const since = buckets[0].start;
 
     const [bookings, orders, customers, orderItems, categories] = await Promise.all([
-      prisma.booking.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true, status: true, price: true } }),
-      prisma.order.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true, total: true, status: true } }),
-      prisma.customer.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
-      prisma.orderItem.findMany({ include: { product: { select: { name: true, sku: true, categoryId: true } }, order: { select: { createdAt: true, status: true } } } }),
-      prisma.category.findMany({ select: { id: true, name: true } }),
+      prisma.booking.findMany({ where: { ...scope, createdAt: { gte: since } }, select: { createdAt: true, status: true, price: true } }),
+      prisma.order.findMany({ where: { ...scope, createdAt: { gte: since } }, select: { createdAt: true, total: true, status: true } }),
+      prisma.customer.findMany({ where: { ...scope, createdAt: { gte: since } }, select: { createdAt: true } }),
+      prisma.orderItem.findMany({ where: { order: scope }, include: { product: { select: { name: true, sku: true, categoryId: true } }, order: { select: { createdAt: true, status: true } } } }),
+      prisma.category.findMany({ where: scope, select: { id: true, name: true } }),
     ]);
 
     const empty = () => Object.fromEntries(buckets.map((b) => [b.key, 0]));
@@ -70,7 +72,7 @@ router.get('/overview', protect, validate(rangeQuery, 'query'), asyncHandler(asy
     }
 
     // cumulative customer growth
-    const baseCustomers = await prisma.customer.count({ where: { createdAt: { lt: since } } });
+    const baseCustomers = await prisma.customer.count({ where: { ...scope, createdAt: { lt: since } } });
     let running = baseCustomers;
     const cumulative = buckets.map((b) => (running += customerSeries[b.key]));
 
@@ -120,7 +122,7 @@ router.get('/overview', protect, validate(rangeQuery, 'query'), asyncHandler(asy
 // GET /api/analytics/technicians
 router.get('/technicians', protect, asyncHandler(async (req, res) => {
   const techs = await prisma.user.findMany({
-    where: { isActive: true },
+    where: { isActive: true, OR: [{ businessId: req.tenantId }] },
     select: { id: true, name: true, role: true, bookings: { select: { status: true, price: true } } },
   });
   const data = techs.map((t) => ({
