@@ -78,7 +78,7 @@ router.post('/', protect, validate(z.object({
 
   const order = await prisma.$transaction(async (tx) => {
     const created = await tx.order.create({
-      data: { reference: reference(), businessId: req.tenantId, customerId, status, subtotal, tax, total: round(subtotal + tax), items: { create: lines.map(({ localQuantity, ...l }) => ({ ...l, businessId: req.tenantId })) } },
+      data: { reference: reference(), businessId: req.tenantId, customerId, status, subtotal, tax, total: round(subtotal + tax), items: { create: lines.map((l) => ({ ...l, businessId: req.tenantId })) } },
       include,
     });
     for (const l of lines) {

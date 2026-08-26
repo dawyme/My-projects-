@@ -195,7 +195,7 @@ router.post('/checkout', writeLimiter, validate(checkoutSchema), asyncHandler(as
         subtotal,
         tax,
         total: round(subtotal + tax),
-        items: { create: lines.map(({ localQuantity, ...l }) => ({ ...l, businessId: DEFAULT_TENANT })) },
+        items: { create: lines.map((l) => ({ ...l, businessId: DEFAULT_TENANT })) },
       },
       include: { items: { include: { product: { select: { id: true, name: true, sku: true } } } } },
     });
