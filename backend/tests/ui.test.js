@@ -238,6 +238,23 @@ async function main() {
     record(expected.every((e) => links.some((l) => l.includes(e))),
       'Supplier Marketplace group lists all ten section pages', links.join(' | '));
   }
+
+  // Admin navigation dropdown regression: every top-level section is collapsible.
+  const navGroups = [...doc.querySelectorAll('.nav-group')];
+  record(navGroups.length >= 7, `Admin sidebar keeps all top-level sections (${navGroups.length} groups)`);
+  record(navGroups.every((group) => group.querySelector('.nav-group__toggle')), 'Every admin section uses a dropdown toggle');
+  const operationsGroup = navGroups.find((group) => group.querySelector('.nav-group__label')?.textContent.trim() === 'Operations');
+  record(!!operationsGroup, 'Operations dropdown exists');
+  if (operationsGroup) {
+    const operationPaths = ['/bookings', '/calendar', '/services', '/orders'];
+    record(operationPaths.every((path) => doc.querySelector(`.nav-link[data-path="${path}"]`)),
+      'Operations dropdown preserves all existing routes');
+    record(!doc.querySelector('.nav-link[data-path="/dispatch"]'),
+      'Navigation does not advertise an unimplemented Dispatch Board route');
+  }
+  const supplierToggle = [...doc.querySelectorAll('.nav-group__toggle')].find((button) => button.textContent.includes('Supplier Marketplace'));
+  record(!!supplierToggle, 'Supplier Marketplace has a dropdown toggle');
+  record(supplierToggle?.getAttribute('aria-expanded') === 'false', 'Dropdowns start collapsed');
   record(!!doc.querySelector('#menuToggle'), 'Mobile menu toggle exists');
   record(!!doc.querySelector('.skip-link'), 'Accessibility skip link is present');
 

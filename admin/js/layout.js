@@ -68,11 +68,17 @@ function navMarkup(user) {
   return NAV.map((group) => {
     const items = group.items.filter((i) => !i.adminOnly || user.role === 'ADMIN');
     if (!items.length) return '';
-    return `<div class="nav-group"><div class="nav-group__label">${esc(group.group)}</div>
-      ${items.map((i) => `<a class="nav-link" href="#${i.path}" data-path="${i.path}">
-        ${icon(i.icon)}<span>${esc(i.label)}</span>
-        ${i.badge ? `<span class="nav-link__badge" data-badge="${i.badge}" hidden>0</span>` : ''}</a>`).join('')}
-    </div>`;
+    const groupId = `nav-group-${NAV.indexOf(group)}`;
+    return `<section class="nav-group">
+      <button type="button" class="nav-group__toggle" aria-expanded="false" aria-controls="${groupId}">
+        <span class="nav-group__label">${esc(group.group)}</span><span class="nav-group__chevron" aria-hidden="true">⌄</span>
+      </button>
+      <div class="nav-group__items" id="${groupId}" hidden>
+        ${items.map((i) => `<a class="nav-link" href="#${i.path}" data-path="${i.path}">
+          ${icon(i.icon)}<span>${esc(i.label)}</span>
+          ${i.badge ? `<span class="nav-link__badge" data-badge="${i.badge}" hidden>0</span>` : ''}</a>`).join('')}
+      </div>
+    </section>`;
   }).join('');
 }
 
@@ -129,7 +135,19 @@ export function renderShell(user) {
     qs('#menuToggle').setAttribute('aria-expanded', String(open));
   };
   backdrop.onclick = closeNav;
-  sidebar.addEventListener('click', (e) => { if (e.target.closest('.nav-link') && innerWidth <= 1024) closeNav(); });
+  sidebar.addEventListener('click', (e) => {
+    const toggle = e.target.closest('.nav-group__toggle');
+    if (toggle) {
+      const group = toggle.closest('.nav-group');
+      const items = group?.querySelector('.nav-group__items');
+      if (!items) return;
+      const open = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!open));
+      items.hidden = open;
+      return;
+    }
+    if (e.target.closest('.nav-link') && innerWidth <= 1024) closeNav();
+  });
 
   qs('#themeToggle').onclick = () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
 
@@ -162,9 +180,19 @@ export function setTitle(title) {
 }
 
 export function highlightNav(path) {
-  document.querySelectorAll('.nav-link').forEach((link) => {
-    if (link.dataset.path === path) link.setAttribute('aria-current', 'page');
-    else link.removeAttribute('aria-current');
+  document.querySelectorAll('.nav-group').forEach((group) => {
+    const active = group.querySelector(`.nav-link[data-path="${path}"]`);
+    const toggle = group.querySelector('.nav-group__toggle');
+    const items = group.querySelector('.nav-group__items');
+    const isActiveGroup = !!active;
+    if (toggle && items) {
+      toggle.setAttribute('aria-expanded', String(isActiveGroup));
+      items.hidden = !isActiveGroup;
+    }
+    group.querySelectorAll('.nav-link').forEach((link) => {
+      if (link.dataset.path === path) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    });
   });
 }
 
