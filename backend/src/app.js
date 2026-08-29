@@ -189,6 +189,7 @@ app.use('/api/equipment', require('./routes/equipment'));
 app.use('/api/estimates', require('./routes/estimates'));
 app.use('/api/invoices', require('./routes/invoices'));
 app.use('/api/dispatch', require('./routes/dispatch'));
+app.use('/api/service-history', require('./routes/service-history'));
 app.use('/api/service-requests', require('./routes/service-requests'));
 app.use('/api/work-orders', require('./routes/work-orders'));
 
