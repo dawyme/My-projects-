@@ -1,7 +1,7 @@
 const express = require('express');
 const { z } = require('zod');
 const prisma = require('../lib/prisma');
-const asyncHandler = require('../lib/asyncHandler');
+const asyncHandler = require('../lib/async');
 const { validate } = require('../middleware/validate');
 const { protect } = require('../middleware/auth');
 const { paginationSchema, meta } = require('../lib/pagination');
