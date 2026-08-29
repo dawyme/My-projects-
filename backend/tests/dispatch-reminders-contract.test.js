@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 const assert = require('assert');
+process.env.RESEND_API_KEY = process.env.RESEND_API_KEY || 'test-resend-key';
 const app = require('../src/app');
 const prisma = require('../src/lib/prisma');
 
