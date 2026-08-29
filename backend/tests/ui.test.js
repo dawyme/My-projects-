@@ -246,10 +246,11 @@ async function main() {
   const operationsGroup = navGroups.find((group) => group.querySelector('.nav-group__label')?.textContent.trim() === 'Operations');
   record(!!operationsGroup, 'Operations dropdown exists');
   if (operationsGroup) {
-    const operationLinks = [...operationsGroup.querySelectorAll('.nav-link')].map((link) => link.textContent.trim());
-    record(['Service Bookings', 'Calendar', 'Services', 'Orders'].every((label) => operationLinks.includes(label)),
-      `Operations dropdown preserves existing routes: ${operationLinks.join(' | ')}`);
-    record(!operationLinks.includes('Dispatch Board'), 'Navigation does not advertise an unimplemented Dispatch Board route');
+    const operationPaths = ['/bookings', '/calendar', '/services', '/orders'];
+    record(operationPaths.every((path) => doc.querySelector(`.nav-link[data-path="${path}"]`)),
+      'Operations dropdown preserves all existing routes');
+    record(!doc.querySelector('.nav-link[data-path="/dispatch"]'),
+      'Navigation does not advertise an unimplemented Dispatch Board route');
   }
   const supplierToggle = [...doc.querySelectorAll('.nav-group__toggle')].find((button) => button.textContent.includes('Supplier Marketplace'));
   record(!!supplierToggle, 'Supplier Marketplace has a dropdown toggle');
