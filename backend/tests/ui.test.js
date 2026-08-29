@@ -66,6 +66,11 @@ const ROUTES = [
   ['#/bookings', 'Service Bookings', ['Reference', 'Technician', 'Status']],
   ['#/calendar', 'Calendar', ['Mon', 'Pending', 'Completed']],
   ['#/services', 'Services', ['AC Installation', 'Base price']],
+  ['#/dispatch', 'Dispatch Board', ['Dispatch Board']],
+  ['#/equipment', 'Equipment', ['Equipment']],
+  ['#/service-history', 'Service History', ['Service History']],
+  ['#/estimates', 'Estimates', ['Estimates']],
+  ['#/invoices', 'Invoices', ['Invoices']],
   ['#/orders', 'Orders', ['Reference', 'New order']],
   ['#/customers', 'Customers', ['Bookings', 'Orders', 'Export CSV']],
   ['#/messages', 'Contact Messages', ['Unread', 'Archived']],
@@ -249,8 +254,11 @@ async function main() {
     const operationPaths = ['/bookings', '/calendar', '/services', '/orders'];
     record(operationPaths.every((path) => doc.querySelector(`.nav-link[data-path="${path}"]`)),
       'Operations dropdown preserves all existing routes');
-    record(!doc.querySelector('.nav-link[data-path="/dispatch"]'),
-      'Navigation does not advertise an unimplemented Dispatch Board route');
+    record(!!doc.querySelector('.nav-link[data-path="/dispatch"]'),
+      'Operations dropdown includes the Dispatch Board route');
+    const managementPaths = ['/equipment', '/service-history', '/estimates', '/invoices'];
+    record(managementPaths.every((path) => !!doc.querySelector(`.nav-link[data-path="${path}"]`)),
+      'Operations dropdown includes Equipment, Service History, Estimates and Invoices');
   }
   const supplierToggle = [...doc.querySelectorAll('.nav-group__toggle')].find((button) => button.textContent.includes('Supplier Marketplace'));
   record(!!supplierToggle, 'Supplier Marketplace has a dropdown toggle');
