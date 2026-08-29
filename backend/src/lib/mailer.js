@@ -49,6 +49,19 @@ async function sendBookingStatusEmail(booking, customer) {
   });
 }
 
+async function sendBookingReminderEmail(booking, customer) {
+  const when = new Date(booking.scheduledAt).toLocaleString();
+  return sendMail({
+    to: customer.email,
+    subject: `Reminder: service booking ${booking.reference}`,
+    text: `Hi ${customer.name}, this is a reminder that your N&D'S service appointment ${booking.reference} is scheduled for ${when}. Technician: ${booking.technician?.name || 'To be confirmed'}. Address: ${booking.address || 'See your booking details'}.`,
+    html: layout('Service Appointment Reminder', `<p>Hi <strong>${customer.name}</strong>,</p>
+      <p>This is a reminder that your service appointment <strong>${booking.reference}</strong> is scheduled for <strong>${when}</strong>.</p>
+      <p><strong>Technician:</strong> ${booking.technician?.name || 'To be confirmed'}<br><strong>Address:</strong> ${booking.address || 'See your booking details'}</p>
+      <p>If you need to change the appointment, please contact N&D'S Air Conditioning &amp; Refrigeration Services.</p>`),
+  });
+}
+
 async function sendMessageReplyEmail(message, body) {
   return sendMail({
     to: message.email,
@@ -59,4 +72,4 @@ async function sendMessageReplyEmail(message, body) {
   });
 }
 
-module.exports = { sendMail, sendBookingStatusEmail, sendMessageReplyEmail };
+module.exports = { sendMail, sendBookingStatusEmail, sendBookingReminderEmail, sendMessageReplyEmail };
