@@ -471,6 +471,18 @@ async function main() {
   }
   console.log(`  ✔ ${team.length} team members`);
 
+  // ---- SaaS commercial plans and default tenant subscription
+  const plans = [
+    { id: 'plan_starter', name: 'Starter', slug: 'starter', description: 'Core tools for small service businesses', price: 49, currency: 'USD', interval: 'month', features: { pos:true, dispatch:true, inventory:true, invoices:true }, limits: { users:3, technicians:3 } },
+    { id: 'plan_professional', name: 'Professional', slug: 'professional', description: 'Full operations for growing teams', price: 99, currency: 'USD', interval: 'month', features: { pos:true, dispatch:true, inventory:true, invoices:true, analytics:true, marketplace:true }, limits: { users:10, technicians:10 } },
+    { id: 'plan_business', name: 'Business', slug: 'business', description: 'Advanced operations for established companies', price: 199, currency: 'USD', interval: 'month', features: { pos:true, dispatch:true, inventory:true, invoices:true, analytics:true, marketplace:true, advancedReports:true }, limits: { users:25, technicians:25 } },
+  ];
+  for (const plan of plans) {
+    await prisma.plan.upsert({ where: { id: plan.id }, update: { ...plan, features: JSON.stringify(plan.features), limits: JSON.stringify(plan.limits), isActive: true }, create: { ...plan, features: JSON.stringify(plan.features), limits: JSON.stringify(plan.limits), isActive: true } });
+  }
+  await prisma.subscription.upsert({ where: { businessId: 'default' }, update: { planId: 'plan_professional', status: 'ACTIVE' }, create: { businessId: 'default', planId: 'plan_professional', status: 'ACTIVE' } });
+  console.log(`  ✔ ${plans.length} SaaS plans and default subscription`);
+
   // ---- activity feed
   const feed = [
     ['booking', `${staff.name} completed a maintenance visit`, staff.id],

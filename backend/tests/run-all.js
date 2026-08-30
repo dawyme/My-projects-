@@ -11,6 +11,7 @@ const SUITES = [
   ['Tilopay unit tests', 'tilopay-unit.test.js'],
   ['Supplier Marketplace', 'suppliers.test.js'],
   ['POS / multi-tenant POS', 'pos.test.js'],
+  ['SaaS / multi-tenant productization', 'saas.test.js'],
   ['Admin dashboard UI', 'ui.test.js'],
   ['Public website', 'site.test.js'],
 ];

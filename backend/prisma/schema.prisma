@@ -62,6 +62,7 @@ model Business {
   invoices             Invoice[]
   jobStatuses          JobStatus[]
   mediaAssets          MediaAsset[]
+  subscription         Subscription?
 
 sales             Sale[]
   saleRefunds       SaleRefund[]
@@ -100,6 +101,42 @@ model User {
 salesAsCashier    Sale[] @relation("CashierSales")
   refundsCreated    SaleRefund[]
 
+}
+
+model Plan {
+  id          String         @id @default(uuid())
+  name        String
+  slug        String         @unique
+  description String?
+  price       Float          @default(0)
+  currency    String         @default("USD")
+  interval    String         @default("month") // month | year
+  features    String         @default("{}")
+  limits      String         @default("{}")
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  subscriptions Subscription[]
+
+  @@index([isActive])
+}
+
+model Subscription {
+  id                String   @id @default(uuid())
+  businessId        String   @unique
+  business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  planId            String
+  plan              Plan     @relation(fields: [planId], references: [id])
+  status            String   @default("TRIAL") // TRIAL ACTIVE PAST_DUE SUSPENDED CANCELLED
+  trialEndsAt       DateTime?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([planId])
+  @@index([status])
 }
 
 model RefreshToken {
