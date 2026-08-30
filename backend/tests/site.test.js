@@ -148,6 +148,7 @@ async function main() {
       record(!!latest.customer?.email, 'Website bookings create or link a customer record');
     }
   }
+  await wait(350);
   bookingDom.window.close();
 
   // ---------- quote form
@@ -169,6 +170,7 @@ async function main() {
     record(stored, 'Quote request submission reaches the admin inbox',
       stored ? '' : `alert: ${qw.__alert || 'none'}`);
   }
+  await wait(350);
   quoteDom.window.close();
 
   // ---------- storefront checkout (real order through the payment API)
@@ -211,6 +213,7 @@ async function main() {
         }
         record((await prisma.order.count()) > beforeOrders, 'Checkout order lands in the admin order list');
       }
+      await wait(350);
       coDom.window.close();
     }
   }
@@ -229,6 +232,7 @@ async function main() {
   record(!!emergency && emergency.hidden === false, 'Emergency banner is shown when published/enabled');
   const footAbout = scWin.document.querySelector('[data-footer-about]');
   record(!!footAbout && footAbout.textContent.trim().length > 20, 'Footer about text is dynamic');
+  await wait(350);
   scDom.window.close();
 
   // ---------- public catalogue API used by the storefront
