@@ -1,0 +1,42 @@
+import { api } from '../api.js';
+import { setTitle } from '../layout.js';
+import { esc, money, toast, toastError, modal, confirmDialog } from '../ui.js';
+
+const state = { cart: [], customerId: '', paymentMethod: 'CASH', discount: 0, taxRate: 0, search: '' };
+const payments = ['CASH','CARD','BANK_TRANSFER','STRIPE','PAYPAL','WIPAY','TILOPAY','OTHER'];
+
+export async function render(view) {
+  setTitle('Point of Sale');
+  state.cart = [];
+  try { const s = await api.get('/settings'); state.taxRate = Number(s.data?.payment?.taxRate ?? 0); } catch {}
+  view.innerHTML = `<div class="page-head"><div><h1>Point of Sale</h1><p>Tenant-scoped counter sales, inventory and receipts.</p></div><a class="btn btn--ghost" href="#/orders">Online orders</a></div>
+  <div class="grid" style="grid-template-columns:minmax(0,1.7fr) minmax(320px,1fr);gap:18px;align-items:start">
+    <section class="card"><div class="card__body"><div class="toolbar"><input id="posSearch" class="toolbar__search" type="search" placeholder="Search product or SKU…"><button class="btn btn--subtle" id="clearSearch">Clear</button></div><div id="products" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-top:16px"></div></div></section>
+    <section class="card"><div class="card__head"><h2>Current sale</h2><button class="btn btn--ghost btn--sm" id="clearCart">Clear</button></div><div class="card__body"><div id="cart"></div><div id="totals"></div>
+      <div class="field"><label for="customer">Customer (optional)</label><select id="customer"><option value="">Walk-in customer</option></select></div>
+      <div class="field"><label for="payment">Payment method</label><select id="payment">${payments.map(p=>`<option value="${p}">${p.replaceAll('_',' ')}</option>`).join('')}</select></div>
+      <div class="field"><label for="discount">Discount</label><input id="discount" type="number" min="0" step="0.01" value="0"></div>
+      <button class="btn btn--primary" id="complete" style="width:100%;margin-top:12px">Complete sale</button>
+    </div></section>
+  </div>
+  <section class="card" style="margin-top:18px"><div class="card__head"><h2>Recent POS sales</h2><button class="btn btn--ghost btn--sm" id="refreshSales">Refresh</button></div><div class="table-wrap"><table class="data"><thead><tr><th>Sale</th><th>Customer</th><th>Cashier</th><th>Total</th><th>Status</th><th>Date</th><th></th></tr></thead><tbody id="sales"></tbody></table></div></section>`;
+
+  const productsEl = view.querySelector('#products'), cartEl = view.querySelector('#cart'), totalsEl = view.querySelector('#totals'), salesEl = view.querySelector('#sales');
+  async function loadProducts() {
+    productsEl.innerHTML = '<div class="skeleton" style="height:120px"></div>'.repeat(6);
+    try { const { data } = await api.get('/pos/products', { q: state.search, limit: 50 }); productsEl.innerHTML = data.length ? data.map(p=>`<button class="card" data-product="${esc(p.id)}" style="text-align:left;padding:0;overflow:hidden;cursor:pointer"><div style="padding:14px"><strong>${esc(p.name)}</strong><div class="cell-sub">${esc(p.sku)} · ${money(p.price)}</div><div class="cell-sub">Stock: ${p.quantity}</div></div></button>`).join('') : '<div class="empty"><h3>No products</h3><p>Nothing matching this search.</p></div>'; } catch(e) { productsEl.innerHTML=`<div class="empty"><h3>Could not load products</h3><p>${esc(e.message)}</p></div>`; }
+  }
+  function totals() { const subtotal=state.cart.reduce((s,x)=>s+x.price*x.quantity,0); const discount=Math.min(Number(state.discount)||0,subtotal); const tax=(subtotal-discount)*((Number(state.taxRate)||0)/100); return {subtotal,discount,tax,total:subtotal-discount+tax}; }
+  function renderCart() { cartEl.innerHTML=state.cart.length?state.cart.map(x=>`<div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;border-bottom:1px solid var(--border);padding:10px 0"><div><strong>${esc(x.name)}</strong><div class="cell-sub">${money(x.price)} each</div></div><div><input data-qty="${esc(x.id)}" type="number" min="1" value="${x.quantity}" style="width:64px"></div><button class="btn btn--ghost btn--sm" data-remove="${esc(x.id)}">×</button></div>`).join(''):'<div class="empty"><p>Cart is empty. Select products to begin.</p></div>'; const t=totals(); totalsEl.innerHTML=`<div style="padding:14px 0;border-bottom:1px solid var(--border)"><div>Subtotal <strong style="float:right">${money(t.subtotal)}</strong></div><div>Discount <strong style="float:right">-${money(t.discount)}</strong></div><div>Tax <strong style="float:right">${money(t.tax)}</strong></div><div style="font-size:1.15em;margin-top:8px">Total <strong style="float:right">${money(t.total)}</strong></div></div>`; }
+  async function loadCustomers() { try { const { data }=await api.get('/customers',{limit:100,order:'asc'}); view.querySelector('#customer').innerHTML='<option value="">Walk-in customer</option>'+data.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}${c.phone?' · '+esc(c.phone):''}</option>`).join(''); }catch{} }
+  async function loadSales() { try { const {data}=await api.get('/pos/sales',{page:1,limit:10}); salesEl.innerHTML=data.length?data.map(s=>`<tr><td><code>${esc(s.saleNumber)}</code></td><td>${esc(s.customer?.name||'Walk-in')}</td><td>${esc(s.cashier?.name||'—')}</td><td>${money(s.total)}</td><td><span class="badge">${esc(s.status)}</span></td><td>${new Date(s.createdAt).toLocaleString()}</td><td><button class="btn btn--ghost btn--sm" data-view="${esc(s.id)}">View</button></td></tr>`).join(''):'<tr><td colspan="7"><div class="empty"><p>No POS sales yet.</p></div></td></tr>'; }catch(e){salesEl.innerHTML=`<tr><td colspan="7">${esc(e.message)}</td></tr>`;} }
+  productsEl.onclick=e=>{const b=e.target.closest('[data-product]');if(!b)return;const id=b.dataset.product;api.get('/pos/products',{limit:50}).then(({data})=>{const p=data.find(x=>x.id===id);if(!p)return;const old=state.cart.find(x=>x.id===id);if(old){if(old.quantity<p.quantity)old.quantity++;}else state.cart.push({id:p.id,name:p.name,price:Number(p.price),quantity:1,stock:p.quantity});renderCart();}).catch(toastError);};
+  cartEl.onchange=e=>{const id=e.target.dataset.qty;if(!id)return;const x=state.cart.find(i=>i.id===id);if(x)x.quantity=Math.max(1,Math.min(x.stock,Number(e.target.value)||1));renderCart();};
+  cartEl.onclick=e=>{const b=e.target.closest('[data-remove]');if(b){state.cart=state.cart.filter(x=>x.id!==b.dataset.remove);renderCart();}};
+  view.querySelector('#posSearch').oninput=e=>{state.search=e.target.value;loadProducts();}; view.querySelector('#clearSearch').onclick=()=>{state.search='';view.querySelector('#posSearch').value='';loadProducts();};
+  view.querySelector('#clearCart').onclick=()=>{state.cart=[];renderCart();}; view.querySelector('#discount').oninput=e=>{state.discount=Number(e.target.value)||0;renderCart();}; view.querySelector('#payment').onchange=e=>state.paymentMethod=e.target.value;
+  view.querySelector('#complete').onclick=async()=>{if(!state.cart.length)return toast('Add at least one product');const t=totals();const btn=view.querySelector('#complete');btn.disabled=true;try{const r=await api.post('/pos/sales',{customerId:view.querySelector('#customer').value||null,items:state.cart.map(x=>({productId:x.id,quantity:x.quantity})),discount:t.discount,taxRate:state.taxRate,paymentMethod:state.paymentMethod});toast(`Sale ${r.data.saleNumber} completed`);state.cart=[];state.discount=0;view.querySelector('#discount').value='0';renderCart();loadProducts();loadSales();}catch(e){toastError(e);}finally{btn.disabled=false;}};
+  salesEl.onclick=async e=>{const b=e.target.closest('[data-view]');if(!b)return;try{const r=await api.get(`/pos/sales/${b.dataset.view}`);const s=r.data;modal({title:s.saleNumber,body:`<div class="stack"><p><strong>Total:</strong> ${money(s.total)}</p><p><strong>Payment:</strong> ${esc(s.paymentMethod)}</p><div>${s.lineItems.map(x=>`<div>${esc(x.product?.name||'Product')} × ${x.quantity} — ${money(x.total)}</div>`).join('')}</div>${s.status==='COMPLETED'?'<p class="hint">Refunds are available to administrators from the sale record.</p>':''}</div>`,footer:'<button class="btn btn--ghost" data-close>Close</button>'});}catch(err){toastError(err);}};
+  view.querySelector('#refreshSales').onclick=loadSales;
+  await Promise.all([loadProducts(),loadCustomers(),loadSales()]); renderCart();
+}

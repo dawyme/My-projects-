@@ -62,6 +62,12 @@ model Business {
   invoices             Invoice[]
   jobStatuses          JobStatus[]
   mediaAssets          MediaAsset[]
+
+sales             Sale[]
+  saleRefunds       SaleRefund[]
+  saleRefundLines   SaleRefundLineItem[]
+  saleLineItems     SaleLineItem[]
+
 }
 
 model User {
@@ -90,6 +96,10 @@ model User {
 
   @@index([role])
   @@index([businessId])
+
+salesAsCashier    Sale[] @relation("CashierSales")
+  refundsCreated    SaleRefund[]
+
 }
 
 model RefreshToken {
@@ -170,6 +180,9 @@ model Product {
   @@index([featured])
   @@index([isActive])
   @@index([businessId])
+
+saleLineItems     SaleLineItem[]
+
 }
 
 model Customer {
@@ -201,6 +214,9 @@ model Customer {
   @@unique([businessId, email])
   @@index([email])
   @@index([businessId])
+
+sales             Sale[]
+
 }
 
 model ServiceRequest {
@@ -1180,4 +1196,97 @@ model SupplierMarkupRule {
   @@index([tenantId])
   @@index([scope])
   @@index([categoryId])
+}
+
+enum SaleStatus {
+  COMPLETED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  VOIDED
+}
+
+model Sale {
+  id               String      @id @default(uuid())
+  businessId       String
+  business         Business    @relation(fields: [businessId], references: [id])
+  saleNumber       String
+  customerId       String?
+  customer         Customer?   @relation(fields: [customerId], references: [id])
+  cashierId        String
+  cashier          User        @relation("CashierSales", fields: [cashierId], references: [id])
+  status           SaleStatus  @default(COMPLETED)
+  paymentMethod    String      @default("CASH")
+  paymentReference String?
+  subtotal         Float       @default(0)
+  tax              Float       @default(0)
+  discount         Float       @default(0)
+  total            Float       @default(0)
+  location         String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  lineItems        SaleLineItem[]
+  refunds          SaleRefund[]
+
+  @@unique([businessId, saleNumber])
+  @@index([businessId])
+  @@index([cashierId])
+  @@index([customerId])
+  @@index([createdAt])
+  @@index([status])
+}
+
+model SaleLineItem {
+  id             String       @id @default(uuid())
+  businessId     String
+  business       Business     @relation(fields: [businessId], references: [id])
+  saleId         String
+  sale           Sale         @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product      @relation(fields: [productId], references: [id])
+  quantity       Int          @default(1)
+  unitPrice      Float        @default(0)
+  total          Float        @default(0)
+  refundedQty    Int          @default(0)
+  createdAt      DateTime     @default(now())
+  refundLines    SaleRefundLineItem[]
+
+  @@index([businessId])
+  @@index([saleId])
+  @@index([productId])
+}
+
+model SaleRefund {
+  id           String       @id @default(uuid())
+  businessId   String
+  business     Business     @relation(fields: [businessId], references: [id])
+  saleId       String
+  sale         Sale         @relation(fields: [saleId], references: [id])
+  refundNumber String
+  amount       Float        @default(0)
+  reason       String?
+  createdById  String
+  createdBy    User         @relation(fields: [createdById], references: [id])
+  createdAt    DateTime     @default(now())
+  lineItems    SaleRefundLineItem[]
+
+  @@unique([businessId, refundNumber])
+  @@index([businessId])
+  @@index([saleId])
+  @@index([createdById])
+}
+
+model SaleRefundLineItem {
+  id             String        @id @default(uuid())
+  businessId     String
+  business       Business      @relation(fields: [businessId], references: [id])
+  refundId       String
+  refund         SaleRefund    @relation(fields: [refundId], references: [id], onDelete: Cascade)
+  saleLineItemId String
+  saleLineItem   SaleLineItem  @relation(fields: [saleLineItemId], references: [id])
+  quantity       Int           @default(0)
+  amount         Float         @default(0)
+
+  @@index([businessId])
+  @@index([refundId])
+  @@index([saleLineItemId])
 }

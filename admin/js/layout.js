@@ -22,6 +22,7 @@ const NAV = [
     { path: '/estimates', label: 'Estimates', icon: 'file' },
     { path: '/invoices', label: 'Invoices', icon: 'file' },
     { path: '/orders', label: 'Orders', icon: 'file' },
+    { path: '/pos', label: 'Point of Sale', icon: 'cart' },
   ] },
   { group: 'People', items: [
     { path: '/customers', label: 'Customers', icon: 'users' },
@@ -235,6 +236,7 @@ const routes = {
   '/estimates': () => import('./pages/estimates.js'),
   '/invoices': () => import('./pages/invoices.js'),
   '/orders': () => import('./pages/orders.js'),
+  '/pos': () => import('./pages/pos.js'),
   '/customers': () => import('./pages/customers.js'),
   '/messages': () => import('./pages/messages.js'),
   '/settings': () => import('./pages/settings.js'),
