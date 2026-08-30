@@ -40,6 +40,9 @@ const NAV = [
     { path: '/supplier-logs', label: 'Sync Logs', icon: 'history' },
     { path: '/supplier-settings', label: 'Marketplace Settings', icon: 'settings' },
   ] },
+  { group: 'Platform', items: [
+    { path: '/saas', label: 'SaaS / Clients', icon: 'briefcase', platformOnly: true },
+  ] },
   { group: 'Administration', items: [
     { path: '/settings', label: 'Settings', icon: 'settings' },
     { path: '/users', label: 'Team', icon: 'user', adminOnly: true },
@@ -72,7 +75,7 @@ export const badges = { pending: 0, unread: 0, lowStock: 0 };
 
 function navMarkup(user) {
   return NAV.map((group) => {
-    const items = group.items.filter((i) => !i.adminOnly || user.role === 'ADMIN');
+    const items = group.items.filter((i) => (!i.adminOnly || user.role === 'ADMIN') && (!i.platformOnly || (user.role === 'ADMIN' && !user.businessId)));
     if (!items.length) return '';
     const groupId = `nav-group-${NAV.indexOf(group)}`;
     return `<section class="nav-group">
@@ -242,6 +245,7 @@ const routes = {
   '/settings': () => import('./pages/settings.js'),
   '/users': () => import('./pages/users.js'),
   '/audit': () => import('./pages/audit.js'),
+  '/saas': () => import('./pages/saas.js'),
   '/profile': () => import('./pages/profile.js'),
   '/content': () => import('./pages/content.js'),
   '/media': () => import('./pages/media.js'),

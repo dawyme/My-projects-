@@ -28,6 +28,10 @@ async function protect(req, res, next) {
     req.user = user;
     // Tenant scope is resolved server-side from the user record only.
     req.tenantId = user.businessId || DEFAULT_TENANT;
+    if (user.businessId) {
+      const business = await prisma.business.findUnique({ where: { id: user.businessId }, select: { status: true } });
+      if (!business || business.status !== 'ACTIVE') throw forbidden('This business account is suspended');
+    }
     next();
   } catch (err) { next(err); }
 }
