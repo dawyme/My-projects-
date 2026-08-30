@@ -217,6 +217,19 @@ async function main() {
     assert.strictEqual((await admin.get('/api/site-content/bogus')).status, 404);
   });
 
+  // ---------- admin Content Manager rich-field targeting regression
+  await test('Content Manager preserves rich-field paths and collection payloads', async () => {
+    const fs = require('fs');
+    const path = require('path');
+    const source = fs.readFileSync(path.join(__dirname, '../../admin/js/pages/content.js'), 'utf8');
+    assert.ok(source.includes("function buildRichEditor(initial = '', path = '')"));
+    assert.ok(source.includes('data-path=\"${esc(path)}\"'));
+    assert.ok(source.includes('buildRichEditor(value, path)'));
+    assert.ok(source.includes("buildRichEditor(node.innerHTML, node.getAttribute('name'))"));
+    assert.ok(source.indexOf("if (f.type === 'rich')") < source.indexOf('const inp = form.elements[f.name];'));
+    assert.ok(source.includes("root.querySelector(`[data-path=\"${esc(f.name)}\"]`)?.innerHTML || ''"));
+  });
+
   // ---------- media library
   let assetId;
   await test('POST /api/media/upload stores an image', async () => {
