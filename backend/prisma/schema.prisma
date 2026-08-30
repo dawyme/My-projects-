@@ -62,7 +62,7 @@ model Business {
   invoices             Invoice[]
   jobStatuses          JobStatus[]
   mediaAssets          MediaAsset[]
-  subscriptions        Subscription[]
+  subscription         Subscription?
 
 sales             Sale[]
   saleRefunds       SaleRefund[]
