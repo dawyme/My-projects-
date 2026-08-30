@@ -44,7 +44,7 @@ let state = null; // { pageKey, content, status, seo }
 
 function fieldId() { return `f-${Math.random().toString(36).slice(2, 8)}`; }
 
-function buildRichEditor(initial = '') {
+function buildRichEditor(initial = '', path = '') {
   const id = fieldId();
   const wrap = el(`<div class="rte">
     <div class="rte__toolbar" role="toolbar" aria-label="Formatting toolbar">
@@ -55,7 +55,7 @@ function buildRichEditor(initial = '') {
       <button type="button" data-cmd="insertOrderedList" aria-label="Numbered list">1. List</button>
       <button type="button" data-cmd="createLink" aria-label="Insert link">Link</button>
     </div>
-    <div class="rte__editor" id="${id}" contenteditable="true" data-path data-html placeholder="Type here…">${initial}</div>
+    <div class="rte__editor" id="${id}" contenteditable="true" data-path="${esc(path)}" data-html placeholder="Type here…">${initial}</div>
   </div>`);
   wrap.querySelectorAll('[data-cmd]').forEach((btn) => {
     btn.addEventListener('mousedown', (e) => e.preventDefault());
@@ -89,7 +89,7 @@ function renderField(path, key, value) {
   }
   if (typeof value === 'string') {
     if (isRich) {
-      return `<div class="field"><label for="${id}">${label}</label>${buildRichEditor(value).outerHTML}</div>`;
+      return `<div class="field"><label for="${id}">${label}</label>${buildRichEditor(value, path).outerHTML}</div>`;
     }
     if (isTextarea) {
       return `<div class="field"><label for="${id}">${label}</label><textarea id="${id}" rows="4" ${hint}>${esc(value)}</textarea></div>`;
@@ -531,19 +531,22 @@ function renderCollection(panel, collection, pageKey) {
           img.hidden = true; url.value = '';
         });
         root.querySelectorAll('[data-rich]').forEach((node) => {
-          const editor = buildRichEditor(node.innerHTML);
+          const editor = buildRichEditor(node.innerHTML, node.getAttribute('name'));
           node.replaceWith(editor);
         });
         root.querySelector('[data-save]').onclick = async () => {
           const form = root.querySelector('#collForm');
           const payload = {};
           for (const f of cfg.fields) {
+            if (f.type === 'rich') {
+              payload[f.name] = root.querySelector(`[data-path="${esc(f.name)}"]`)?.innerHTML || '';
+              continue;
+            }
             const inp = form.elements[f.name];
             if (!inp) continue;
             if (f.type === 'check') payload[f.name] = inp.checked;
             else if (f.type === 'number') payload[f.name] = inp.value === '' ? undefined : Number(inp.value);
             else if (f.type === 'date') payload[f.name] = inp.value ? new Date(inp.value).toISOString() : null;
-            else if (f.type === 'rich') payload[f.name] = root.querySelector(`[data-rich]`)?.querySelector('.rte__editor')?.innerHTML || root.querySelector(`[data-rich="${esc(f.name)}"]`)?.innerHTML || '';
             else payload[f.name] = inp.value;
           }
           try {
