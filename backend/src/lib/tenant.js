@@ -34,7 +34,7 @@ function scopeTenant(req, res, next) {
 
 /** Base where-clause limiting a query to the request's tenant. */
 function tenantWhere(req, extra = {}) {
-  return { businessId: tenantOf(req), ...extra };
+  return { ...extra, businessId: tenantOf(req) };
 }
 
 /** True when the requester is a platform admin (no tenant binding). */

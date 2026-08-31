@@ -3,6 +3,7 @@ const { verifyAccessToken } = require('../lib/tokens');
 const { ACCESS_COOKIE } = require('../lib/cookies');
 const { unauthorized, forbidden } = require('../lib/errors');
 const { DEFAULT_TENANT } = require('../lib/tenant');
+const { roleFor, hasPermission } = require('../lib/permissions');
 
 function extractToken(req) {
   const header = req.headers.authorization;
@@ -26,6 +27,7 @@ async function protect(req, res, next) {
     });
     if (!user || !user.isActive) throw unauthorized('Account not found or disabled');
     req.user = user;
+    req.role = roleFor(user);
     // Tenant scope is resolved server-side from the user record only.
     req.tenantId = user.businessId || DEFAULT_TENANT;
     if (user.businessId) {
@@ -39,7 +41,15 @@ async function protect(req, res, next) {
 /** Restricts a route to the given roles. */
 const authorize = (...roles) => (req, res, next) => {
   if (!req.user) return next(unauthorized('Authentication required'));
-  if (!roles.includes(req.user.role)) return next(forbidden('Insufficient role for this action'));
+  const semanticRole = roleFor(req.user);
+  if (!roles.includes(req.user.role) && !roles.includes(semanticRole)) return next(forbidden('Insufficient role for this action'));
+  next();
+};
+
+/** Centralized permission middleware. */
+const requirePermission = (permission) => (req, res, next) => {
+  if (!req.user) return next(unauthorized('Authentication required'));
+  if (!hasPermission(req.user, permission)) return next(forbidden('Insufficient permission for this action'));
   next();
 };
 
@@ -55,9 +65,10 @@ async function optionalAuth(req, res, next) {
       where: { id: payload.sub },
       select: { id: true, name: true, email: true, role: true, isActive: true, businessId: true },
     }) || undefined;
+    if (req.user) req.role = roleFor(req.user);
     if (req.user?.businessId) req.tenantId = req.user.businessId;
   } catch (_) {}
   next();
 }
 
-module.exports = { protect, authorize, adminOnly, optionalAuth, extractToken };
+module.exports = { protect, authorize, requirePermission, adminOnly, optionalAuth, extractToken };

@@ -12,6 +12,7 @@ const SUITES = [
   ['Supplier Marketplace', 'suppliers.test.js'],
   ['POS / multi-tenant POS', 'pos.test.js'],
   ['SaaS / multi-tenant productization', 'saas.test.js'],
+  ['RBAC / security foundation', 'rbac.test.js'],
   ['Admin dashboard UI', 'ui.test.js'],
   ['Public website', 'site.test.js'],
 ];
