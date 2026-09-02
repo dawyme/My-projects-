@@ -449,6 +449,41 @@ async function main() {
     assert.strictEqual(r.status, 400);
   });
 
+  await test('a tenant admin cannot edit or delete a platform-admin / global (businessId: null) account', async () => {
+    const email = `global-tech.${Date.now()}@ndsairconditioning.com`;
+    const globalUser = await prisma.user.create({
+      data: { name: 'Global Shared Technician', email, passwordHash: '$2a$12$abcdefghijklmnopqrstuv', role: 'STAFF', businessId: null },
+    });
+    const editAttempt = await admin.put(`/api/users/${globalUser.id}`, { name: 'Hijacked' });
+    assert.strictEqual(editAttempt.status, 404, 'a tenant admin must not be able to edit a businessId:null account');
+    const deleteAttempt = await admin.del(`/api/users/${globalUser.id}`);
+    assert.strictEqual(deleteAttempt.status, 404, 'a tenant admin must not be able to delete a businessId:null account');
+    const stillThere = await prisma.user.findUnique({ where: { id: globalUser.id } });
+    assert.ok(stillThere, 'the global account must not have been affected');
+    assert.strictEqual(stillThere.name, 'Global Shared Technician');
+    await prisma.user.delete({ where: { id: globalUser.id } });
+  });
+
+  await test('a platform admin retains the ability to manage a businessId: null account', async () => {
+    const platform = makeClient();
+    await platform.req('GET', '/api/csrf-token');
+    const login = await platform.post('/api/auth/login', {
+      email: process.env.SEED_PLATFORM_EMAIL || 'platform@ndsairconditioning.com',
+      password: process.env.SEED_PLATFORM_PASSWORD || 'Platform@12345',
+    });
+    assert.strictEqual(login.status, 200, JSON.stringify(login.body));
+    platform.setBearer(login.body.data.accessToken);
+
+    const email = `global-tech-2.${Date.now()}@ndsairconditioning.com`;
+    const globalUser = await prisma.user.create({
+      data: { name: 'Global Shared Technician 2', email, passwordHash: '$2a$12$abcdefghijklmnopqrstuv', role: 'STAFF', businessId: null },
+    });
+    const editAttempt = await platform.put(`/api/users/${globalUser.id}`, { name: 'Renamed By Platform' });
+    assert.strictEqual(editAttempt.status, 200, 'a platform admin must retain the ability to manage global accounts');
+    assert.strictEqual(editAttempt.body.data.name, 'Renamed By Platform');
+    await prisma.user.delete({ where: { id: globalUser.id } });
+  });
+
   // ---------- audit logs
   await test('GET /api/audit-logs is admin-only and records actions', async () => {
     assert.strictEqual((await staff.get('/api/audit-logs')).status, 403);
