@@ -3,12 +3,12 @@ const { z } = require('zod');
 const prisma = require('../lib/prisma');
 const asyncHandler = require('../lib/async');
 const { validate } = require('../middleware/validate');
-const { protect, adminOnly } = require('../middleware/auth');
+const { protect, adminOnly, authorize } = require('../middleware/auth');
 const { writeLimiter } = require('../middleware/rateLimit');
 const { badRequest, notFound } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
 const { readAll } = require('./settings');
-const { DEFAULT_TENANT } = require('../lib/tenant');
+const { DEFAULT_TENANT, tenantWhere } = require('../lib/tenant');
 const { sendMail } = require('../lib/mailer');
 const cache = require('../lib/cache');
 const payments = require('../lib/payments');
@@ -280,10 +280,16 @@ router.get('/gateways', protect, asyncHandler(async (req, res) => {
   res.json({ success: true, data: payments.gateways() });
 }));
 
-router.post('/:orderId/capture', protect, validate(z.object({
+// Staff-permitted (ADMIN or STAFF); a customer must not be able to capture
+// payment merely by knowing an order id. The order must also belong to the
+// caller's own tenant — resolved with tenantWhere(), never a client-supplied
+// businessId — before the shared capture logic ever touches it.
+router.post('/:orderId/capture', protect, authorize('ADMIN', 'STAFF'), validate(z.object({
   transactionId: z.string().trim().max(200).optional().nullable(),
   note: z.string().trim().max(500).optional().nullable(),
 })), asyncHandler(async (req, res) => {
+  const owned = await prisma.order.findFirst({ where: tenantWhere(req, { id: req.params.orderId }), select: { id: true } });
+  if (!owned) throw notFound('Order not found');
   const order = await captureOrder(req.params.orderId, {
     transactionId: req.body.transactionId || undefined,
     note: req.body.note || undefined,
@@ -294,7 +300,7 @@ router.post('/:orderId/capture', protect, validate(z.object({
 }));
 
 router.post('/:orderId/refund', protect, adminOnly, asyncHandler(async (req, res) => {
-  const existing = await prisma.order.findUnique({ where: { id: req.params.orderId } });
+  const existing = await prisma.order.findFirst({ where: tenantWhere(req, { id: req.params.orderId }) });
   if (!existing) throw notFound('Order not found');
   if (existing.paymentStatus !== 'PAID') throw badRequest('Only paid orders can be refunded');
   const order = await prisma.order.update({
