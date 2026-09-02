@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 const assert = require('assert');
+const bcrypt = require('bcryptjs');
 const app = require('../src/app');
 const prisma = require('../src/lib/prisma');
 
@@ -36,6 +37,7 @@ function makeClient(base) {
     setAccessToken(token) { accessToken = token; },
     get(path) { return request('GET', path); },
     post(path, body) { return request('POST', path, body); },
+    patch(path, body) { return request('PATCH', path, body); },
   };
 }
 
@@ -45,6 +47,9 @@ async function main() {
   const client = makeClient(`http://127.0.0.1:${server.address().port}`);
   let requestId;
   let workOrderId;
+  let rbacRequestId;
+  let rbacWorkOrderId;
+  let rbacCustomerEmail;
 
   try {
     const csrf = await client.get('/api/csrf-token');
@@ -114,13 +119,84 @@ async function main() {
     });
     assert.strictEqual(invalidTransition.status, 400);
 
+    // ---- RBAC: STAFF retains operational access; CUSTOMER must not ----
+    const staffClient = makeClient(`http://127.0.0.1:${server.address().port}`);
+    const staffCsrf = await staffClient.get('/api/csrf-token');
+    staffClient.setCsrfToken(staffCsrf.body.data.csrfToken);
+    const staffAuth = await staffClient.post('/api/auth/login', {
+      email: process.env.SEED_STAFF_EMAIL || 'staff@ndsairconditioning.com',
+      password: process.env.SEED_STAFF_PASSWORD || 'Staff@12345',
+    });
+    assert.strictEqual(staffAuth.status, 200, 'staff authentication must work');
+    staffClient.setAccessToken(staffAuth.body.data.accessToken);
+
+    const rbacCreated = await client.post('/api/service-requests', {
+      customerId, serviceType: 'RBAC Fixture', problem: 'RBAC fixture', address: 'RBAC address', priority: 'NORMAL',
+    });
+    assert.strictEqual(rbacCreated.status, 201);
+    rbacRequestId = rbacCreated.body.data.id;
+
+    // CUSTOMER must not be able to perform any of the operational mutations —
+    // checked first, while the request is still in its initial NEW state.
+    rbacCustomerEmail = `rbac-wo-customer.${Date.now()}@example.com`;
+    await prisma.user.create({
+      data: { name: 'WO RBAC Customer', email: rbacCustomerEmail, passwordHash: await bcrypt.hash('Customer@12345', 12), role: 'CUSTOMER', businessId: null },
+    });
+    const customerClient = makeClient(`http://127.0.0.1:${server.address().port}`);
+    const customerCsrf = await customerClient.get('/api/csrf-token');
+    customerClient.setCsrfToken(customerCsrf.body.data.csrfToken);
+    const customerAuth = await customerClient.post('/api/auth/login', { email: rbacCustomerEmail, password: 'Customer@12345' });
+    assert.strictEqual(customerAuth.status, 200, JSON.stringify(customerAuth.body));
+    customerClient.setAccessToken(customerAuth.body.data.accessToken);
+
+    const custStatusChange = await customerClient.patch(`/api/service-requests/${rbacRequestId}/status`, { status: 'REVIEWING' });
+    assert.strictEqual(custStatusChange.status, 403, 'a CUSTOMER must not be able to change a service request\'s status');
+
+    const custConvert = await customerClient.post(`/api/service-requests/${rbacRequestId}/convert`, {});
+    assert.strictEqual(custConvert.status, 403, 'a CUSTOMER must not be able to convert a service request');
+
+    // STAFF (TECHNICIAN) must retain the ability to review/convert/operate.
+    const staffStatusChange = await staffClient.patch(`/api/service-requests/${rbacRequestId}/status`, { status: 'REVIEWING' });
+    assert.strictEqual(staffStatusChange.status, 200, 'STAFF must retain the ability to review a service request');
+
+    const staffConvert = await staffClient.post(`/api/service-requests/${rbacRequestId}/convert`, {});
+    assert.strictEqual(staffConvert.status, 201, 'STAFF must retain the ability to convert a service request');
+    rbacWorkOrderId = staffConvert.body.data.id;
+
+    const staffAssign = await staffClient.post(`/api/work-orders/${rbacWorkOrderId}/assign`, { technicianId: null });
+    assert.strictEqual(staffAssign.status, 200, 'STAFF must retain the ability to (un)assign a work order');
+
+    const staffWorkOrderStatus = await staffClient.post(`/api/work-orders/${rbacWorkOrderId}/status`, { status: 'ASSIGNED' });
+    assert.strictEqual(staffWorkOrderStatus.status, 200, 'STAFF must retain the ability to change work order status');
+
+    const custAssign = await customerClient.post(`/api/work-orders/${rbacWorkOrderId}/assign`, { technicianId: null });
+    assert.strictEqual(custAssign.status, 403, 'a CUSTOMER must not be able to assign a work order');
+
+    const custWOStatus = await customerClient.post(`/api/work-orders/${rbacWorkOrderId}/status`, { status: 'IN_PROGRESS' });
+    assert.strictEqual(custWOStatus.status, 403, 'a CUSTOMER must not be able to change work order status');
+
+    const custLabour = await customerClient.post(`/api/work-orders/${rbacWorkOrderId}/labour`, { description: 'Hack', hours: 1, rate: 10 });
+    assert.strictEqual(custLabour.status, 403, 'a CUSTOMER must not be able to add billable labour');
+
+    const custParts = await customerClient.post(`/api/work-orders/${rbacWorkOrderId}/parts`, { productId: '00000000-0000-4000-8000-000000000000', quantity: 1 });
+    assert.strictEqual(custParts.status, 403, 'a CUSTOMER must not be able to bill parts to a work order');
+
+    const custSchedule = await customerClient.post(`/api/work-orders/${rbacWorkOrderId}/schedule`, { scheduledAt: new Date().toISOString() });
+    assert.strictEqual(custSchedule.status, 403, 'a CUSTOMER must not be able to schedule a work order');
+
+    const custInvoice = await customerClient.post(`/api/work-orders/${rbacWorkOrderId}/invoice`, {});
+    assert.strictEqual(custInvoice.status, 403, 'a CUSTOMER must not be able to invoice a work order');
+
     console.log('PASS: service operations API contract');
   } finally {
+    if (rbacWorkOrderId) await prisma.workOrder.deleteMany({ where: { id: rbacWorkOrderId } });
+    if (rbacRequestId) await prisma.serviceRequest.deleteMany({ where: { id: rbacRequestId } });
+    if (rbacCustomerEmail) await prisma.user.deleteMany({ where: { email: rbacCustomerEmail } });
     if (workOrderId) await prisma.workOrder.deleteMany({ where: { id: workOrderId } });
     if (requestId) await prisma.serviceRequest.deleteMany({ where: { id: requestId } });
-    if (requestId || workOrderId) {
+    if (requestId || workOrderId || rbacRequestId || rbacWorkOrderId) {
       await prisma.auditLog.deleteMany({
-        where: { entityId: { in: [requestId, workOrderId].filter(Boolean) } },
+        where: { entityId: { in: [requestId, workOrderId, rbacRequestId, rbacWorkOrderId].filter(Boolean) } },
       });
     }
     await prisma.$disconnect();

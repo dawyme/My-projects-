@@ -3,7 +3,7 @@ const { z } = require('zod');
 const prisma = require('../lib/prisma');
 const asyncHandler = require('../lib/async');
 const { validate } = require('../middleware/validate');
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 const { tenantWhere } = require('../lib/tenant');
 const { badRequest, notFound } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
@@ -95,7 +95,7 @@ router.get('/:id', protect, asyncHandler(async (req, res) => {
 }));
 
 // PATCH /api/service-requests/:id/status — intake review workflow
-router.patch('/:id/status', protect,
+router.patch('/:id/status', protect, authorize('ADMIN', 'STAFF'),
   validate(z.object({ status: z.enum(STATUSES) })),
   asyncHandler(async (req, res) => {
     const request = await prisma.serviceRequest.findFirst({ where: tenantWhere(req, { id: req.params.id }) });
@@ -121,7 +121,7 @@ router.patch('/:id/status', protect,
   }));
 
 // POST /api/service-requests/:id/convert — creates exactly one work order
-router.post('/:id/convert', protect, asyncHandler(async (req, res) => {
+router.post('/:id/convert', protect, authorize('ADMIN', 'STAFF'), asyncHandler(async (req, res) => {
   const result = await prisma.$transaction(async (tx) => {
     const request = await tx.serviceRequest.findFirst({
       where: { id: req.params.id, businessId: req.tenantId },
