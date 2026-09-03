@@ -9,6 +9,7 @@
 require('dotenv').config();
 const assert = require('assert');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const app = require('../src/app');
 const prisma = require('../src/lib/prisma');
 
@@ -360,6 +361,76 @@ async function main() {
     });
     assert.strictEqual((await staff.post(`/api/payments/${r.body.data.order.id}/capture`, {})).status, 200);
     assert.strictEqual((await staff.post(`/api/payments/${r.body.data.order.id}/refund`, {})).status, 403);
+  });
+
+  await test('a customer role cannot capture payment for an order (RBAC, not just tenant)', async () => {
+    const email = `rbac-customer.${Date.now()}@example.com`;
+    await prisma.user.create({
+      data: { name: 'Storefront Customer', email, passwordHash: await bcrypt.hash('Customer@12345', 12), role: 'CUSTOMER', businessId: null },
+    });
+    const customer = makeClient();
+    await customer.get('/api/csrf-token');
+    const login = await customer.post('/api/auth/login', { email, password: 'Customer@12345' });
+    assert.strictEqual(login.status, 200, JSON.stringify(login.body));
+    customer.setBearer(login.body.data.accessToken);
+
+    const r = await anon.post('/api/payments/checkout', {
+      name: 'Cust RBAC Buyer', email: `custrbac.${Date.now()}@example.com`,
+      paymentMethod: 'BANK_TRANSFER', items: [{ productId, quantity: 1 }],
+    });
+    const attempt = await customer.post(`/api/payments/${r.body.data.order.id}/capture`, {});
+    assert.strictEqual(attempt.status, 403, 'a CUSTOMER-role user must not be able to capture payments merely by knowing an order id');
+    await prisma.user.delete({ where: { email } });
+  });
+
+  await test('cross-tenant capture is rejected (Business A cannot capture Business B\'s order)', async () => {
+    const otherBusiness = await prisma.business.create({
+      data: { name: `Other Tenant ${Date.now()}`, slug: `other-tenant-${Date.now()}` },
+    });
+    const otherCustomer = await prisma.customer.create({
+      data: { businessId: otherBusiness.id, name: 'Foreign Customer', email: `foreign.${Date.now()}@example.com` },
+    });
+    const foreignOrder = await prisma.order.create({
+      data: {
+        businessId: otherBusiness.id, reference: `OR-FOREIGN-${Date.now()}`, customerId: otherCustomer.id,
+        status: 'PENDING', paymentStatus: 'PENDING', paymentMethod: 'BANK_TRANSFER', subtotal: 10, tax: 0, total: 10,
+      },
+    });
+
+    const attempt = await admin.post(`/api/payments/${foreignOrder.id}/capture`, { transactionId: 'HACK-1' });
+    assert.strictEqual(attempt.status, 404, 'an order belonging to another tenant must not be discoverable/capturable');
+
+    const stillPending = await prisma.order.findUnique({ where: { id: foreignOrder.id } });
+    assert.strictEqual(stillPending.paymentStatus, 'PENDING', 'the foreign order must not have been mutated');
+
+    await prisma.order.delete({ where: { id: foreignOrder.id } });
+    await prisma.customer.delete({ where: { id: otherCustomer.id } });
+    await prisma.business.delete({ where: { id: otherBusiness.id } });
+  });
+
+  await test('cross-tenant refund is rejected (Business A admin cannot refund Business B\'s paid order)', async () => {
+    const otherBusiness = await prisma.business.create({
+      data: { name: `Other Tenant ${Date.now()}`, slug: `other-tenant-${Date.now()}-r` },
+    });
+    const otherCustomer = await prisma.customer.create({
+      data: { businessId: otherBusiness.id, name: 'Foreign Customer 2', email: `foreign2.${Date.now()}@example.com` },
+    });
+    const foreignOrder = await prisma.order.create({
+      data: {
+        businessId: otherBusiness.id, reference: `OR-FOREIGN-R-${Date.now()}`, customerId: otherCustomer.id,
+        status: 'PAID', paymentStatus: 'PAID', paymentMethod: 'BANK_TRANSFER', subtotal: 10, tax: 0, total: 10,
+      },
+    });
+
+    const attempt = await admin.post(`/api/payments/${foreignOrder.id}/refund`, {});
+    assert.strictEqual(attempt.status, 404, 'an order belonging to another tenant must not be refundable');
+
+    const stillPaid = await prisma.order.findUnique({ where: { id: foreignOrder.id } });
+    assert.strictEqual(stillPaid.paymentStatus, 'PAID', 'the foreign order must not have been refunded');
+
+    await prisma.order.delete({ where: { id: foreignOrder.id } });
+    await prisma.customer.delete({ where: { id: otherCustomer.id } });
+    await prisma.business.delete({ where: { id: otherBusiness.id } });
   });
 
   await test('GET /api/payments/gateways reports configuration status', async () => {

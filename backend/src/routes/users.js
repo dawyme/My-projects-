@@ -59,8 +59,10 @@ router.put('/:id', protect, adminOnly, validate(z.object({
 })), asyncHandler(async (req, res) => {
   const target = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!target) throw notFound('User not found');
-  if (!isPlatformAdmin(req) && target.businessId && target.businessId !== req.tenantId) {
-    throw notFound('User not found'); // another tenant's staff — do not reveal
+  if (!isPlatformAdmin(req) && target.businessId !== req.tenantId) {
+    // Another tenant's staff, OR a platform-admin/global (businessId: null)
+    // account — a tenant admin must not act on either. Do not reveal existence.
+    throw notFound('User not found');
   }
   const { password, businessId, ...data } = req.body;
   if (data.email) data.email = data.email.toLowerCase();
@@ -83,8 +85,10 @@ router.delete('/:id', protect, adminOnly, asyncHandler(async (req, res) => {
   if (req.params.id === req.user.id) throw badRequest('You cannot delete your own account');
   const target = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!target) throw notFound('User not found');
-  if (!isPlatformAdmin(req) && target.businessId && target.businessId !== req.tenantId) {
-    throw notFound('User not found'); // another tenant's staff — do not reveal
+  if (!isPlatformAdmin(req) && target.businessId !== req.tenantId) {
+    // Another tenant's staff, OR a platform-admin/global (businessId: null)
+    // account — a tenant admin must not act on either. Do not reveal existence.
+    throw notFound('User not found');
   }
   if (target.role === 'ADMIN') {
     const admins = await prisma.user.count({ where: { role: 'ADMIN', isActive: true, NOT: { id: target.id }, OR: [{ businessId: target.businessId }] } });

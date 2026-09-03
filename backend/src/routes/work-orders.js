@@ -3,7 +3,7 @@ const { z } = require('zod');
 const prisma = require('../lib/prisma');
 const asyncHandler = require('../lib/async');
 const { validate } = require('../middleware/validate');
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 const { tenantWhere } = require('../lib/tenant');
 const { badRequest, notFound } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
@@ -87,7 +87,7 @@ router.get('/:id', protect, asyncHandler(async (req, res) => {
 }));
 
 // POST /api/work-orders/:id/assign — dispatch to a technician
-router.post('/:id/assign', protect,
+router.post('/:id/assign', protect, authorize('ADMIN', 'STAFF'),
   validate(z.object({ technicianId: z.string().uuid().nullable() })),
   asyncHandler(async (req, res) => {
     const workOrder = await findWorkOrder(req, req.params.id);
@@ -105,7 +105,7 @@ router.post('/:id/assign', protect,
 
 // POST /api/work-orders/:id/schedule — dispatch handoff to the booking calendar.
 // Idempotent: the linked booking is created once and reused afterwards.
-router.post('/:id/schedule', protect,
+router.post('/:id/schedule', protect, authorize('ADMIN', 'STAFF'),
   validate(z.object({
     scheduledAt: z.coerce.date(),
     serviceId: z.string().uuid().nullable().optional(),
@@ -155,7 +155,7 @@ const partsBody = z.object({
   quantity: z.coerce.number().int().min(1).max(999),
   unitPrice: z.coerce.number().min(0).optional(),
 });
-router.post('/:id/parts', protect, validate(partsBody), asyncHandler(async (req, res) => {
+router.post('/:id/parts', protect, authorize('ADMIN', 'STAFF'), validate(partsBody), asyncHandler(async (req, res) => {
   const workOrder = await findWorkOrder(req, req.params.id);
   if (workOrder.status === 'COMPLETED') throw badRequest('Parts cannot be added to a completed work order');
 
@@ -210,7 +210,7 @@ const labourBody = z.object({
   hours: z.coerce.number().min(0.1).max(200),
   rate: z.coerce.number().min(0),
 });
-router.post('/:id/labour', protect, validate(labourBody), asyncHandler(async (req, res) => {
+router.post('/:id/labour', protect, authorize('ADMIN', 'STAFF'), validate(labourBody), asyncHandler(async (req, res) => {
   const workOrder = await findWorkOrder(req, req.params.id);
   if (workOrder.status === 'COMPLETED') throw badRequest('Labour cannot be added to a completed work order');
   const current = parseLines(workOrder.labour);
@@ -233,7 +233,7 @@ const statusBody = z.object({
   status: z.enum(STATUSES),
   completionNotes: z.string().trim().max(4000).optional(),
 });
-router.post('/:id/status', protect, validate(statusBody), asyncHandler(async (req, res) => {
+router.post('/:id/status', protect, authorize('ADMIN', 'STAFF'), validate(statusBody), asyncHandler(async (req, res) => {
   const workOrder = await findWorkOrder(req, req.params.id);
   const nextStatus = req.body.status;
   if (nextStatus === workOrder.status) {
@@ -277,7 +277,7 @@ router.post('/:id/status', protect, validate(statusBody), asyncHandler(async (re
 }));
 
 // POST /api/work-orders/:id/invoice — hand labour + parts off to invoicing
-router.post('/:id/invoice', protect,
+router.post('/:id/invoice', protect, authorize('ADMIN', 'STAFF'),
   validate(z.object({ taxRate: z.coerce.number().min(0).max(100).default(0) })),
   asyncHandler(async (req, res) => {
     const workOrder = await findWorkOrder(req, req.params.id);
