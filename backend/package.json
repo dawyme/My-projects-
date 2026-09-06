@@ -18,7 +18,9 @@
     "test:site": "node tests/site.test.js",
     "test:suppliers": "node tests/suppliers.test.js",
     "test:payments": "node backend/tests/payments.test.js",
-    "test:tilopay": "node backend/tests/tilopay-unit.test.js"
+    "test:tilopay": "node backend/tests/tilopay-unit.test.js",
+    "test:bootstrap-super-admin": "node tests/bootstrap-super-admin.test.js",
+    "bootstrap:super-admin": "node scripts/bootstrap-super-admin.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

@@ -1,0 +1,56 @@
+name: Backend tests
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      NODE_ENV: test
+      JWT_SECRET: ci-test-jwt-secret-at-least-32-characters
+      JWT_REFRESH_SECRET: ci-test-jwt-refresh-secret-at-least-32-chars
+      COOKIE_SECURE: 'false'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        # npm ci deliberately not used: this repo's package-lock.json has a
+        # pre-existing, unrelated drift from package.json (jsdom pinned to
+        # 29.1.1 in package.json vs ^30.0.1 in the lockfile, predating this
+        # branch) that npm ci's strict lockfile check rejects. npm install
+        # is what every contributor actually runs locally; using it here
+        # keeps CI aligned with that rather than blocking on a pre-existing,
+        # unrelated dependency mismatch. Worth a separate fix later.
+        run: npm install
+
+      - name: Prepare offline Prisma schema engine stub
+        run: node scripts/setup-prisma-offline.js
+
+      - name: Generate Prisma client
+        run: npm run generate
+
+      - name: Apply schema (local SQLite)
+        run: npm run migrate
+
+      - name: Seed test data
+        run: npm run seed
+
+      - name: Run test suite
+        run: npm test
