@@ -1,0 +1,46 @@
+name: Backend tests
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      NODE_ENV: test
+      JWT_SECRET: ci-test-jwt-secret-at-least-32-characters
+      JWT_REFRESH_SECRET: ci-test-jwt-refresh-secret-at-least-32-chars
+      COOKIE_SECURE: 'false'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare offline Prisma schema engine stub
+        run: node scripts/setup-prisma-offline.js
+
+      - name: Generate Prisma client
+        run: npm run generate
+
+      - name: Apply schema (local SQLite)
+        run: npm run migrate
+
+      - name: Run test suite
+        run: npm test
