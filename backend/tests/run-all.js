@@ -17,5 +17,15 @@ const SUITES = [
   ['Admin dashboard UI', 'ui.test.js'],
   ['Public website', 'site.test.js'],
 ];
-let failed=0;const summary=[];for(const [label,file] of SUITES){console.log(`\n──────── ${label} ────────`);const r=spawnSync(process.execPath,[path.join(__dirname,file)],{stdio:'inherit'});if(r.status!==0)failed++;summary.push([label,r.status===0]);}
-console.log('\n═════════ SUMMARY ═════════');for(const [label,ok] of summary)console.log(`  ${ok?'✔':'"��} ${label}`);console.log(failed?`\n${failed} suite(s) failed.\n`:'\nAll suites passed.\n');process.exit(failed?1:0);
+let failed = 0;
+const summary = [];
+for (const [label, file] of SUITES) {
+  console.log(`\n──────── ${label} ────────`);
+  const r = spawnSync(process.execPath, [path.join(__dirname, file)], { stdio: 'inherit' });
+  if (r.status !== 0) failed++;
+  summary.push([label, r.status === 0]);
+}
+console.log('\n════════ SUMMARY ════════');
+for (const [label, ok] of summary) console.log(`  ${ok ? '✔' : '✘'} ${label}`);
+console.log(failed ? `\n${failed} suite(s) failed.\n` : '\nAll suites passed.\n');
+process.exit(failed ? 1 : 0);
