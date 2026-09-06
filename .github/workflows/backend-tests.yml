@@ -42,5 +42,8 @@ jobs:
       - name: Apply schema (local SQLite)
         run: npm run migrate
 
+      - name: Seed test data
+        run: npm run seed
+
       - name: Run test suite
         run: npm test

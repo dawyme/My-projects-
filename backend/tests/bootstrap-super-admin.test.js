@@ -73,7 +73,10 @@ async function main() {
 
   try {
     await test('bootstrapSuperAdmin creates a platform-level (SUPER_ADMIN-semantic) account', async () => {
-      const { user } = await bootstrapSuperAdmin(prisma, { email: emailA, name: 'Test Super Admin', password: STRONG_PASSWORD });
+      // force:true because a seeded/production database is expected to already have a
+      // platform admin (e.g. the seed script's platform@ndsairconditioning.com) — this
+      // test exercises the creation path itself, not the idempotency gate (covered below).
+      const { user } = await bootstrapSuperAdmin(prisma, { email: emailA, name: 'Test Super Admin', password: STRONG_PASSWORD, force: true });
       assert.ok(user.id);
       assert.strictEqual(user.email, emailA);
 
@@ -87,10 +90,15 @@ async function main() {
       assert.ok(await bcrypt.compare(STRONG_PASSWORD, row.passwordHash));
     });
 
-    await test('findExistingSuperAdmin finds the account just created', async () => {
+    await test('findExistingSuperAdmin returns a semantic SUPER_ADMIN record', async () => {
+      // Does not assume it returns *our* test account specifically — a real database
+      // (seeded or production) may already have one, and findExistingSuperAdmin is
+      // documented to return the earliest-created match, not the most recent.
       const existing = await findExistingSuperAdmin(prisma);
       assert.ok(existing);
-      assert.strictEqual(existing.email, emailA);
+      const row = await prisma.user.findUnique({ where: { id: existing.id } });
+      assert.strictEqual(row.role, 'ADMIN');
+      assert.strictEqual(row.businessId, null);
     });
 
     await test('bootstrapSuperAdmin refuses a second account without force', async () => {
