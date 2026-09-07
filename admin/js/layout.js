@@ -42,6 +42,7 @@ const NAV = [
   ] },
   { group: 'Platform', items: [
     { path: '/saas', label: 'SaaS / Clients', icon: 'briefcase', platformOnly: true },
+    { path: '/subscription', label: 'Plans & Subscription', icon: 'briefcase', tenantOnly: true },
   ] },
   { group: 'Administration', items: [
     { path: '/settings', label: 'Settings', icon: 'settings' },
@@ -75,7 +76,8 @@ export const badges = { pending: 0, unread: 0, lowStock: 0 };
 
 function navMarkup(user) {
   return NAV.map((group) => {
-    const items = group.items.filter((i) => (!i.adminOnly || user.role === 'ADMIN') && (!i.platformOnly || (user.role === 'ADMIN' && !user.businessId)));
+    const isTenant = user.role === 'ADMIN' && !!user.businessId;
+    const items = group.items.filter((i) => (!i.adminOnly || user.role === 'ADMIN') && (!i.platformOnly || (user.role === 'ADMIN' && !user.businessId)) && (!i.tenantOnly || isTenant));
     if (!items.length) return '';
     const groupId = `nav-group-${NAV.indexOf(group)}`;
     return `<section class="nav-group">
@@ -246,6 +248,7 @@ const routes = {
   '/users': () => import('./pages/users.js'),
   '/audit': () => import('./pages/audit.js'),
   '/saas': () => import('./pages/saas.js'),
+  '/subscription': () => import('./pages/subscription.js'),
   '/profile': () => import('./pages/profile.js'),
   '/content': () => import('./pages/content.js'),
   '/media': () => import('./pages/media.js'),
