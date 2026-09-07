@@ -6,13 +6,14 @@ const asyncHandler = require('../lib/async');
 const { validate } = require('../middleware/validate');
 const { protect } = require('../middleware/auth');
 const { authLimiter } = require('../middleware/rateLimit');
-const { unauthorized, badRequest } = require('../lib/errors');
+const { unauthorized, badRequest, conflict } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
 const {
   signAccessToken, issueRefreshToken, verifyRefreshToken,
   revokeRefreshToken, revokeAllForUser,
 } = require('../lib/tokens');
 const { setAuthCookies, clearAuthCookies, REFRESH_COOKIE } = require('../lib/cookies');
+const { DEFAULT_TENANT } = require('../lib/tenant');
 
 const router = express.Router();
 
@@ -26,6 +27,42 @@ const publicUser = (u) => ({
   businessId: u.businessId || null,
   phone: u.phone || null, avatarUrl: u.avatarUrl || null, lastLoginAt: u.lastLoginAt || null,
 });
+
+const registerSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  email: z.string().email('A valid email is required').max(180),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(200)
+    .regex(/[A-Za-z]/, 'Password must contain a letter')
+    .regex(/[0-9]/, 'Password must contain a number'),
+});
+
+// POST /api/auth/register — customer self-service registration
+router.post('/register', authLimiter, validate(registerSchema), asyncHandler(async (req, res) => {
+  const normalizedEmail = req.body.email.toLowerCase();
+  const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  if (existing) throw conflict('A user with that email already exists');
+
+  const passwordHash = await bcrypt.hash(req.body.password, 12);
+  const user = await prisma.$transaction(async (tx) => {
+    const createdUser = await tx.user.create({
+      data: { name: req.body.name, email: normalizedEmail, passwordHash, role: 'CUSTOMER', businessId: DEFAULT_TENANT, isActive: true },
+    });
+    await tx.customer.create({
+      data: { businessId: DEFAULT_TENANT, name: req.body.name, email: normalizedEmail },
+    });
+    return createdUser;
+  });
+
+  const accessToken = signAccessToken(user);
+  const { token: refreshToken, expiresAt } = await issueRefreshToken(user, {
+    ip: req.ip, userAgent: req.get('user-agent'),
+  });
+  setAuthCookies(res, { accessToken, refreshToken, refreshExpires: expiresAt });
+  req.user = user;
+  await audit(req, 'REGISTER', 'User', user.id, { email: normalizedEmail });
+  await activity(user.id, 'auth', `${user.name} signed up`);
+  res.status(201).json({ success: true, data: { user: publicUser(user), accessToken, refreshToken, expiresAt } });
+}));
 
 // POST /api/auth/login
 router.post('/login', authLimiter, validate(loginSchema), asyncHandler(async (req, res) => {

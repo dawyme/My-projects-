@@ -13,6 +13,7 @@ const SUITES = [
   ['POS / multi-tenant POS', 'pos.test.js'],
   ['SaaS / multi-tenant productization', 'saas.test.js'],
   ['RBAC / security foundation', 'rbac.test.js'],
+  ['Tenant portal / subscription', 'tenant.test.js'],
   ['Super Admin bootstrap', 'bootstrap-super-admin.test.js'],
   ['Admin dashboard UI', 'ui.test.js'],
   ['Public website', 'site.test.js'],

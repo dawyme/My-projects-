@@ -41,7 +41,12 @@ const NAV = [
     { path: '/supplier-settings', label: 'Marketplace Settings', icon: 'settings' },
   ] },
   { group: 'Platform', items: [
-    { path: '/saas', label: 'SaaS / Clients', icon: 'briefcase', platformOnly: true },
+    { path: '/platform', label: 'Platform Dashboard', icon: 'dashboard', platformOnly: true },
+    { path: '/saas', label: 'Tenants & Plans', icon: 'briefcase', platformOnly: true },
+    { path: '/platform-analytics', label: 'Platform Analytics', icon: 'chart', platformOnly: true },
+    { path: '/billing', label: 'Billing & Subscriptions', icon: 'money', platformOnly: true },
+    { path: '/system-health', label: 'System Health', icon: 'shield', platformOnly: true },
+    { path: '/subscription', label: 'Plans & Subscription', icon: 'briefcase', tenantOnly: true },
   ] },
   { group: 'Administration', items: [
     { path: '/settings', label: 'Settings', icon: 'settings' },
@@ -75,7 +80,9 @@ export const badges = { pending: 0, unread: 0, lowStock: 0 };
 
 function navMarkup(user) {
   return NAV.map((group) => {
-    const items = group.items.filter((i) => (!i.adminOnly || user.role === 'ADMIN') && (!i.platformOnly || (user.role === 'ADMIN' && !user.businessId)));
+    const isPlatform = user.role === 'SUPER_ADMIN' || (user.role === 'ADMIN' && !user.businessId);
+    const isTenant = user.role === 'TENANT_ADMIN' || (user.role === 'ADMIN' && !!user.businessId);
+    const items = group.items.filter((i) => (!i.adminOnly || user.role === 'ADMIN' || isPlatform) && (!i.platformOnly || isPlatform) && (!i.tenantOnly || isTenant));
     if (!items.length) return '';
     const groupId = `nav-group-${NAV.indexOf(group)}`;
     return `<section class="nav-group">
@@ -246,6 +253,11 @@ const routes = {
   '/users': () => import('./pages/users.js'),
   '/audit': () => import('./pages/audit.js'),
   '/saas': () => import('./pages/saas.js'),
+  '/platform': () => import('./pages/superadmin.js'),
+  '/platform-analytics': () => import('./pages/platform-analytics.js'),
+  '/billing': () => import('./pages/billing.js'),
+  '/system-health': () => import('./pages/system-health.js'),
+  '/subscription': () => import('./pages/subscription.js'),
   '/profile': () => import('./pages/profile.js'),
   '/content': () => import('./pages/content.js'),
   '/media': () => import('./pages/media.js'),

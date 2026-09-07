@@ -1,0 +1,9 @@
+import { api, auth } from '../api.js';
+import { setTitle } from '../layout.js';
+import { esc, icon, toastError } from '../ui.js';
+export async function render(view) {
+  setTitle('Platform Analytics');
+  if (!(auth.user?.role === 'SUPER_ADMIN' || (auth.user?.role === 'ADMIN' && !auth.user?.businessId))) { view.innerHTML='<div class="card"><div class="card__body"><h3>Platform administrators only</h3></div></div>'; return; }
+  view.innerHTML='<div class="page-head"><div><h1>Platform Analytics</h1><p>Platform-level SaaS adoption and subscription health.</p></div></div><div class="grid grid--4" id="stats"></div><section class="card" style="margin-top:16px"><div class="card__head"><h2>Platform snapshot</h2></div><div class="card__body" id="detail">Loading…</div></section>';
+  try { const [o,p,b] = await Promise.all([api.get('/saas/overview'),api.get('/saas/plans'),api.get('/saas/businesses')]); const active=p.data.filter(x=>x.isActive).length; document.querySelector('#stats').innerHTML=[['Businesses',o.data.businesses],['Active subscriptions',o.data.activeSubscriptions],['Trials',o.data.trials],['Active plans',active]].map(([l,v])=>`<article class="stat"><div class="stat__label">${esc(l)}</div><div class="stat__value">${v}</div></article>`).join(''); document.querySelector('#detail').innerHTML=`<div class="table-wrap"><table class="data"><thead><tr><th>Plan</th><th>Price</th><th>Businesses</th><th>Status</th></tr></thead><tbody>${p.data.map(plan=>{const count=b.data.filter(x=>x.subscription?.plan?.id===plan.id).length;return `<tr><td><strong>${esc(plan.name)}</strong><div class="cell-sub">${esc(plan.interval||'')}</div></td><td>${esc(plan.currency||'')} ${esc(String(plan.price??0))}</td><td>${count}</td><td>${plan.isActive?'Active':'Inactive'}</td></tr>`}).join('')}</tbody></table></div>`; } catch(e){ toastError(e); }
+}

@@ -93,6 +93,35 @@ async function main() {
     assert.strictEqual(r.status, 400);
     assert.ok(Array.isArray(r.body.details));
   });
+  await test('POST /api/auth/register creates a CUSTOMER account and linked customer profile', async () => {
+    const client = makeClient();
+    await client.get('/api/csrf-token');
+    const email = `customer.${Date.now()}@example.com`;
+    const r = await client.post('/api/auth/register', { name: 'Portal Customer', email, password: 'PortalPass123' });
+    assert.strictEqual(r.status, 201);
+    assert.strictEqual(r.body.data.user.role, 'CUSTOMER');
+    assert.strictEqual(r.body.data.user.businessId, 'default');
+    assert.ok(r.body.data.accessToken);
+    const customer = await prisma.customer.findFirst({ where: { businessId: 'default', email } });
+    assert.ok(customer);
+    assert.strictEqual(customer.name, 'Portal Customer');
+    await prisma.refreshToken.deleteMany({ where: { userId: r.body.data.user.id } });
+    await prisma.customer.delete({ where: { id: customer.id } });
+    await prisma.user.delete({ where: { id: r.body.data.user.id } });
+  });
+
+  await test('POST /api/auth/register rejects duplicate email', async () => {
+    const email = `duplicate.${Date.now()}@example.com`;
+    const first = await anon.post('/api/auth/register', { name: 'Duplicate Customer', email, password: 'PortalPass123' });
+    assert.strictEqual(first.status, 201);
+    const second = await anon.post('/api/auth/register', { name: 'Duplicate Customer', email, password: 'PortalPass123' });
+    assert.strictEqual(second.status, 409);
+    const customer = await prisma.customer.findFirst({ where: { businessId: 'default', email } });
+    await prisma.refreshToken.deleteMany({ where: { userId: first.body.data.user.id } });
+    await prisma.customer.delete({ where: { id: customer.id } });
+    await prisma.user.delete({ where: { id: first.body.data.user.id } });
+  });
+
   await test('POST /api/auth/login succeeds for ADMIN', async () => {
     const r = await admin.post('/api/auth/login', { email: process.env.SEED_ADMIN_EMAIL || 'admin@ndsairconditioning.com', password: process.env.SEED_ADMIN_PASSWORD || 'Admin@12345' });
     assert.strictEqual(r.status, 200);
