@@ -17,6 +17,7 @@ const SUITES = [
   ['Super Admin bootstrap', 'bootstrap-super-admin.test.js'],
   ['Admin Dashboard UI', 'ui.test.js'],
   ['Admin health URL regression', 'admin-health.test.js'],
+  ['Public login path', 'public-login.test.js'],
   ['Public website', 'site.test.js'],
 ];
 let failed = 0;

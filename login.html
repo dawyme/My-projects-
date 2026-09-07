@@ -52,10 +52,19 @@
     const message = document.getElementById('authMessage');
     const button = document.getElementById('submitButton');
 
-    const safeNext = () => {
+    const requestedNext = () => {
       const value = new URLSearchParams(location.search).get('next');
-      return value && value.startsWith('/') && !value.startsWith('//') ? value : '/admin/';
+      return value && value.startsWith('/') && !value.startsWith('//') ? value : null;
     };
+
+    const roleHome = (user) => {
+      if (user?.role === 'SUPER_ADMIN') return '/admin/#/platform';
+      if (user?.role === 'TENANT_ADMIN') return '/admin/#/';
+      if (user?.role === 'CUSTOMER') return '/customer/';
+      return '/admin/';
+    };
+
+    const destination = (user) => requestedNext() || roleHome(user);
 
     const showMessage = (text, type = 'error') => {
       message.textContent = text;
@@ -64,8 +73,8 @@
 
     if (store.get().accessToken) {
       try {
-        await auth.me();
-        location.replace(safeNext());
+        const user = await auth.me();
+        location.replace(destination(user));
       } catch {
         store.clear();
       }
@@ -86,9 +95,9 @@
       button.textContent = 'Signing in…';
       try {
         await auth.login(email, password);
-        await auth.me();
+        const user = await auth.me();
         showMessage('Signed in successfully. Redirecting…', 'success');
-        location.replace(safeNext());
+        location.replace(destination(user));
       } catch (error) {
         const text = error instanceof ApiError && error.status === 429
           ? error.message
