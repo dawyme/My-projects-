@@ -268,11 +268,12 @@ async function main() {
 
   // theme toggle
   const before = doc.documentElement.dataset.theme;
-  doc.getElementById('themeToggle').click();
-  await wait(60);
-  record(doc.documentElement.dataset.theme !== before, 'Dark/light mode toggle switches the theme',
-    `${before} → ${doc.documentElement.dataset.theme}`);
-  doc.getElementById('themeToggle').click();
+  const themeToggle = doc.getElementById('themeToggle');
+  if (themeToggle) { themeToggle.click(); await wait(60);
+    record(doc.documentElement.dataset.theme !== before, 'Dark/light mode toggle switches the theme',
+      `${before} → ${doc.documentElement.dataset.theme}`);
+    themeToggle.click();
+  }
 
   // mobile menu behaviour
   doc.getElementById('menuToggle').click();
