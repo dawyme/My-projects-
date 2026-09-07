@@ -8,12 +8,25 @@ function run() {
   assert.notStrictEqual(roleFor({ role: 'ADMIN', businessId: 'tenant-a' }), ROLE.SUPER_ADMIN);
 
   let tenantNext = false;
-  authorize('TENANT_ADMIN')({ user: { role: 'ADMIN', businessId: 'tenant-a' } }, {}, () => { tenantNext = true; });
+  let tenantError = null;
+  authorize('TENANT_ADMIN')(
+    { user: { role: 'ADMIN', businessId: 'tenant-a' } },
+    {},
+    (err) => { tenantError = err || null; tenantNext = !err; }
+  );
+  assert.strictEqual(tenantError, null);
   assert.strictEqual(tenantNext, true);
 
   let platformNext = false;
-  authorize('TENANT_ADMIN')({ user: { role: 'ADMIN', businessId: null } }, {}, () => { platformNext = true; });
+  let platformError = null;
+  authorize('TENANT_ADMIN')(
+    { user: { role: 'ADMIN', businessId: null } },
+    {},
+    (err) => { platformError = err || null; platformNext = !err; }
+  );
+  assert.ok(platformError);
   assert.strictEqual(platformNext, false);
+
   console.log('Tenant role contract: PASS');
 }
 try { run(); } catch (err) { console.error('Tenant role contract: FAIL', err.stack || err); process.exitCode = 1; }
