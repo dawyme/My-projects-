@@ -23,6 +23,9 @@ assert(!loginPage.includes('Admin@12345'), 'Public login page must not expose de
 console.log('Public login path regression tests passed.');
 
 assert(loginPage.includes("user?.role === 'SUPER_ADMIN'"), 'SUPER_ADMIN must have a dedicated platform dashboard destination');
-assert(loginPage.includes("/admin/#/platform"), 'SUPER_ADMIN must route to the platform dashboard');
+assert(loginPage.includes("return '/superadmin/'"), 'SUPER_ADMIN must route to the dedicated Super Admin dashboard');
 assert(loginPage.includes("user?.role === 'TENANT_ADMIN'"), 'TENANT_ADMIN must have role-aware routing');
 assert(loginPage.includes("user?.role === 'CUSTOMER'"), 'CUSTOMER must have role-aware routing');
+assert(loginPage.includes("user?.role === 'TECHNICIAN'"), 'TECHNICIAN must have role-aware routing');
+assert(loginPage.includes("user?.role === 'ADMIN'"), 'ADMIN must have role-aware routing');
+assert(loginPage.includes("user?.role === 'STAFF'"), 'STAFF must have role-aware routing');
