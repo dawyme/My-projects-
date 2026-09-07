@@ -180,6 +180,8 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/business', require('./routes/business'));
 app.use('/api/businesses', require('./routes/business'));
 app.use('/api/tenant', require('./routes/tenant'));
+app.use('/api/technician-portal', require('./routes/technician-portal'));
+app.use('/api/customer-portal', require('./routes/customer-portal'));
 app.use('/api/saas', require('./routes/saas'));
 app.use('/api/audit-logs', require('./routes/audit'));
 app.use('/api/public', require('./routes/public'));
