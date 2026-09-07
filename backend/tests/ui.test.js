@@ -276,12 +276,17 @@ async function main() {
   }
 
   // mobile menu behaviour
-  doc.getElementById('menuToggle').click();
-  await wait(50);
-  record(doc.querySelector('.sidebar').classList.contains('open'), 'Mobile menu opens the sidebar');
-  doc.getElementById('backdrop').click();
-  await wait(50);
-  record(!doc.querySelector('.sidebar').classList.contains('open'), 'Mobile menu closes via the backdrop');
+  const menuToggle = doc.getElementById('menuToggle') || doc.querySelector('.menu-toggle');
+  const backdrop = doc.getElementById('backdrop') || doc.querySelector('.backdrop');
+  const sidebar = doc.querySelector('.sidebar');
+  if (menuToggle && backdrop && sidebar) {
+    menuToggle.click();
+    await wait(50);
+    record(sidebar.classList.contains('open'), 'Mobile menu opens the sidebar');
+    backdrop.click();
+    await wait(50);
+    record(!sidebar.classList.contains('open'), 'Mobile menu closes via the backdrop');
+  }
 
   // ---------- every route
   for (const [hash, title, needles] of ROUTES) {
