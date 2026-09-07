@@ -112,7 +112,7 @@ async function request(method, path, { body, query, raw = false, retry = true } 
     if (res.status === 401) {
       store.clear();
       if (!location.pathname.endsWith('login.html')) {
-        location.href = `login.html?next=${encodeURIComponent(location.hash || '#/')}`;
+        location.href = `/login.html?next=${encodeURIComponent(location.hash || '#/')}`;
       }
     }
     throw new ApiError(res.status, json?.error || `Request failed (${res.status})`, json?.details);
@@ -156,20 +156,20 @@ export const auth = {
   async logout() {
     try { await api.post('/auth/logout', { refreshToken: store.get().refreshToken }); } catch { /* ignore */ }
     store.clear();
-    location.href = 'login.html';
+    location.href = '/login.html';
   },
 };
 
 /** Redirects to the login page when there is no usable session. */
 export async function requireAuth() {
   if (!store.get().accessToken) {
-    location.href = `login.html?next=${encodeURIComponent(location.hash || '#/')}`;
+    location.href = `/login.html?next=${encodeURIComponent(location.hash || '#/')}`;
     return null;
   }
   try { return await auth.me(); }
   catch {
     store.clear();
-    location.href = 'login.html';
+    location.href = '/login.html';
     return null;
   }
 }
