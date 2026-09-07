@@ -62,7 +62,8 @@
       if (user?.role === 'TENANT_ADMIN') return '/tenant/';
       if (user?.role === 'TECHNICIAN') return '/technician/';
       if (user?.role === 'CUSTOMER') return '/customer/';
-      if (user?.role === 'ADMIN' || user?.role === 'STAFF') return '/admin/';
+      if (user?.role === 'ADMIN') return '/admin/';
+      if (user?.role === 'STAFF') return '/admin/';
       return '/login.html';
     };
 
