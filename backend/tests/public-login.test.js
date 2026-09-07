@@ -21,3 +21,8 @@ assert(!loginPage.includes('admin@ndsairconditioning.com'), 'Public login page m
 assert(!loginPage.includes('Admin@12345'), 'Public login page must not expose demo passwords');
 
 console.log('Public login path regression tests passed.');
+
+assert(loginPage.includes("user?.role === 'SUPER_ADMIN'"), 'SUPER_ADMIN must have a dedicated platform dashboard destination');
+assert(loginPage.includes("/admin/#/platform"), 'SUPER_ADMIN must route to the platform dashboard');
+assert(loginPage.includes("user?.role === 'TENANT_ADMIN'"), 'TENANT_ADMIN must have role-aware routing');
+assert(loginPage.includes("user?.role === 'CUSTOMER'"), 'CUSTOMER must have role-aware routing');
