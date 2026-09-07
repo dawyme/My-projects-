@@ -14,6 +14,7 @@ const {
 } = require('../lib/tokens');
 const { setAuthCookies, clearAuthCookies, REFRESH_COOKIE } = require('../lib/cookies');
 const { DEFAULT_TENANT } = require('../lib/tenant');
+const { roleFor } = require('../lib/permissions');
 
 const router = express.Router();
 
@@ -23,7 +24,7 @@ const loginSchema = z.object({
 });
 
 const publicUser = (u) => ({
-  id: u.id, name: u.name, email: u.email, role: u.role,
+  id: u.id, name: u.name, email: u.email, role: roleFor(u),
   businessId: u.businessId || null,
   phone: u.phone || null, avatarUrl: u.avatarUrl || null, lastLoginAt: u.lastLoginAt || null,
 });
