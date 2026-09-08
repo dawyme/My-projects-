@@ -190,23 +190,43 @@ async function main() {
     sawError ? '' : 'no error alert appeared');
 
   // Real login — capture the session for the SPA run.
-  lw.document.getElementById('email').value = 'ndsairconditioning@gmail.com';
-  lw.document.getElementById('password').value = process.env.SEED_ADMIN_PASSWORD;
-  lw.document.getElementById('loginForm').dispatchEvent(new lw.Event('submit', { bubbles: true, cancelable: true }));
-  await wait(400);
-  const loggedIn = await until(() => {
-    try { return !!JSON.parse(lw.localStorage.getItem('nds.auth') || '{}').accessToken; } catch { return false; }
-  });
-  record(loggedIn, 'Login stores a session and redirects to the dashboard');
-  const session = lw.localStorage.getItem('nds.auth');
-  const cookies = lw.document.cookie;
-  loginDom.window.close();
+lw.document.getElementById('email').value = 'ndsairconditioning@gmail.com';
+lw.document.getElementById('password').value = process.env.SEED_ADMIN_PASSWORD;
 
-  if (!loggedIn) {
-    report();
-    server.close();
-    return;
+lw.document.getElementById('loginForm').dispatchEvent(
+  new lw.Event('submit', { bubbles: true, cancelable: true })
+);
+
+const loggedIn = await until(() => {
+  try {
+    return !!JSON.parse(
+      lw.localStorage.getItem('nds.auth') || '{}'
+    ).accessToken;
+  } catch {
+    return false;
   }
+});
+
+const authState = (() => {
+  try {
+    return JSON.parse(lw.localStorage.getItem('nds.auth') || '{}');
+  } catch {
+    return {};
+  }
+})();
+
+const alertText = lw.document.getElementById('alert')?.textContent?.trim() || '';
+
+record(
+  loggedIn,
+  'Login stores a session and redirects to the dashboard',
+  loggedIn
+    ? ''
+    : `login failed${alertText ? `: ${alertText}` : ''}`
+);
+
+const session = lw.localStorage.getItem('nds.auth');
+const cookies = lw.document.cookie;
 
   // ---------- SPA
   const spaPage = pageHtml('index.html');
