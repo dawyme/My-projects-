@@ -34,10 +34,11 @@
 
   (async () => {
     const user = await requireAuth();
-    if (!user) {
-      location.replace('../login.html');
-      return;
-    }
+
+  if (!user) {
+    location.replace('/admin/login.html');
+    return;
+  }
     if (user.role !== 'ADMIN' && user.role !== 'STAFF') {
       const homes = { SUPER_ADMIN: '../superadmin/', TENANT_ADMIN: '../tenant/', TECHNICIAN: '../technician/', CUSTOMER: '../customer/' };
       location.replace(homes[user.role] || '../login.html');
