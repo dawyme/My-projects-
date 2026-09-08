@@ -190,7 +190,7 @@ async function main() {
     sawError ? '' : 'no error alert appeared');
 
   // Real login — capture the session for the SPA run.
-  lw.document.getElementById('email').value = 'ndsairconditioning@gmil.com';
+  lw.document.getElementById('email').value = 'ndsairconditioning@gmail.com';
   lw.document.getElementById('password').value = process.env.SEED_ADMIN_PASSWORD;
   lw.document.getElementById('loginForm').dispatchEvent(new lw.Event('submit', { bubbles: true, cancelable: true }));
   await wait(400);
