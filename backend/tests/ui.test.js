@@ -234,7 +234,12 @@ const loggedIn = await until(() => {
 
 const alertText =
   lw.document.getElementById('alert')?.textContent?.trim() || '';
-
+  
+ const authRaw = lw.localStorage.getItem('nds.auth');
+console.log('LOGIN ALERT:', alertText);
+console.log('AUTH STATE:', authRaw);
+console.log('COOKIES:', lw.document.cookie);
+  
 record(
   loggedIn,
   'Login stores a session and redirects to the dashboard',
