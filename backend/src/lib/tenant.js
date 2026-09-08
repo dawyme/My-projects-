@@ -17,6 +17,8 @@
  * belongs to the default tenant unless the deployment pins TENANT_ID.
  */
 
+const { roleFor } = require('./permissions');
+
 const DEFAULT_TENANT = process.env.TENANT_ID || 'default';
 
 /** The tenant a request belongs to. */
@@ -39,7 +41,7 @@ function tenantWhere(req, extra = {}) {
 
 /** True when the requester is a platform admin (no tenant binding). */
 function isPlatformAdmin(req) {
-  return Boolean(req?.user && req.user.role === 'ADMIN' && !req.user.businessId);
+  return roleFor(req?.user) === 'SUPER_ADMIN';
 }
 
 /**

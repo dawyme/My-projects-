@@ -1,6 +1,7 @@
 const assert = require('assert');
 const { ROLE, roleFor, hasPermission, PERMISSIONS } = require('../src/lib/permissions');
-const { tenantWhere } = require('../src/lib/tenant');
+const { tenantWhere, isPlatformAdmin } = require('../src/lib/tenant');
+const { publicUser } = require('../src/routes/auth');
 function run() {
   assert.strictEqual(roleFor({ role: 'ADMIN', businessId: null }), ROLE.SUPER_ADMIN);
   assert.strictEqual(roleFor({ role: 'ADMIN', businessId: 'biz-a' }), ROLE.TENANT_ADMIN);
@@ -9,6 +10,12 @@ function run() {
   assert.strictEqual(roleFor({ role: 'TECHNICIAN', businessId: 'biz-a' }), ROLE.TECHNICIAN);
   assert.strictEqual(roleFor({ role: 'TENANT_ADMIN', businessId: 'biz-a' }), ROLE.TENANT_ADMIN);
   assert.strictEqual(roleFor({ role: 'SUPER_ADMIN', businessId: null }), ROLE.SUPER_ADMIN);
+  assert.strictEqual(publicUser({ id: '1', name: 'Platform', email: 'p@example.com', role: 'ADMIN', businessId: null }).role, ROLE.SUPER_ADMIN);
+  assert.strictEqual(publicUser({ id: '2', name: 'Tenant', email: 't@example.com', role: 'ADMIN', businessId: 'biz-a' }).role, ROLE.TENANT_ADMIN);
+  assert.strictEqual(publicUser({ id: '3', name: 'Tech', email: 'x@example.com', role: 'STAFF', businessId: 'biz-a' }).role, ROLE.TECHNICIAN);
+  assert.strictEqual(isPlatformAdmin({ user: { role: 'ADMIN', businessId: null } }), true);
+  assert.strictEqual(isPlatformAdmin({ user: { role: 'ADMIN', businessId: 'biz-a' } }), false);
+  assert.strictEqual(isPlatformAdmin({ user: { role: 'TENANT_ADMIN', businessId: 'biz-a' } }), false);
   assert.ok(PERMISSIONS[ROLE.SUPER_ADMIN].includes('tenants.manage'));
   assert.ok(PERMISSIONS[ROLE.TENANT_ADMIN].includes('customers.manage'));
   assert.ok(PERMISSIONS[ROLE.TECHNICIAN].includes('jobs.manage'));
