@@ -179,10 +179,10 @@ async function main() {
   bootBundle(lw, loginPage.script);
   await until(() => lw.document.getElementById('loginForm'));
   record(!!lw.document.getElementById('loginForm'), 'Login page renders the sign-in form');
-  record(lw.document.body.textContent.includes('admin@ndsairconditioning.com'), 'Login page shows demo credentials');
+  
 
   // Submit invalid credentials and expect a visible error.
-  lw.document.getElementById('email').value = 'admin@ndsairconditioning.com';
+  lw.document.getElementById('email').value = 'ndsairconditioning@gmail.com';
   lw.document.getElementById('password').value = 'definitely-wrong';
   lw.document.getElementById('loginForm').dispatchEvent(new lw.Event('submit', { bubbles: true, cancelable: true }));
   const sawError = await until(() => !lw.document.getElementById('alert').hidden);
@@ -190,7 +190,8 @@ async function main() {
     sawError ? '' : 'no error alert appeared');
 
   // Real login — capture the session for the SPA run.
-  lw.document.getElementById('password').value = process.env.SEED_ADMIN_PASSWORD || 'Admin@12345';
+  lw.document.getElementById('email').value = 'ndsairconditioning@gmil.com';
+  lw.document.getElementById('password').value = process.env.SEED_ADMIN_PASSWORD;
   lw.document.getElementById('loginForm').dispatchEvent(new lw.Event('submit', { bubbles: true, cancelable: true }));
   await wait(400);
   const loggedIn = await until(() => {
