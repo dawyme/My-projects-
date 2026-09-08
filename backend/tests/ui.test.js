@@ -243,7 +243,14 @@ record(
 
 const session = lw.localStorage.getItem('nds.auth');
 const cookies = lw.document.cookie;
+  
+loginDom.window.close();
 
+if (!loggedIn) {
+  report();
+  server.close();
+  return;
+}
   // ---------- SPA
   const spaPage = pageHtml('index.html');
   const dom = new JSDOM(spaPage.html, {
