@@ -190,11 +190,36 @@ async function main() {
     sawError ? '' : 'no error alert appeared');
 
   // Real login — capture the session for the SPA run.
-lw.document.getElementById('email').value = 'ndsairconditioning@gmail.com';
-lw.document.getElementById('password').value = process.env.SEED_ADMIN_PASSWORD;
 
-lw.document.getElementById('loginForm').dispatchEvent(
-  new lw.Event('submit', { bubbles: true, cancelable: true })
+await until(() =>
+  lw.document.getElementById('loginForm') &&
+  lw.document.getElementById('email') &&
+  lw.document.getElementById('password')
+);
+
+const emailField = lw.document.getElementById('email');
+const passwordField = lw.document.getElementById('password');
+const loginForm = lw.document.getElementById('loginForm');
+
+record(
+  !!emailField && !!passwordField && !!loginForm,
+  'Login form fields exist before authentication'
+);
+
+if (!emailField || !passwordField || !loginForm) {
+  report();
+  server.close();
+  return;
+}
+
+emailField.value = 'ndsairconditioning@gmail.com';
+passwordField.value = process.env.SEED_ADMIN_PASSWORD;
+
+loginForm.dispatchEvent(
+  new lw.Event('submit', {
+    bubbles: true,
+    cancelable: true
+  })
 );
 
 const loggedIn = await until(() => {
@@ -207,22 +232,13 @@ const loggedIn = await until(() => {
   }
 });
 
-const authState = (() => {
-  try {
-    return JSON.parse(lw.localStorage.getItem('nds.auth') || '{}');
-  } catch {
-    return {};
-  }
-})();
-
-const alertText = lw.document.getElementById('alert')?.textContent?.trim() || '';
+const alertText =
+  lw.document.getElementById('alert')?.textContent?.trim() || '';
 
 record(
   loggedIn,
   'Login stores a session and redirects to the dashboard',
-  loggedIn
-    ? ''
-    : `login failed${alertText ? `: ${alertText}` : ''}`
+  loggedIn ? '' : `login failed: ${alertText}`
 );
 
 const session = lw.localStorage.getItem('nds.auth');
