@@ -215,6 +215,7 @@ async function main() {
   }
 
   // Use environment variables to get the correct admin credentials
+  // Note: seed.js stores email in lowercase, so we must do the same here
   const adminEmail = (process.env.SEED_ADMIN_EMAIL || 'admin@ndsairconditioning.com').toLowerCase();
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'Admin@12345';
 
