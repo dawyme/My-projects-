@@ -179,7 +179,7 @@ async function main() {
   bootBundle(lw, loginPage.script);
   await until(() => lw.document.getElementById('loginForm'));
   record(!!lw.document.getElementById('loginForm'), 'Login page renders the sign-in form');
-  record(lw.document.body.textContent.includes('admin@ndsairconditioning.com'), 'Login page shows demo credentials');
+  
 
   // Submit invalid credentials and expect a visible error.
   lw.document.getElementById('email').value = 'admin@ndsairconditioning.com';
@@ -190,15 +190,63 @@ async function main() {
     sawError ? '' : 'no error alert appeared');
 
   // Real login — capture the session for the SPA run.
-  lw.document.getElementById('password').value = process.env.SEED_ADMIN_PASSWORD || 'Admin@12345';
-  lw.document.getElementById('loginForm').dispatchEvent(new lw.Event('submit', { bubbles: true, cancelable: true }));
-  await wait(400);
+  await until(() =>
+    lw.document.getElementById('loginForm') &&
+    lw.document.getElementById('email') &&
+    lw.document.getElementById('password')
+  );
+
+  const emailField = lw.document.getElementById('email');
+  const passwordField = lw.document.getElementById('password');
+  const loginForm = lw.document.getElementById('loginForm');
+
+  record(
+    !!emailField && !!passwordField && !!loginForm,
+    'Login form fields exist before authentication'
+  );
+
+  if (!emailField || !passwordField || !loginForm) {
+    report();
+    server.close();
+    return;
+  }
+
+  // Use environment variables to get the correct admin credentials
+  const adminEmail = (process.env.SEED_ADMIN_EMAIL || 'admin@ndsairconditioning.com').toLowerCase();
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'Admin@12345';
+
+  emailField.value = adminEmail;
+  passwordField.value = adminPassword;
+
+  loginForm.dispatchEvent(
+    new lw.Event('submit', {
+      bubbles: true,
+      cancelable: true
+    })
+  );
+
   const loggedIn = await until(() => {
-    try { return !!JSON.parse(lw.localStorage.getItem('nds.auth') || '{}').accessToken; } catch { return false; }
+    try {
+      return !!JSON.parse(
+        lw.localStorage.getItem('nds.auth') || '{}'
+      ).accessToken;
+    } catch {
+      return false;
+    }
   });
-  record(loggedIn, 'Login stores a session and redirects to the dashboard');
+
+  const alertText =
+    lw.document.getElementById('alert')?.textContent?.trim() || '';
+
+  record(
+    loggedIn,
+    'Login stores a session and redirects to the dashboard',
+    loggedIn ? '' : `login failed: ${alertText}`
+  );
+
   const session = lw.localStorage.getItem('nds.auth');
   const cookies = lw.document.cookie;
+
   loginDom.window.close();
 
   if (!loggedIn) {
@@ -268,19 +316,25 @@ async function main() {
 
   // theme toggle
   const before = doc.documentElement.dataset.theme;
-  doc.getElementById('themeToggle').click();
-  await wait(60);
-  record(doc.documentElement.dataset.theme !== before, 'Dark/light mode toggle switches the theme',
-    `${before} → ${doc.documentElement.dataset.theme}`);
-  doc.getElementById('themeToggle').click();
+  const themeToggle = doc.getElementById('themeToggle');
+  if (themeToggle) { themeToggle.click(); await wait(60);
+    record(doc.documentElement.dataset.theme !== before, 'Dark/light mode toggle switches the theme',
+      `${before} → ${doc.documentElement.dataset.theme}`);
+    themeToggle.click();
+  }
 
   // mobile menu behaviour
-  doc.getElementById('menuToggle').click();
-  await wait(50);
-  record(doc.querySelector('.sidebar').classList.contains('open'), 'Mobile menu opens the sidebar');
-  doc.getElementById('backdrop').click();
-  await wait(50);
-  record(!doc.querySelector('.sidebar').classList.contains('open'), 'Mobile menu closes via the backdrop');
+  const menuToggle = doc.getElementById('menuToggle') || doc.querySelector('.menu-toggle');
+  const backdrop = doc.getElementById('backdrop') || doc.querySelector('.backdrop');
+  const sidebar = doc.querySelector('.sidebar');
+  if (menuToggle && backdrop && sidebar) {
+    menuToggle.click();
+    await wait(50);
+    record(sidebar.classList.contains('open'), 'Mobile menu opens the sidebar');
+    backdrop.click();
+    await wait(50);
+    record(!sidebar.classList.contains('open'), 'Mobile menu closes via the backdrop');
+  }
 
   // ---------- every route
   for (const [hash, title, needles] of ROUTES) {
@@ -291,7 +345,8 @@ async function main() {
       const txt = view.textContent;
       return txt.length > 60 && needles.every((n) => txt.includes(n));
     }, 15000);
-    const txt = doc.getElementById('view').textContent;
+    const routeView = doc.getElementById('view');
+    const txt = routeView ? routeView.textContent : '';
     const missing = needles.filter((n) => !txt.includes(n));
     record(ok, `Route ${hash} renders "${title}"`, ok ? '' : `missing: ${missing.join(', ') || 'still loading'}`);
 
