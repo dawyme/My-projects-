@@ -182,80 +182,91 @@ async function main() {
   
 
   // Submit invalid credentials and expect a visible error.
-  lw.document.getElementById('email').value = 'ndsairconditioning@gmail.com';
+  lw.document.getElementById('email').value = 'admin@ndsairconditioning.com';
   lw.document.getElementById('password').value = 'definitely-wrong';
   lw.document.getElementById('loginForm').dispatchEvent(new lw.Event('submit', { bubbles: true, cancelable: true }));
   const sawError = await until(() => !lw.document.getElementById('alert').hidden);
   record(sawError, 'Login page surfaces invalid-credential errors',
     sawError ? '' : 'no error alert appeared');
 
-  // Real login — capture the session for the SPA run.
+  // Real login — wait for form to be ready and then clear it
+  await until(() =>
+    lw.document.getElementById('loginForm') &&
+    lw.document.getElementById('email') &&
+    lw.document.getElementById('password')
+  );
 
-await until(() =>
-  lw.document.getElementById('loginForm') &&
-  lw.document.getElementById('email') &&
-  lw.document.getElementById('password')
-);
+  // Wait an extra moment for the form to fully reset after the error
+  await wait(500);
 
-const emailField = lw.document.getElementById('email');
-const passwordField = lw.document.getElementById('password');
-const loginForm = lw.document.getElementById('loginForm');
+  const emailField = lw.document.getElementById('email');
+  const passwordField = lw.document.getElementById('password');
+  const loginForm = lw.document.getElementById('loginForm');
 
-record(
-  !!emailField && !!passwordField && !!loginForm,
-  'Login form fields exist before authentication'
-);
+  record(
+    !!emailField && !!passwordField && !!loginForm,
+    'Login form fields exist before authentication'
+  );
 
-if (!emailField || !passwordField || !loginForm) {
-  report();
-  server.close();
-  return;
-}
-
-emailField.value = process.env.SEED_ADMIN_EMAIL || 'admin@ndsairconditioning.com';
-passwordField.value = process.env.SEED_ADMIN_PASSWORD || 'Admin@12345';
-
-loginForm.dispatchEvent(
-  new lw.Event('submit', {
-    bubbles: true,
-    cancelable: true
-  })
-);
-
-const loggedIn = await until(() => {
-  try {
-    return !!JSON.parse(
-      lw.localStorage.getItem('nds.auth') || '{}'
-    ).accessToken;
-  } catch {
-    return false;
+  if (!emailField || !passwordField || !loginForm) {
+    report();
+    server.close();
+    return;
   }
-});
 
-const alertText =
-  lw.document.getElementById('alert')?.textContent?.trim() || '';
-  
- const authRaw = lw.localStorage.getItem('nds.auth');
-console.log('LOGIN ALERT:', alertText);
-console.log('AUTH STATE:', authRaw);
-console.log('COOKIES:', lw.document.cookie);
-  
-record(
-  loggedIn,
-  'Login stores a session and redirects to the dashboard',
-  loggedIn ? '' : `login failed: ${alertText}`
-);
+  // Use environment variables to get the correct admin credentials
+  // Note: seed.js stores email in lowercase, so we must do the same here
+  const adminEmail = (process.env.SEED_ADMIN_EMAIL || 'admin@ndsairconditioning.com').toLowerCase();
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'Admin@12345';
 
-const session = lw.localStorage.getItem('nds.auth');
-const cookies = lw.document.cookie;
+  // Clear the fields before entering new values
+  emailField.value = '';
+  passwordField.value = '';
   
-loginDom.window.close();
+  emailField.value = adminEmail;
+  passwordField.value = adminPassword;
 
-if (!loggedIn) {
-  report();
-  server.close();
-  return;
-}
+  // Trigger input events to ensure form state is updated
+  emailField.dispatchEvent(new lw.Event('input', { bubbles: true }));
+  passwordField.dispatchEvent(new lw.Event('input', { bubbles: true }));
+
+  loginForm.dispatchEvent(
+    new lw.Event('submit', {
+      bubbles: true,
+      cancelable: true
+    })
+  );
+
+  const loggedIn = await until(() => {
+    try {
+      return !!JSON.parse(
+        lw.localStorage.getItem('nds.auth') || '{}'
+      ).accessToken;
+    } catch {
+      return false;
+    }
+  });
+
+  const alertText =
+    lw.document.getElementById('alert')?.textContent?.trim() || '';
+
+  record(
+    loggedIn,
+    'Login stores a session and redirects to the dashboard',
+    loggedIn ? '' : `login failed: ${alertText}`
+  );
+
+  const session = lw.localStorage.getItem('nds.auth');
+  const cookies = lw.document.cookie;
+
+  loginDom.window.close();
+
+  if (!loggedIn) {
+    report();
+    server.close();
+    return;
+  }
+
   // ---------- SPA
   const spaPage = pageHtml('index.html');
   const dom = new JSDOM(spaPage.html, {
