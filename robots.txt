@@ -1,28 +1,21 @@
 # robots.txt for N&D's Air Conditioning and Refrigeration
-
-# Sitemap location
 Sitemap: https://ndsairconditioning.com/sitemap.xml
 
-# User-agent directives
 User-agent: *
 Allow: /
 
-# Disallow admin and private areas
+# Application, account and checkout areas (not for search)
+Disallow: /api/
 Disallow: /admin/
-Disallow: /private/
-Disallow: /tmp/
-Disallow: /backup/
+Disallow: /customer/
+Disallow: /technician/
+Disallow: /tenant/
+Disallow: /superadmin/
+Disallow: /login
+Disallow: /login.html
+Disallow: /cart.html
+Disallow: /checkout.html
+Disallow: /404.html
 
-# Disallow specific file types if needed
-Disallow: /*.inc$
-Disallow: /*.bak$
-Disallow: /*.log$
-
-# Allow CSS, JS, and image files for proper rendering
-Allow: /assets/css/
-Allow: /assets/js/
-Allow: /assets/images/
-Allow: /assets/data/
-
-# Crawl-delay for polite crawling
-# Crawl-delay: 1
+# Assets needed for rendering
+Allow: /assets/

@@ -6,54 +6,36 @@
       "includeFiles": "{backend/**,node_modules/.prisma/**}"
     }
   },
-  "redirects": [
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "https://ndsairconditioning.com/$1",
-      "permanent": true,
-      "has": [
-        {
-          "type": "host",
-          "value": "www.ndsairconditioning.com"
-        }
-      ]
+      "src": "/(.*)",
+      "has": [{ "type": "host", "value": "www.ndsairconditioning.com" }],
+      "status": 308,
+      "headers": { "Location": "https://ndsairconditioning.com/$1" }
+    },
+    { "src": "/index(\\.html)?", "status": 308, "headers": { "Location": "/" } },
+    {
+      "src": "/(about|booking|cart|checkout|contact|privacy|quote-request|services|terms|testimonials)/?",
+      "status": 308,
+      "headers": { "Location": "/$1.html" }
     },
     {
-      "source": "/admin",
-      "destination": "/admin/",
-      "permanent": false
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api"
+      "src": "/services/(ac-installation|ac-repairs|automotive-ac|cold-rooms|commercial-ac|emergency-service|freezers|preventive-maintenance|refrigeration-repairs|residential-ac|walkin-coolers)/?",
+      "status": 308,
+      "headers": { "Location": "/services/$1.html" }
     },
-    {
-      "source": "/health",
-      "destination": "/api"
-    },
-    {
-      "source": "/login",
-      "destination": "/login.html"
-    },
-    {
-      "source": "/admin/(.*)",
-      "destination": "/admin/$1"
-    },
-    {
-      "source": "/assets/(.*)",
-      "destination": "/assets/$1"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/$1"
-    }
+    { "src": "/products(/index(\\.html)?)?", "status": 308, "headers": { "Location": "/products/" } },
+    { "src": "/products/(category|product-detail)", "status": 308, "headers": { "Location": "/products/$1.html" } },
+    { "src": "/gallery(/index(\\.html)?)?", "status": 308, "headers": { "Location": "/gallery/" } },
+    { "src": "/gallery/installations", "status": 308, "headers": { "Location": "/gallery/installations.html" } },
+    { "src": "/admin", "status": 307, "headers": { "Location": "/admin/" } },
+    { "src": "/api/(.*)", "dest": "/api", "check": true },
+    { "src": "/health", "dest": "/api", "check": true },
+    { "src": "/login", "dest": "/login.html", "check": true },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "status": 404, "dest": "/404.html" }
   ],
   "crons": [
-    {
-      "path": "/api/reminders/run",
-      "schedule": "0 13 * * *"
-    }
+    { "path": "/api/reminders/run", "schedule": "0 13 * * *" }
   ]
 }
