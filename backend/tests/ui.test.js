@@ -189,12 +189,15 @@ async function main() {
   record(sawError, 'Login page surfaces invalid-credential errors',
     sawError ? '' : 'no error alert appeared');
 
-  // Real login — capture the session for the SPA run.
+  // Real login — wait for form to be ready and then clear it
   await until(() =>
     lw.document.getElementById('loginForm') &&
     lw.document.getElementById('email') &&
     lw.document.getElementById('password')
   );
+
+  // Wait an extra moment for the form to fully reset after the error
+  await wait(500);
 
   const emailField = lw.document.getElementById('email');
   const passwordField = lw.document.getElementById('password');
@@ -215,8 +218,16 @@ async function main() {
   const adminEmail = (process.env.SEED_ADMIN_EMAIL || 'admin@ndsairconditioning.com').toLowerCase();
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'Admin@12345';
 
+  // Clear the fields before entering new values
+  emailField.value = '';
+  passwordField.value = '';
+  
   emailField.value = adminEmail;
   passwordField.value = adminPassword;
+
+  // Trigger input events to ensure form state is updated
+  emailField.dispatchEvent(new lw.Event('input', { bubbles: true }));
+  passwordField.dispatchEvent(new lw.Event('input', { bubbles: true }));
 
   loginForm.dispatchEvent(
     new lw.Event('submit', {
