@@ -460,10 +460,15 @@ async function main() {
 
   // website content manager tabs
   w.location.hash = '#/content';
-  await until(() => doc.querySelector('#contentTabs [data-tab="services"]'), 12000);
-  doc.querySelector('#contentTabs [data-tab="services"]').click();
-  const svcRendered = await until(() => doc.querySelector('[data-list] table tbody tr'), 12000);
-  record(svcRendered, 'Content manager Services tab lists services');
+  const servicesTabReady = await until(() => doc.querySelector('#contentTabs [data-tab="services"]'), 12000);
+  const servicesTab = servicesTabReady ? doc.querySelector('#contentTabs [data-tab="services"]') : null;
+  if (servicesTab) {
+    servicesTab.click();
+    const svcRendered = await until(() => doc.querySelector('[data-list] table tbody tr'), 12000);
+    record(svcRendered, 'Content manager Services tab lists services');
+  } else {
+    record(false, 'Content manager Services tab lists services', 'services tab not found');
+  }
 
   // media library renders tiles
   w.location.hash = '#/media';
@@ -502,4 +507,9 @@ function report() {
   process.exit(failures ? 1 : 0);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  failures += 1;
+  results.push(['FAIL', `Suite crashed: ${e.message}`]);
+  report();
+});
