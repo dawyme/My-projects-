@@ -394,14 +394,19 @@ async function main() {
   }
 
   // search filter round trip
+  await until(() => doc.getElementById('searchInput'), 5000);
   const searchInput = doc.getElementById('searchInput');
-  searchInput.value = 'compressor';
-  searchInput.dispatchEvent(new w.Event('input', { bubbles: true }));
-  const searched = await until(() => {
-    const rows = [...doc.querySelectorAll('#rows tr[data-id]')];
-    return rows.length > 0 && rows.every((r) => /compressor/i.test(r.textContent));
-  }, 8000);
-  record(searched, 'Product search filters the table');
+  if (searchInput) {
+    searchInput.value = 'compressor';
+    searchInput.dispatchEvent(new w.Event('input', { bubbles: true }));
+    const searched = await until(() => {
+      const rows = [...doc.querySelectorAll('#rows tr[data-id]')];
+      return rows.length > 0 && rows.every((r) => /compressor/i.test(r.textContent));
+    }, 8000);
+    record(searched, 'Product search filters the table');
+  } else {
+    record(false, 'Product search filters the table', 'search input not found on Products page');
+  }
 
   // bulk selection
   const firstBox = doc.querySelector('.rowsel');
