@@ -212,8 +212,8 @@ if (!emailField || !passwordField || !loginForm) {
   return;
 }
 
-emailField.value = 'ndsairconditioning@gmail.com';
-passwordField.value = process.env.SEED_ADMIN_PASSWORD;
+emailField.value = process.env.SEED_ADMIN_EMAIL || 'admin@ndsairconditioning.com';
+passwordField.value = process.env.SEED_ADMIN_PASSWORD || 'Admin@12345';
 
 loginForm.dispatchEvent(
   new lw.Event('submit', {
