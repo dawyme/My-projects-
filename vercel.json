@@ -6,6 +6,9 @@
       "includeFiles": "{backend/**,node_modules/.prisma/**}"
     }
   },
+  "rewrites": [
+    { "source": "/login", "destination": "/login.html" }
+  ],
   "routes": [
     {
       "src": "/(.*)",
@@ -31,7 +34,6 @@
     { "src": "/admin", "status": 307, "headers": { "Location": "/admin/" } },
     { "src": "/api/(.*)", "dest": "/api", "check": true },
     { "src": "/health", "dest": "/api", "check": true },
-    { "src": "/login", "dest": "/login.html", "check": true },
     { "handle": "filesystem" },
     { "src": "/(.*)", "status": 404, "dest": "/404.html" }
   ],
