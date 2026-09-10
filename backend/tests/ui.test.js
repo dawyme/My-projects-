@@ -14,6 +14,7 @@ const app = require('../src/app');
 const prisma = require('../src/lib/prisma');
 
 const ADMIN_DIR = path.join(__dirname, '..', '..', 'admin');
+const ROLE_AUTH_FILE = path.join(__dirname, '..', '..', 'role-auth.js');
 
 /**
  * jsdom cannot execute native ES modules (real browsers can), so for the test
@@ -164,6 +165,16 @@ async function main() {
     const msg = args.join(' ');
     if (!/Not implemented|Could not parse CSS/.test(msg)) consoleErrors.push(msg);
   });
+
+  // ---------- dashboard architecture contract
+  const roleAuthSource = fs.readFileSync(ROLE_AUTH_FILE, 'utf8');
+  const adminEntrySource = fs.readFileSync(path.join(ADMIN_DIR, 'index.html'), 'utf8');
+  const superadminEntrySource = fs.readFileSync(path.join(ADMIN_DIR, '..', 'superadmin', 'index.html'), 'utf8');
+  record(/SUPER_ADMIN:\s*['\"]\/admin\//.test(roleAuthSource), 'SUPER_ADMIN uses the original N&D’S admin dashboard');
+  record(/OWNER_ROLES\s*=\s*\[[^\]]*SUPER_ADMIN[^\]]*TENANT_ADMIN[^\]]*\]/.test(adminEntrySource)
+    || /OWNER_ROLES\s*=\s*\[[^\]]*TENANT_ADMIN[^\]]*SUPER_ADMIN[^\]]*\]/.test(adminEntrySource),
+    'Original admin dashboard is shared by Super Admin and Tenant Admin, not Super-Admin-only');
+  record(/SUPER_ADMIN/.test(superadminEntrySource) && /admin\//.test(superadminEntrySource), 'Legacy Super Admin entry redirects to the original dashboard');
 
   // ---------- login page
   const loginPage = pageHtml('login.html');
@@ -397,9 +408,13 @@ async function main() {
   }
 
   // search filter round trip
+  const searchReady = await until(() => doc.getElementById('searchInput'));
+  record(searchReady, 'Product search input renders before interaction');
   const searchInput = doc.getElementById('searchInput');
-  searchInput.value = 'compressor';
-  searchInput.dispatchEvent(new w.Event('input', { bubbles: true }));
+  if (searchInput) {
+    searchInput.value = 'compressor';
+    searchInput.dispatchEvent(new w.Event('input', { bubbles: true }));
+  }
   const searched = await until(() => {
     const rows = [...doc.querySelectorAll('#rows tr[data-id]')];
     return rows.length > 0 && rows.every((r) => /compressor/i.test(r.textContent));
@@ -458,8 +473,13 @@ async function main() {
 
   // website content manager tabs
   w.location.hash = '#/content';
-  await until(() => doc.querySelector('#contentTabs [data-tab="services"]'), 12000);
-  doc.querySelector('#contentTabs [data-tab="services"]').click();
+  const servicesTabClicked = await until(() => {
+    const tab = doc.querySelector('#contentTabs [data-tab="services"]');
+    if (!tab) return false;
+    tab.click();
+    return true;
+  }, 12000);
+  record(servicesTabClicked, 'Content manager Services tab is available before interaction');
   const svcRendered = await until(() => doc.querySelector('[data-list] table tbody tr'), 12000);
   record(svcRendered, 'Content manager Services tab lists services');
 
