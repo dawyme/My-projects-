@@ -171,7 +171,9 @@ async function main() {
   const adminEntrySource = fs.readFileSync(path.join(ADMIN_DIR, 'index.html'), 'utf8');
   const superadminEntrySource = fs.readFileSync(path.join(ADMIN_DIR, '..', 'superadmin', 'index.html'), 'utf8');
   record(/SUPER_ADMIN:\s*['\"]\/admin\//.test(roleAuthSource), 'SUPER_ADMIN uses the original N&D’S admin dashboard');
-  record(/user\.role\s*!==\s*['\"]SUPER_ADMIN['\"]/.test(adminEntrySource), 'Original admin dashboard is reserved for Super Admin');
+  record(/OWNER_ROLES\s*=\s*\[[^\]]*SUPER_ADMIN[^\]]*TENANT_ADMIN[^\]]*\]/.test(adminEntrySource)
+    || /OWNER_ROLES\s*=\s*\[[^\]]*TENANT_ADMIN[^\]]*SUPER_ADMIN[^\]]*\]/.test(adminEntrySource),
+    'Original admin dashboard is shared by Super Admin and Tenant Admin, not Super-Admin-only');
   record(/SUPER_ADMIN/.test(superadminEntrySource) && /admin\//.test(superadminEntrySource), 'Legacy Super Admin entry redirects to the original dashboard');
 
   // ---------- login page
