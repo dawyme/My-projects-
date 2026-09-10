@@ -471,8 +471,13 @@ async function main() {
 
   // website content manager tabs
   w.location.hash = '#/content';
-  await until(() => doc.querySelector('#contentTabs [data-tab="services"]'), 12000);
-  doc.querySelector('#contentTabs [data-tab="services"]').click();
+  const servicesTabClicked = await until(() => {
+    const tab = doc.querySelector('#contentTabs [data-tab="services"]');
+    if (!tab) return false;
+    tab.click();
+    return true;
+  }, 12000);
+  record(servicesTabClicked, 'Content manager Services tab is available before interaction');
   const svcRendered = await until(() => doc.querySelector('[data-list] table tbody tr'), 12000);
   record(svcRendered, 'Content manager Services tab lists services');
 
