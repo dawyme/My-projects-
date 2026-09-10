@@ -40,8 +40,8 @@
     location.replace('/admin/login.html');
     return;
   }
-    if (user.role !== 'TENANT_ADMIN') {
-      const homes = { SUPER_ADMIN: '../superadmin/', TENANT_ADMIN: '../tenant/', TECHNICIAN: '../technician/', CUSTOMER: '../customer/' };
+    if (user.role !== 'SUPER_ADMIN') {
+      const homes = { TENANT_ADMIN: '../tenant/', TECHNICIAN: '../technician/', CUSTOMER: '../customer/' };
       location.replace(homes[user.role] || '../login.html');
       return;
     }

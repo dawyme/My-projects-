@@ -1,7 +1,7 @@
 import { auth, store } from '/admin/js/api.js';
 
 const destinations = {
-  SUPER_ADMIN: '/superadmin/',
+  SUPER_ADMIN: '/admin/',
   TENANT_ADMIN: '/tenant/',
   TECHNICIAN: '/technician/',
   CUSTOMER: '/customer/',
