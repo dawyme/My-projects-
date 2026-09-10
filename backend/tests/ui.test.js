@@ -258,12 +258,10 @@ async function main() {
 
   const session = lw.localStorage.getItem('nds.auth');
   const cookies = lw.document.cookie;
-
   const loggedInUser = (() => { try { return JSON.parse(session || '{}').user; } catch { return null; } })();
   record(loggedInUser?.role === 'TENANT_ADMIN', 'Admin seed user exposes the canonical TENANT_ADMIN role',
     loggedInUser?.role || 'missing role');
 
-  loginDom.window.close();
   loginDom.window.close();
 
   if (!loggedIn) {
@@ -399,19 +397,14 @@ async function main() {
   }
 
   // search filter round trip
-  await until(() => doc.getElementById('searchInput'), 5000);
   const searchInput = doc.getElementById('searchInput');
-  if (searchInput) {
-    searchInput.value = 'compressor';
-    searchInput.dispatchEvent(new w.Event('input', { bubbles: true }));
-    const searched = await until(() => {
-      const rows = [...doc.querySelectorAll('#rows tr[data-id]')];
-      return rows.length > 0 && rows.every((r) => /compressor/i.test(r.textContent));
-    }, 8000);
-    record(searched, 'Product search filters the table');
-  } else {
-    record(false, 'Product search filters the table', 'search input not found on Products page');
-  }
+  searchInput.value = 'compressor';
+  searchInput.dispatchEvent(new w.Event('input', { bubbles: true }));
+  const searched = await until(() => {
+    const rows = [...doc.querySelectorAll('#rows tr[data-id]')];
+    return rows.length > 0 && rows.every((r) => /compressor/i.test(r.textContent));
+  }, 8000);
+  record(searched, 'Product search filters the table');
 
   // bulk selection
   const firstBox = doc.querySelector('.rowsel');
@@ -465,15 +458,10 @@ async function main() {
 
   // website content manager tabs
   w.location.hash = '#/content';
-  const servicesTabReady = await until(() => doc.querySelector('#contentTabs [data-tab="services"]'), 12000);
-  const servicesTab = servicesTabReady ? doc.querySelector('#contentTabs [data-tab="services"]') : null;
-  if (servicesTab) {
-    servicesTab.click();
-    const svcRendered = await until(() => doc.querySelector('[data-list] table tbody tr'), 12000);
-    record(svcRendered, 'Content manager Services tab lists services');
-  } else {
-    record(false, 'Content manager Services tab lists services', 'services tab not found');
-  }
+  await until(() => doc.querySelector('#contentTabs [data-tab="services"]'), 12000);
+  doc.querySelector('#contentTabs [data-tab="services"]').click();
+  const svcRendered = await until(() => doc.querySelector('[data-list] table tbody tr'), 12000);
+  record(svcRendered, 'Content manager Services tab lists services');
 
   // media library renders tiles
   w.location.hash = '#/media';
@@ -512,9 +500,4 @@ function report() {
   process.exit(failures ? 1 : 0);
 }
 
-main().catch((e) => {
-  console.error(e);
-  failures += 1;
-  results.push(['FAIL', `Suite crashed: ${e.message}`]);
-  report();
-});
+main().catch((e) => { console.error(e); process.exit(1); });
