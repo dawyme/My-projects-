@@ -6,6 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="color-scheme" content="light dark">
 <title>Dashboard · N&D'S Admin</title>
+    <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="../assets/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -35,11 +36,15 @@
   (async () => {
     const user = await requireAuth();
 
-  if (!user) {
-    location.replace('/admin/login.html');
-    return;
-  }
+    if (!user) {
+      location.replace('/admin/login.html');
+      return;
+    }
     if (user.role !== 'TENANT_ADMIN') {
+      const homes = { SUPER_ADMIN: '../superadmin/', TENANT_ADMIN: '../tenant/', TECHNICIAN: '../technician/', CUSTOMER: '../customer/' };
+      location.replace(homes[user.role] || '../login.html');
+      return;
+    }
       const homes = { SUPER_ADMIN: '../superadmin/', TENANT_ADMIN: '../tenant/', TECHNICIAN: '../technician/', CUSTOMER: '../customer/' };
       location.replace(homes[user.role] || '../login.html');
       return;
