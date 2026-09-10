@@ -57,9 +57,11 @@ export async function render(view) {
 
   async function loadAutomation() {
     const host = qs('#automation', view);
+    if (!host) return;
     try {
       const { data } = await api.get('/supplier-syncs/automation');
       const sch = data.scheduler;
+      if (!host.isConnected) return;
       host.innerHTML = `
         ${kvList([
           ['Scheduler process', sch.running ? '<span class="badge badge--success">Running</span>' : `<span class="badge badge--muted">Stopped</span> ${esc(sch.reason || sch.disabledByEnv ? '(disabled by env)' : '')}`],
@@ -87,14 +89,16 @@ export async function render(view) {
         try { const { data: r } = await api.post('/supplier-syncs/automation/run-now'); toast(`Sweep finished — ${r.lastResult?.started ?? 0} run(s) started`); loadAll(); }
         catch (e) { toastError(e); }
       };
-    } catch (e) { host.innerHTML = emptyState('Could not load automation', e.message); }
+    } catch (e) { if (host.isConnected) host.innerHTML = emptyState('Could not load automation', e.message); }
   }
 
   async function loadRunning() {
     const host = qs('#running', view);
+    if (!host) return;
     try {
       const { data } = await api.get('/supplier-syncs', { status: 'RUNNING,QUEUED', limit: 20 });
       const active = data.filter((s) => ['RUNNING', 'QUEUED'].includes(s.status));
+      if (!host.isConnected) return;
       if (!active.length) {
         host.innerHTML = emptyState('Nothing running', 'Start a sync from the table below or let the scheduler do it.');
         return;
@@ -107,11 +111,12 @@ export async function render(view) {
           <div class="progress" style="margin-top:8px"><div class="progress__bar" style="width:${s.status === 'RUNNING' ? '55' : '10'}%"></div></div>
           <div class="cell-sub" style="margin-top:6px">${esc(s.message || '')} · ${num(s.processed)} processed</div>
         </div></div>`).join('');
-    } catch (e) { host.innerHTML = emptyState('Could not load running syncs', e.message); }
+    } catch (e) { if (host.isConnected) host.innerHTML = emptyState('Could not load running syncs', e.message); }
   }
 
   function loadSchedules() {
     const rows = qs('#rows', view);
+    if (!rows) return;
     if (!suppliers.length) {
       rows.innerHTML = `<tr><td colspan="7">${emptyState('No active suppliers', 'Add a supplier first.')}</td></tr>`;
       return;
@@ -131,6 +136,7 @@ export async function render(view) {
 
   async function loadRecent() {
     const rows = qs('#syncRows', view);
+    if (!rows) return;
     try {
       const { data } = await api.get('/supplier-syncs', { limit: 10 });
       if (!data.length) { rows.innerHTML = '<tr><td colspan="11">No synchronisations yet</td></tr>'; return; }
@@ -142,7 +148,7 @@ export async function render(view) {
         <td class="num">${num(s.priceUpdates)}</td>
         <td class="num">${s.errorCount ? `<span class="badge badge--danger">${num(s.errorCount)}</span>` : '0'}</td>
         <td>${relative(s.startedAt)}</td></tr>`).join('');
-    } catch (e) { rows.innerHTML = `<tr><td colspan="11">${esc(e.message)}</td></tr>`; }
+    } catch (e) { if (rows.isConnected) rows.innerHTML = `<tr><td colspan="11">${esc(e.message)}</td></tr>`; }
   }
 
   function loadAll() { loadAutomation(); loadRunning(); loadSchedules(); loadRecent(); }
