@@ -14,6 +14,7 @@ const app = require('../src/app');
 const prisma = require('../src/lib/prisma');
 
 const ADMIN_DIR = path.join(__dirname, '..', '..', 'admin');
+const ROLE_AUTH_FILE = path.join(__dirname, '..', '..', 'role-auth.js');
 
 /**
  * jsdom cannot execute native ES modules (real browsers can), so for the test
@@ -164,6 +165,14 @@ async function main() {
     const msg = args.join(' ');
     if (!/Not implemented|Could not parse CSS/.test(msg)) consoleErrors.push(msg);
   });
+
+  // ---------- dashboard architecture contract
+  const roleAuthSource = fs.readFileSync(ROLE_AUTH_FILE, 'utf8');
+  const adminEntrySource = fs.readFileSync(path.join(ADMIN_DIR, 'index.html'), 'utf8');
+  const superadminEntrySource = fs.readFileSync(path.join(ADMIN_DIR, '..', 'superadmin', 'index.html'), 'utf8');
+  record(/SUPER_ADMIN:\s*['\"]\/admin\//.test(roleAuthSource), 'SUPER_ADMIN uses the original N&D’S admin dashboard');
+  record(/user\.role\s*!==\s*['\"]SUPER_ADMIN['\"]/.test(adminEntrySource), 'Original admin dashboard is reserved for Super Admin');
+  record(/SUPER_ADMIN/.test(superadminEntrySource) && /admin\//.test(superadminEntrySource), 'Legacy Super Admin entry redirects to the original dashboard');
 
   // ---------- login page
   const loginPage = pageHtml('login.html');
