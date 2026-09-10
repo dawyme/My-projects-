@@ -125,19 +125,19 @@ async function main() {
   await test('POST /api/auth/login succeeds for ADMIN', async () => {
     const r = await admin.post('/api/auth/login', { email: process.env.SEED_ADMIN_EMAIL || 'admin@ndsairconditioning.com', password: process.env.SEED_ADMIN_PASSWORD || 'Admin@12345' });
     assert.strictEqual(r.status, 200);
-    assert.strictEqual(r.body.data.user.role, 'ADMIN');
+    assert.strictEqual(r.body.data.user.role, 'TENANT_ADMIN');
     assert.ok(r.body.data.accessToken);
     admin.setBearer(r.body.data.accessToken);
   });
   await test('POST /api/auth/login succeeds for STAFF', async () => {
     const r = await staff.post('/api/auth/login', { email: process.env.SEED_STAFF_EMAIL || 'staff@ndsairconditioning.com', password: process.env.SEED_STAFF_PASSWORD || 'Staff@12345' });
     assert.strictEqual(r.status, 200);
-    assert.strictEqual(r.body.data.user.role, 'STAFF');
+    assert.strictEqual(r.body.data.user.role, 'TECHNICIAN');
     staff.setBearer(r.body.data.accessToken);
   });
   await test('GET /api/auth/me returns the session user', async () => {
     const r = await admin.get('/api/auth/me');
-    assert.strictEqual(r.body.data.user.role, 'ADMIN');
+    assert.strictEqual(r.body.data.user.role, 'TENANT_ADMIN');
   });
   await test('GET /api/auth/me rejects anonymous requests', async () => {
     const r = await anon.get('/api/auth/me');

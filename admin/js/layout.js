@@ -140,6 +140,11 @@ export function renderShell(user) {
 
   document.body.prepend(el('<a class="skip-link" href="#view">Skip to main content</a>'));
   document.body.appendChild(shell);
+  // Keep the theme control available even if a DOM parser drops the inline control.
+  if (!qs('#themeToggle')) {
+    const topbar = qs('.topbar');
+    if (topbar) topbar.appendChild(el('<button class="icon-btn" id="themeToggle" type="button"></button>'));
+  }
   applyTheme();
 
   const sidebar = qs('#sidebar');
