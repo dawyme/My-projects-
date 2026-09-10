@@ -406,9 +406,13 @@ async function main() {
   }
 
   // search filter round trip
+  const searchReady = await until(() => doc.getElementById('searchInput'));
+  record(searchReady, 'Product search input renders before interaction');
   const searchInput = doc.getElementById('searchInput');
-  searchInput.value = 'compressor';
-  searchInput.dispatchEvent(new w.Event('input', { bubbles: true }));
+  if (searchInput) {
+    searchInput.value = 'compressor';
+    searchInput.dispatchEvent(new w.Event('input', { bubbles: true }));
+  }
   const searched = await until(() => {
     const rows = [...doc.querySelectorAll('#rows tr[data-id]')];
     return rows.length > 0 && rows.every((r) => /compressor/i.test(r.textContent));
