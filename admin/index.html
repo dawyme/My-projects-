@@ -39,7 +39,7 @@
     location.replace('/admin/login.html');
     return;
   }
-    if (user.role !== 'ADMIN' && user.role !== 'STAFF') {
+    if (user.role !== 'TENANT_ADMIN') {
       const homes = { SUPER_ADMIN: '../superadmin/', TENANT_ADMIN: '../tenant/', TECHNICIAN: '../technician/', CUSTOMER: '../customer/' };
       location.replace(homes[user.role] || '../login.html');
       return;
