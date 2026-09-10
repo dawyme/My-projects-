@@ -258,10 +258,12 @@ async function main() {
 
   const session = lw.localStorage.getItem('nds.auth');
   const cookies = lw.document.cookie;
+
   const loggedInUser = (() => { try { return JSON.parse(session || '{}').user; } catch { return null; } })();
   record(loggedInUser?.role === 'TENANT_ADMIN', 'Admin seed user exposes the canonical TENANT_ADMIN role',
     loggedInUser?.role || 'missing role');
 
+  loginDom.window.close();
   loginDom.window.close();
 
   if (!loggedIn) {
