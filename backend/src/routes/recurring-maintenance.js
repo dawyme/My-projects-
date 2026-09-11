@@ -109,7 +109,6 @@ async function createOccurrence(tx, series, scheduledAt, occurrenceNumber) {
   const reminders = buildReminderSchedule(scheduledAt, parseReminderOffsets(series.reminderOffsets));
   await tx.recurringMaintenanceReminder.createMany({
     data: reminders.map((r) => ({ businessId: series.businessId, occurrenceId: occurrence.id, offsetDays: r.offsetDays, channel: r.channel, scheduledFor: r.scheduledFor })),
-    skipDuplicates: true,
   });
   return occurrence;
 }
@@ -213,7 +212,7 @@ router.put('/:id', protect, authorize('ADMIN', 'STAFF'), validate(updateBody), a
       if (data.reminderOffsets) {
         await tx.recurringMaintenanceReminder.deleteMany({ where: { occurrenceId: future.id, status: 'PENDING' } });
         const reminders = buildReminderSchedule(future.scheduledAt, parseReminderOffsets(result.reminderOffsets));
-        await tx.recurringMaintenanceReminder.createMany({ data: reminders.map((r) => ({ businessId: result.businessId, occurrenceId: future.id, offsetDays: r.offsetDays, channel: r.channel, scheduledFor: r.scheduledFor })), skipDuplicates: true });
+        await tx.recurringMaintenanceReminder.createMany({ data: reminders.map((r) => ({ businessId: result.businessId, occurrenceId: future.id, offsetDays: r.offsetDays, channel: r.channel, scheduledFor: r.scheduledFor })) });
       }
     }
     return result;
