@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-/** Run the complete regression suite in sequence. */
+/* Run the complete regression suite in sequence. */
 const { spawnSync } = require('child_process');
 const path = require('path');
 const SUITES = [
   ['Recurring maintenance recurrence unit contracts', 'recurring-maintenance.test.js'],
   ['Recurring maintenance API contract', 'recurring-maintenance-contract.test.js'],
+  ['Owner recurring + tenant team contracts', 'owner-recurring-tenant-team-contract.test.js'],
   ['API endpoints', 'api.test.js'],
   ['Service operations contract', 'service-operations-contract.test.js'],
   ['Dispatch and reminders contract', 'dispatch-reminders-contract.test.js'],
@@ -32,6 +33,6 @@ for (const [label, file] of SUITES) {
   summary.push([label, r.status === 0]);
 }
 console.log('\n=== SUMMARY ===');
-for (const [label, ok] of summary) console.log(`  ${ok ? '✔' : '✘'} ${label}`);
+for (const [label, ok] of summary) console.log(`  ${ok ? '✓' : '✗'} ${label}`);
 console.log(failed ? `\n${failed} suite(s) failed.\n` : '\nAll suites passed.\n');
 process.exit(failed ? 1 : 0);
