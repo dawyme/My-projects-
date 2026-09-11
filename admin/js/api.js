@@ -154,9 +154,20 @@ export const auth = {
     return json.data.user;
   },
   async logout() {
-    try { await api.post('/auth/logout', { refreshToken: store.get().refreshToken }); } catch { /* ignore */ }
+    const session = store.get();
+    const refreshToken = session.refreshToken;
+    // Clear browser state first so a failed network/server logout can never
+    // restore the previous session on the login page. The refresh token is
+    // retained locally only in this closure for the server revocation call.
     store.clear();
-    location.href = '/login.html';
+    try {
+      await api.post('/auth/logout', { refreshToken });
+    } catch {
+      // Local session state is already gone; the server will clear cookies on
+      // a successful request and the next login cannot reuse nds.auth.
+    } finally {
+      location.replace('/login.html');
+    }
   },
 };
 

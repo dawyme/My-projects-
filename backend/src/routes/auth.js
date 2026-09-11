@@ -157,8 +157,13 @@ router.post('/change-password', protect, validate(passwordSchema), asyncHandler(
 // POST /api/auth/logout
 router.post('/logout', asyncHandler(async (req, res) => {
   const token = req.body?.refreshToken || req.cookies?.[REFRESH_COOKIE];
-  await revokeRefreshToken(token);
-  clearAuthCookies(res);
+  try {
+    if (token) await revokeRefreshToken(token);
+  } finally {
+    // Logout is intentionally idempotent at the HTTP boundary: even if the
+    // refresh token is already revoked/expired, auth cookies must be cleared.
+    clearAuthCookies(res);
+  }
   res.json({ success: true, message: 'Logged out' });
 }));
 
