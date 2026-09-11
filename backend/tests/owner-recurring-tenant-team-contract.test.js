@@ -1,19 +1,19 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { userRosterWhere } = require('../src/routes/users');
+const { teamUserWhere } = require('../src/lib/tenant');
 const { roleFor, ROLE } = require('../src/lib/permissions');
 
 function run() {
   // Tenant team roster must be strictly limited to the caller's business.
   assert.deepStrictEqual(
-    userRosterWhere({ tenantId: 'tenant-a', user: { role: 'ADMIN', businessId: 'tenant-a' } }),
+    teamUserWhere({ tenantId: 'tenant-a', user: { role: 'ADMIN', businessId: 'tenant-a' } }),
     { businessId: 'tenant-a' }
   );
 
   // Platform owner retains the platform-wide roster rather than becoming tenant-scoped.
   assert.strictEqual(
-    userRosterWhere({ tenantId: 'default', user: { role: 'ADMIN', businessId: null } }),
+    teamUserWhere({ tenantId: 'default', user: { role: 'ADMIN', businessId: null } }),
     undefined
   );
   assert.strictEqual(roleFor({ role: 'ADMIN', businessId: null }), ROLE.SUPER_ADMIN);
