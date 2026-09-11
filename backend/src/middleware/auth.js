@@ -23,9 +23,10 @@ async function protect(req, res, next) {
     }
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, name: true, email: true, role: true, isActive: true, avatarUrl: true, phone: true, businessId: true },
+      select: { id: true, name: true, email: true, role: true, isActive: true, avatarUrl: true, phone: true, businessId: true, sessionVersion: true },
     });
     if (!user || !user.isActive) throw unauthorized('Account not found or disabled');
+    if ((payload.sv ?? 0) !== user.sessionVersion) throw unauthorized('Session has been revoked');
     req.user = user;
     req.role = roleFor(user);
     // Tenant scope is resolved server-side from the user record only.
@@ -63,8 +64,9 @@ async function optionalAuth(req, res, next) {
     const payload = verifyAccessToken(token);
     req.user = await prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, name: true, email: true, role: true, isActive: true, businessId: true },
+      select: { id: true, name: true, email: true, role: true, isActive: true, businessId: true, sessionVersion: true },
     }) || undefined;
+    if (req.user && (payload.sv ?? 0) !== req.user.sessionVersion) req.user = undefined;
     if (req.user) req.role = roleFor(req.user);
     if (req.user?.businessId) req.tenantId = req.user.businessId;
   } catch (_) {}
