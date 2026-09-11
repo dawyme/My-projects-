@@ -82,7 +82,6 @@ webhookRouter.post('/:gateway', asyncHandler(async (req, res) => {
 
   const rawBody = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : '';
   const headers = req.headers;
-
   if (!payments.verifyWebhook(method, rawBody, headers)) {
     return res.status(401).json({ received: false, error: 'Invalid signature' });
   }
@@ -90,18 +89,37 @@ webhookRouter.post('/:gateway', asyncHandler(async (req, res) => {
   let body = null;
   try { body = rawBody ? JSON.parse(rawBody) : null; } catch (_) { body = null; }
   const parsed = payments.parseWebhook(method, rawBody, headers, body);
-  if (!parsed || !parsed.orderReference) {
-    // Valid signature but nothing for us to action (e.g. unrelated event).
-    return res.json({ received: true, handled: false });
+  if (!parsed || !parsed.orderReference) return res.json({ received: true, handled: false });
+
+  // SaaS subscription payments are resolved before storefront orders. They are
+  // never mixed with POS orders and are activated only after exact payment validation.
+  const subscriptionPayment = await prisma.subscriptionPayment.findUnique({
+    where: { reference: parsed.orderReference },
+  });
+  if (subscriptionPayment) {
+    if (subscriptionPayment.paymentMethod !== method) {
+      return res.status(400).json({ received: true, handled: false, error: 'Payment gateway mismatch' });
+    }
+    if (subscriptionPayment.status !== 'PENDING') {
+      return res.json({ received: true, handled: true, status: subscriptionPayment.status });
+    }
+    if (parsed.paid !== true) {
+      const failed = await prisma.$transaction((tx) => require('../lib/subscription-billing').failSubscriptionPayment(tx, subscriptionPayment, 'gateway-not-paid'));
+      return res.json({ received: true, handled: true, status: failed.status });
+    }
+    const validation = require('../lib/subscription-billing').validateGatewayPayment(subscriptionPayment, parsed);
+    if (!validation.ok) {
+      const failed = await prisma.$transaction((tx) => require('../lib/subscription-billing').failSubscriptionPayment(tx, subscriptionPayment, validation.reason));
+      return res.status(400).json({ received: true, handled: false, error: validation.reason, status: failed.status });
+    }
+    const result = await prisma.$transaction((tx) => require('../lib/subscription-billing').activatePaidSubscription(tx, subscriptionPayment, parsed.transactionId));
+    await activity(null, 'subscription', `Subscription payment ${subscriptionPayment.reference} activated plan ${subscriptionPayment.planId} via ${method}`);
+    return res.json({ received: true, handled: true, status: result.payment.status, subscription: result.subscription.id });
   }
 
-  // Storefront orders belong to the default tenant; gateway callbacks quote
-  // only the human-readable reference.
+  // Existing storefront order webhook path.
   const order = await prisma.order.findFirst({ where: { businessId: DEFAULT_TENANT, reference: parsed.orderReference } });
-  if (!order) {
-    return res.status(404).json({ received: true, handled: false, error: 'Order not found' });
-  }
-
+  if (!order) return res.status(404).json({ received: true, handled: false, error: 'Order not found' });
   const captured = await captureOrder(order.id, { transactionId: parsed.transactionId });
   await activity(null, 'payment', `Payment ${captured.paymentStatus === 'PAID' ? 'captured' : 'confirmed'} for ${order.reference} via ${method}`);
   res.json({ received: true, handled: true, order: order.reference, status: captured.paymentStatus });

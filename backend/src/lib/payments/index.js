@@ -168,8 +168,8 @@ const GATEWAYS = {
         headers: { Authorization: basicAuth(env.key, ''), 'Stripe-Version': '2024-06-20' },
         form: {
           mode: 'payment',
-          success_url: `${baseUrl}/checkout.html?order=${order.reference}&status=paid`,
-          cancel_url: `${baseUrl}/checkout.html?order=${order.reference}&status=cancelled`,
+          success_url: ctx.successUrl || `${baseUrl}/checkout.html?order=${order.reference}&status=paid`,
+          cancel_url: ctx.cancelUrl || `${baseUrl}/checkout.html?order=${order.reference}&status=cancelled`,
           client_reference_id: order.reference,
           customer_email: customer.email,
           'metadata[order_reference]': order.reference,
@@ -186,7 +186,7 @@ const GATEWAYS = {
     parseWebhook(rawBody, headers, body) {
       if (!body || body.type !== 'checkout.session.completed') return null;
       const ref = body.data?.object?.client_reference_id || body.data?.object?.metadata?.order_reference;
-      return { orderReference: ref, transactionId: body.data?.object?.payment_intent || body.id };
+      return { orderReference: ref, transactionId: body.data?.object?.payment_intent || body.id, paid: true, amount: body.data?.object?.amount_total != null ? Number(body.data.object.amount_total) / 100 : undefined, currency: body.data?.object?.currency?.toUpperCase() };
     },
   },
 
@@ -210,8 +210,8 @@ const GATEWAYS = {
           }],
           application_context: {
             brand_name: (settings.company.name || 'N&D\'s').slice(0, 127),
-            return_url: `${baseUrl}/checkout.html?order=${order.reference}&status=paid`,
-            cancel_url: `${baseUrl}/checkout.html?order=${order.reference}&status=cancelled`,
+            return_url: ctx.successUrl || `${baseUrl}/checkout.html?order=${order.reference}&status=paid`,
+            cancel_url: ctx.cancelUrl || `${baseUrl}/checkout.html?order=${order.reference}&status=cancelled`,
             user_action: 'PAY_NOW',
           },
         },
@@ -229,7 +229,7 @@ const GATEWAYS = {
       const ref = res.custom_id
         || res.supplementary_data?.related_ids?.order_id
         || body.supplementary_data?.related_ids?.order_id;
-      return { orderReference: ref, transactionId: res.id || body.id };
+      return { orderReference: ref, transactionId: res.id || body.id, paid: event.endsWith('.COMPLETED'), amount: res.amount?.value != null ? Number(res.amount.value) : undefined, currency: res.amount?.currency_code?.toUpperCase() };
     },
   },
 
@@ -248,7 +248,7 @@ const GATEWAYS = {
           currency: settings.payment.currency || 'USD',
           order_id: order.reference,
           description: `Order ${order.reference}`.slice(0, 190),
-          redirect_url: `${baseUrl}/checkout.html?order=${order.reference}&status=paid`,
+          redirect_url: ctx.successUrl || `${baseUrl}/checkout.html?order=${order.reference}&status=paid`,
           webhook_url: `${baseUrl}/api/payments/webhook/wipay`,
           customer_firstname: (customer.name || '').split(' ')[0].slice(0, 60),
           customer_lastname: (customer.name || '').split(' ').slice(1).join(' ').slice(0, 60),
@@ -267,7 +267,7 @@ const GATEWAYS = {
       if (!body) return null;
       const ref = body.order_reference || body.orderReference || body.order_id || body.orderId;
       const tx = body.transaction_id || body.transactionId || body.id;
-      return { orderReference: ref, transactionId: tx };
+      return { orderReference: ref, transactionId: tx, paid: body.paid === true || String(body.status || body.payment_status || '').toUpperCase() in ['PAID','COMPLETED','SUCCESS'], amount: body.amount != null ? Number(body.amount) : (body.total != null ? Number(body.total) : undefined), currency: body.currency ? String(body.currency).toUpperCase() : undefined };
     },
   },
 
@@ -313,7 +313,7 @@ const GATEWAYS = {
           Accept: 'application/json',
         },
         body: {
-          redirect: `${baseUrl}/checkout.html?order=${order.reference}`,
+          redirect: ctx.successUrl || `${baseUrl}/checkout.html?order=${order.reference}`, 
           key: process.env.TILOPAY_API_KEY,
           amount: order.total.toFixed(2),
           currency: settings.payment.currency || 'USD',
