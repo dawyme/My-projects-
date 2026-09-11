@@ -4,7 +4,7 @@ const { z } = require('zod');
 const prisma = require('../lib/prisma');
 const asyncHandler = require('../lib/async');
 const { validate } = require('../middleware/validate');
-const { protect } = require('../middleware/auth');
+const { protect, optionalAuth } = require('../middleware/auth');
 const { authLimiter } = require('../middleware/rateLimit');
 const { unauthorized, badRequest, conflict } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
@@ -149,22 +149,39 @@ router.post('/change-password', protect, validate(passwordSchema), asyncHandler(
   const passwordHash = await bcrypt.hash(req.body.newPassword, 12);
   await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
   await revokeAllForUser(user.id);
+  await prisma.user.update({ where: { id: user.id }, data: { sessionVersion: { increment: 1 } } });
   clearAuthCookies(res);
   await audit(req, 'PASSWORD_CHANGE', 'User', user.id);
   res.json({ success: true, message: 'Password updated. Please sign in again.' });
 }));
 
 // POST /api/auth/logout
-router.post('/logout', asyncHandler(async (req, res) => {
+router.post('/logout', optionalAuth, asyncHandler(async (req, res) => {
   const token = req.body?.refreshToken || req.cookies?.[REFRESH_COOKIE];
-  await revokeRefreshToken(token);
-  clearAuthCookies(res);
+  let userId = req.user?.id || null;
+  try {
+    if (token) {
+      try {
+        const verified = await verifyRefreshToken(token);
+        userId = verified.record.userId;
+        await revokeRefreshToken(token);
+      } catch (_) {
+        // Logout is idempotent for already-revoked or expired refresh tokens.
+      }
+    }
+    if (userId) {
+      await prisma.user.update({ where: { id: userId }, data: { sessionVersion: { increment: 1 } } });
+    }
+  } finally {
+    clearAuthCookies(res);
+  }
   res.json({ success: true, message: 'Logged out' });
 }));
 
 // POST /api/auth/logout-all
 router.post('/logout-all', protect, asyncHandler(async (req, res) => {
   await revokeAllForUser(req.user.id);
+  await prisma.user.update({ where: { id: req.user.id }, data: { sessionVersion: { increment: 1 } } });
   clearAuthCookies(res);
   await audit(req, 'LOGOUT_ALL', 'User', req.user.id);
   res.json({ success: true, message: 'All sessions revoked' });

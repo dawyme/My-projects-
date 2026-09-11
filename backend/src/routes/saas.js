@@ -42,6 +42,16 @@ router.post('/plans', validate(planSchema), asyncHandler(async(req,res)=>{
   const p=await prisma.plan.create({data:{...req.body,features:JSON.stringify(req.body.features),limits:JSON.stringify(req.body.limits)}}); await audit(req,'CREATE','Plan',p.id,{slug:p.slug}); res.status(201).json({success:true,data:publicPlan(p)});
 }));
 
+router.patch('/plans/:id', validate(planSchema), asyncHandler(async(req,res)=>{
+  const existing=await prisma.plan.findUnique({where:{id:req.params.id}});
+  if(!existing) throw notFound('Plan not found');
+  const duplicate=await prisma.plan.findFirst({where:{OR:[{slug:req.body.slug},{name:req.body.name}],NOT:{id:req.params.id}}});
+  if(duplicate) throw conflict('A plan with that name or slug already exists');
+  const p=await prisma.plan.update({where:{id:req.params.id},data:{...req.body,features:JSON.stringify(req.body.features),limits:JSON.stringify(req.body.limits)}});
+  await audit(req,'UPDATE','Plan',p.id,{slug:p.slug});
+  res.json({success:true,data:publicPlan(p)});
+}));
+
 router.get('/businesses', asyncHandler(async(req,res)=>{
   const rows=await prisma.business.findMany({where:{isDefault:false,status:{not:'DELETED'}},orderBy:{createdAt:'asc'},include:{subscription:{include:{plan:true}},_count:{select:{users:true,customers:true,products:true,bookings:true,orders:true}}}});
   res.json({success:true,data:rows.map(publicBusiness)});

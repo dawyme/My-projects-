@@ -12,6 +12,7 @@ const SUITES = [
   ['Supplier Marketplace', 'suppliers.test.js'],
   ['POS / multi-tenant POS', 'pos.test.js'],
   ['SaaS / multi-tenant productization', 'saas.test.js'],
+  ['Auth + plan + role logout regression', 'auth-plan-regression.test.js'],
   ['RBAC / security foundation', 'rbac.test.js'],
   ['Tenant portal / subscriptions', 'tenant.test.js'],
   ['Super Admin bootstrap', 'bootstrap-super-admin.test.js'],

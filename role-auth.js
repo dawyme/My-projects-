@@ -32,6 +32,6 @@ export async function requireRole(requiredRole) {
   }
 }
 
-export async function signOut() {
-  await auth.logout();
+export function signOut() {
+  return auth.logout();
 }
