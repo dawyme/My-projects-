@@ -58,6 +58,9 @@ model Business {
   technicians          Technician[]
   equipment            Equipment[]
   serviceHistories     ServiceHistory[]
+  recurringMaintenanceSeries      RecurringMaintenanceSeries[]
+  recurringMaintenanceOccurrences RecurringMaintenanceOccurrence[]
+  recurringMaintenanceReminders   RecurringMaintenanceReminder[]
   estimates            Estimate[]
   invoices             Invoice[]
   jobStatuses          JobStatus[]
@@ -96,6 +99,7 @@ model User {
   messageReplies MessageReply[]
   adjustments    InventoryAdjustment[]
   workOrders     WorkOrder[]           @relation("WorkOrderTechnician")
+  recurringMaintenanceSeries RecurringMaintenanceSeries[] @relation("RecurringMaintenanceTechnician")
 
   @@index([role])
   @@index([businessId])
@@ -274,6 +278,7 @@ model Customer {
   invoices        Invoice[]
   serviceRequests ServiceRequest[]
   workOrders      WorkOrder[]      @relation("WorkOrderCustomer")
+  recurringMaintenanceSeries RecurringMaintenanceSeries[]
 
   @@unique([businessId, email])
   @@index([email])
@@ -351,6 +356,7 @@ model Service {
   updatedAt   DateTime  @updatedAt
   bookings    Booking[]
   serviceRequests ServiceRequest[]
+  recurringMaintenanceSeries RecurringMaintenanceSeries[]
 
   @@unique([businessId, name])
   @@unique([businessId, slug])
@@ -381,6 +387,7 @@ model Booking {
   notes     BookingNote[]
   jobStatus JobStatus?
   workOrder WorkOrder?
+  recurringOccurrence RecurringMaintenanceOccurrence?
 
   @@unique([businessId, reference])
   @@index([status])
@@ -782,6 +789,7 @@ model Equipment {
   serviceHistory ServiceHistory[]
   workOrders     WorkOrder[]
   serviceRequests ServiceRequest[]
+  recurringMaintenanceSeries RecurringMaintenanceSeries[]
 
   @@index([businessId])
 }
@@ -1353,4 +1361,79 @@ model SaleRefundLineItem {
   @@index([businessId])
   @@index([refundId])
   @@index([saleLineItemId])
+}
+
+model RecurringMaintenanceSeries {
+  id              String   @id @default(uuid())
+  businessId      String
+  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  equipmentId     String?
+  equipment       Equipment? @relation(fields: [equipmentId], references: [id], onDelete: SetNull)
+  serviceId       String?
+  service         Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  technicianId    String?
+  technician      User? @relation("RecurringMaintenanceTechnician", fields: [technicianId], references: [id], onDelete: SetNull)
+  intervalMonths  Int
+  startDate       DateTime
+  endDate         DateTime?
+  maxOccurrences  Int?
+  occurrenceCount Int      @default(0)
+  nextOccurrenceAt DateTime?
+  status          String   @default("ACTIVE") // ACTIVE | PAUSED | CANCELLED | COMPLETED
+  reminderOffsets String   @default("[30,7,1,0]")
+  serviceLabel    String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  occurrences RecurringMaintenanceOccurrence[]
+  @@index([businessId, status])
+  @@index([businessId, nextOccurrenceAt])
+  @@index([customerId])
+  @@index([equipmentId])
+}
+
+model RecurringMaintenanceOccurrence {
+  id              String   @id @default(uuid())
+  businessId      String
+  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  seriesId        String
+  series          RecurringMaintenanceSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  bookingId       String   @unique
+  booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  occurrenceNumber Int
+  scheduledAt     DateTime
+  status          String   @default("SCHEDULED") // SCHEDULED | COMPLETED | CANCELLED
+  generatedAt     DateTime @default(now())
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  reminders RecurringMaintenanceReminder[]
+
+  @@unique([seriesId, occurrenceNumber])
+  @@index([businessId, scheduledAt])
+  @@index([seriesId, status])
+}
+
+model RecurringMaintenanceReminder {
+  id            String   @id @default(uuid())
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  occurrenceId  String
+  occurrence    RecurringMaintenanceOccurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+  offsetDays    Int
+  channel       String   @default("EMAIL")
+  scheduledFor  DateTime
+  status        String   @default("PENDING") // PENDING | SENT | FAILED
+  sentAt        DateTime?
+  providerId    String?
+  error         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([occurrenceId, offsetDays, channel])
+  @@index([businessId, scheduledFor, status])
 }

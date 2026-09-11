@@ -3,6 +3,8 @@
 const { spawnSync } = require('child_process');
 const path = require('path');
 const SUITES = [
+  ['Recurring maintenance recurrence unit contracts', 'recurring-maintenance.test.js'],
+  ['Recurring maintenance API contract', 'recurring-maintenance-contract.test.js'],
   ['API endpoints', 'api.test.js'],
   ['Service operations contract', 'service-operations-contract.test.js'],
   ['Dispatch and reminders contract', 'dispatch-reminders-contract.test.js'],

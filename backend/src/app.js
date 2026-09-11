@@ -198,6 +198,7 @@ app.use('/api/reminders', require('./routes/reminders'));
 app.use('/api/service-history', require('./routes/service-history'));
 app.use('/api/service-requests', require('./routes/service-requests'));
 app.use('/api/work-orders', require('./routes/work-orders'));
+app.use('/api/recurring-maintenance', require('./routes/recurring-maintenance').router);
 
 // ---- Supplier Marketplace (dedicated admin section) ----
 app.use('/api/suppliers', require('./routes/suppliers'));
