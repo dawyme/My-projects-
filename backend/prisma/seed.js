@@ -481,6 +481,12 @@ async function main() {
     await prisma.plan.upsert({ where: { id: plan.id }, update: { ...plan, features: JSON.stringify(plan.features), limits: JSON.stringify(plan.limits), isActive: true }, create: { ...plan, features: JSON.stringify(plan.features), limits: JSON.stringify(plan.limits), isActive: true } });
   }
   await prisma.subscription.upsert({ where: { businessId: 'default' }, update: { planId: 'plan_professional', status: 'ACTIVE' }, create: { businessId: 'default', planId: 'plan_professional', status: 'ACTIVE' } });
+
+  await prisma.platformFeature.upsert({
+    where: { key: 'recurring-maintenance' },
+    update: { name: 'Recurring Maintenance', description: 'Recurring preventive maintenance schedules and customer reminders.', isActive: true, isCore: true, defaultEnabled: true },
+    create: { id: 'platform-recurring-maintenance', key: 'recurring-maintenance', name: 'Recurring Maintenance', description: 'Recurring preventive maintenance schedules and customer reminders.', isActive: true, isCore: true, defaultEnabled: true },
+  });
   console.log(`  ✔ ${plans.length} SaaS plans and default subscription`);
 
   // ---- activity feed

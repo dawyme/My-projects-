@@ -6,6 +6,7 @@ const { validate } = require('../middleware/validate');
 const { protect, authorize } = require('../middleware/auth');
 const { tenantWhere } = require('../lib/tenant');
 const { badRequest, notFound } = require('../lib/errors');
+const { requireFeature } = require('../lib/features');
 const { audit, activity } = require('../lib/audit');
 const {
   DEFAULT_REMINDER_OFFSETS_DAYS,
@@ -128,7 +129,7 @@ async function getSeries(req, id) {
   return series;
 }
 
-router.get('/', protect, asyncHandler(async (req, res) => {
+router.get('/', protect, requireFeature('recurring-maintenance'), asyncHandler(async (req, res) => {
   const where = tenantWhere(req);
   if (req.query.status && STATUS.includes(String(req.query.status).toUpperCase())) where.status = String(req.query.status).toUpperCase();
   const data = await prisma.recurringMaintenanceSeries.findMany({
@@ -145,11 +146,11 @@ router.get('/', protect, asyncHandler(async (req, res) => {
   res.json({ success: true, data });
 }));
 
-router.get('/:id', protect, asyncHandler(async (req, res) => {
+router.get('/:id', protect, requireFeature('recurring-maintenance'), asyncHandler(async (req, res) => {
   res.json({ success: true, data: await getSeries(req, req.params.id) });
 }));
 
-router.post('/', protect, authorize('ADMIN', 'STAFF'), validate(createBody), asyncHandler(async (req, res) => {
+router.post('/', protect, authorize('ADMIN', 'STAFF'), requireFeature('recurring-maintenance'), validate(createBody), asyncHandler(async (req, res) => {
   normalizeRecurrence(req.body);
   const customer = await resolveOwned(req, 'customer', req.body.customerId, 'Customer');
   const equipment = await resolveOwned(req, 'equipment', req.body.equipmentId, 'Equipment');
@@ -189,7 +190,7 @@ router.post('/', protect, authorize('ADMIN', 'STAFF'), validate(createBody), asy
   res.status(201).json({ success: true, data: await getSeries(req, series.id) });
 }));
 
-router.put('/:id', protect, authorize('ADMIN', 'STAFF'), validate(updateBody), asyncHandler(async (req, res) => {
+router.put('/:id', protect, authorize('ADMIN', 'STAFF'), requireFeature('recurring-maintenance'), validate(updateBody), asyncHandler(async (req, res) => {
   const existing = await getSeries(req, req.params.id);
   if (existing.status === 'CANCELLED' || existing.status === 'COMPLETED') throw badRequest('A completed or cancelled series cannot be edited');
   if (req.body.technicianId) await resolveTechnician(req, req.body.technicianId);
@@ -237,8 +238,8 @@ async function setLifecycle(req, res, status) {
   res.json({ success: true, data: await getSeries(req, updated.id) });
 }
 
-router.post('/:id/pause', protect, authorize('ADMIN', 'STAFF'), asyncHandler((req, res) => setLifecycle(req, res, 'PAUSED')));
-router.post('/:id/resume', protect, authorize('ADMIN', 'STAFF'), asyncHandler(async (req, res) => {
+router.post('/:id/pause', protect, authorize('ADMIN', 'STAFF'), requireFeature('recurring-maintenance'), asyncHandler((req, res) => setLifecycle(req, res, 'PAUSED')));
+router.post('/:id/resume', protect, authorize('ADMIN', 'STAFF'), requireFeature('recurring-maintenance'), asyncHandler(async (req, res) => {
   const existing = await getSeries(req, req.params.id);
   if (existing.status !== 'PAUSED') throw badRequest('Only a paused series can be resumed');
   const future = existing.occurrences.find((o) => o.status === 'CANCELLED' && new Date(o.scheduledAt) >= new Date());
@@ -259,9 +260,9 @@ router.post('/:id/resume', protect, authorize('ADMIN', 'STAFF'), asyncHandler(as
   });
   res.json({ success: true, data: await getSeries(req, updated.id) });
 }));
-router.post('/:id/cancel', protect, authorize('ADMIN', 'STAFF'), asyncHandler((req, res) => setLifecycle(req, res, 'CANCELLED')));
+router.post('/:id/cancel', protect, authorize('ADMIN', 'STAFF'), requireFeature('recurring-maintenance'), asyncHandler((req, res) => setLifecycle(req, res, 'CANCELLED')));
 
-router.post('/:id/generate-next', protect, authorize('ADMIN', 'STAFF'), asyncHandler(async (req, res) => {
+router.post('/:id/generate-next', protect, authorize('ADMIN', 'STAFF'), requireFeature('recurring-maintenance'), asyncHandler(async (req, res) => {
   const existing = await getSeries(req, req.params.id);
   if (existing.status !== 'ACTIVE') throw badRequest('Only an active series can generate the next occurrence');
   const nextNumber = existing.occurrenceCount + 1;
