@@ -165,6 +165,11 @@ async function main() {
     assert.strictEqual(out.status, 200);
     const after = await c.post('/api/auth/refresh', { refreshToken: login.body.data.refreshToken });
     assert.strictEqual(after.status, 401);
+    // Logout invalidates the user's access-token session version. Re-authenticate
+    // the shared STAFF client before the remaining admin-only authorization checks.
+    const relogin = await staff.post('/api/auth/login', { email: process.env.SEED_STAFF_EMAIL || 'staff@ndsairconditioning.com', password: process.env.SEED_STAFF_PASSWORD || 'Staff@12345' });
+    assert.strictEqual(relogin.status, 200);
+    staff.setBearer(relogin.body.data.accessToken);
   });
 
   // ---------- CSRF
