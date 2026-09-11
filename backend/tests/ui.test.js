@@ -92,6 +92,7 @@ const ROUTES = [
   ['#/supplier-sync', 'Sync & Automation', ['Automation', 'Per-supplier schedule', 'Running now']],
   ['#/supplier-logs', 'Sync Logs', ['Trigger', 'Processed', 'Status']],
   ['#/supplier-settings', 'Marketplace Settings', ['Pricing defaults', 'Permissions', 'Markup rules']],
+  ['#/saas', 'Tenants & Plans', ['Tenants', 'Platform plans', 'SaaS tenants', 'Create plan', 'Add tenant']],
   ['#/no-such-page', 'Not found', ['Page not found']],
 ];
 
@@ -171,9 +172,8 @@ async function main() {
   const adminEntrySource = fs.readFileSync(path.join(ADMIN_DIR, 'index.html'), 'utf8');
   const superadminEntrySource = fs.readFileSync(path.join(ADMIN_DIR, '..', 'superadmin', 'index.html'), 'utf8');
   record(/SUPER_ADMIN:\s*['\"]\/admin\//.test(roleAuthSource), 'SUPER_ADMIN uses the original N&D’S admin dashboard');
-  record(/OWNER_ROLES\s*=\s*\[[^\]]*SUPER_ADMIN[^\]]*TENANT_ADMIN[^\]]*\]/.test(adminEntrySource)
-    || /OWNER_ROLES\s*=\s*\[[^\]]*TENANT_ADMIN[^\]]*SUPER_ADMIN[^\]]*\]/.test(adminEntrySource),
-    'Original admin dashboard is shared by Super Admin and Tenant Admin, not Super-Admin-only');
+  record(/if \(user\.role !== ['\"]SUPER_ADMIN['\"]\)/.test(adminEntrySource),
+    'Original admin dashboard is reserved for Super Admin');
   record(/SUPER_ADMIN/.test(superadminEntrySource) && /admin\//.test(superadminEntrySource), 'Legacy Super Admin entry redirects to the original dashboard');
 
   // ---------- login page
@@ -227,8 +227,8 @@ async function main() {
 
   // Use environment variables to get the correct admin credentials
   // Note: seed.js stores email in lowercase, so we must do the same here
-  const adminEmail = (process.env.SEED_ADMIN_EMAIL || 'admin@ndsairconditioning.com').toLowerCase();
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'Admin@12345';
+  const adminEmail = (process.env.SEED_PLATFORM_EMAIL || 'platform@ndsairconditioning.com').toLowerCase();
+  const adminPassword = process.env.SEED_PLATFORM_PASSWORD || 'Platform@12345';
 
   // Clear the fields before entering new values
   emailField.value = '';
@@ -270,7 +270,7 @@ async function main() {
   const session = lw.localStorage.getItem('nds.auth');
   const cookies = lw.document.cookie;
   const loggedInUser = (() => { try { return JSON.parse(session || '{}').user; } catch { return null; } })();
-  record(loggedInUser?.role === 'TENANT_ADMIN', 'Admin seed user exposes the canonical TENANT_ADMIN role',
+  record(loggedInUser?.role === 'SUPER_ADMIN', 'Platform Owner exposes the canonical SUPER_ADMIN role',
     loggedInUser?.role || 'missing role');
 
   loginDom.window.close();
