@@ -6,6 +6,7 @@ const { validate } = require('../middleware/validate');
 const { protect, authorize } = require('../middleware/auth');
 const { tenantWhere } = require('../lib/tenant');
 const { badRequest, notFound } = require('../lib/errors');
+const { requireFeature } = require('../lib/features');
 const { audit, activity } = require('../lib/audit');
 const {
   DEFAULT_REMINDER_OFFSETS_DAYS,
