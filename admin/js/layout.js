@@ -177,3 +177,150 @@ const routes = {
   '/suppliers': () => import('./pages/suppliers.js'),
   '/supplier-integrations': () => import('./pages/supplier-integrations.js'),
 };
+
+export function setTitle(title) {
+  const node = qs('#pageTitle');
+  if (node) node.textContent = title;
+  document.title = `${title} · N&D'S Admin`;
+}
+
+export function highlightNav(path) {
+  document.querySelectorAll('.nav-group').forEach((group) => {
+    const active = group.querySelector(`.nav-link[data-path="${path}"]`);
+    const toggle = group.querySelector('.nav-group__toggle');
+    const items = group.querySelector('.nav-group__items');
+    const isActiveGroup = !!active;
+    if (toggle && items) {
+      toggle.setAttribute('aria-expanded', String(isActiveGroup));
+      items.hidden = !isActiveGroup;
+    }
+    group.querySelectorAll('.nav-link').forEach((link) => {
+      if (link.dataset.path === path) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    });
+  });
+}
+
+export async function refreshBadges() {
+  try {
+    const { data } = await api.get('/dashboard/stats');
+    badges.pending = data.bookings.pending;
+    badges.unread = data.messages.unread;
+    badges.lowStock = data.inventory.lowStockCount;
+    for (const [key, value] of Object.entries(badges)) {
+      document.querySelectorAll(`[data-badge="${key}"]`).forEach((n) => {
+        n.textContent = value > 99 ? '99+' : value;
+        n.hidden = !value;
+      });
+    }
+    const dot = document.querySelector('#bellBtn .icon-btn__dot');
+    if (dot) dot.hidden = !badges.unread;
+    return data;
+  } catch { return null; }
+}
+
+/* ------------------------------------------------------------ router */
+const routes = {
+  '/': () => import('./pages/dashboard.js'),
+  '/analytics': () => import('./pages/analytics.js'),
+  '/products': () => import('./pages/products.js'),
+  '/categories': () => import('./pages/categories.js'),
+  '/inventory': () => import('./pages/inventory.js'),
+  '/bookings': () => import('./pages/bookings.js'),
+  '/calendar': () => import('./pages/calendar.js'),
+  '/dispatch': () => import('./pages/dispatch.js'),
+  '/services': () => import('./pages/services.js'),
+  '/equipment': () => import('./pages/equipment.js'),
+  '/service-history': () => import('./pages/service-history.js'),
+  '/recurring-maintenance': () => import('./pages/recurring-maintenance.js'),
+  '/estimates': () => import('./pages/estimates.js'),
+  '/invoices': () => import('./pages/invoices.js'),
+  '/orders': () => import('./pages/orders.js'),
+  '/pos': () => import('./pages/pos.js'),
+  '/customers': () => import('./pages/customers.js'),
+  '/messages': () => import('./pages/messages.js'),
+  '/settings': () => import('./pages/settings.js'),
+  '/users': () => import('./pages/users.js'),
+  '/audit': () => import('./pages/audit.js'),
+  '/saas': () => import('./pages/saas.js'),
+  '/platform': () => import('./pages/superadmin.js'),
+  '/platform-analytics': () => import('./pages/platform-analytics.js'),
+  '/billing': () => import('./pages/billing.js'),
+  '/system-health': () => import('./pages/system-health.js'),
+  '/subscription': () => import('./pages/subscription.js'),
+  '/profile': () => import('./pages/profile.js'),
+  '/content': () => import('./pages/content.js'),
+  '/media': () => import('./pages/media.js'),
+  // Supplier Marketplace — dedicated top-level section
+  '/supplier-marketplace': () => import('./pages/supplier-marketplace.js'),
+  '/suppliers': () => import('./pages/suppliers.js'),
+  '/supplier-integrations': () => import('./pages/supplier-integrations.js'),
+  '/supplier-imports': () => import('./pages/supplier-imports.js'),
+  '/supplier-products': () => import('./pages/supplier-products.js'),
+  '/supplier-fulfillment': () => import('./pages/supplier-fulfillment.js'),
+  '/supplier-shipping': () => import('./pages/supplier-shipping.js'),
+  '/supplier-sync': () => import('./pages/supplier-sync.js'),
+  '/supplier-logs': () => import('./pages/supplier-logs.js'),
+  '/supplier-settings': () => import('./pages/supplier-settings.js'),
+};
+
+function parseHash() {
+  const raw = location.hash.slice(1) || '/';
+  const [path, queryString] = raw.split('?');
+  return { path: path || '/', query: Object.fromEntries(new URLSearchParams(queryString || '')) };
+}
+
+let currentToken = 0;
+async function renderRoute() {
+  const token = ++currentToken;
+  const { path, query } = parseHash();
+  const view = qs('#view');
+  const loader = routes[path];
+
+  if (!loader) {
+    view.innerHTML = `<div class="card"><div class="card__body">
+      <div class="empty">${icon('alert')}<h3>Page not found</h3><p>The route <code>${esc(path)}</code> does not exist.</p>
+      <div style="margin-top:14px"><a class="btn btn--primary" href="#/">Back to dashboard</a></div></div></div></div>`;
+    setTitle('Not found');
+    return;
+  }
+
+  highlightNav(path);
+  view.innerHTML = `<div class="card"><div class="card__body" style="display:grid;place-items:center;min-height:300px">
+    <div class="spinner" role="status" aria-label="Loading"></div></div></div>`;
+
+  try {
+    const mod = await loader();
+    if (token !== currentToken) return; // a newer navigation won
+    view.innerHTML = '';
+    await mod.render(view, query);
+    view.focus({ preventScroll: true });
+    scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (e) {
+    if (token !== currentToken) return;
+    console.error(e);
+    view.innerHTML = `<div class="card"><div class="card__body"><div class="empty">${icon('alert')}
+      <h3>Could not load this page</h3><p>${esc(e.message || 'Unexpected error')}</p>
+      <div style="margin-top:14px"><button class="btn btn--primary" onclick="location.reload()">Reload</button></div></div></div></div>`;
+  }
+  refreshBadges();
+}
+
+export async function boot() {
+  const user = await requireAuth();
+  if (!user) return;
+  renderShell(user);
+  try {
+    const { data } = await api.get('/settings');
+    setCurrency({ code: data.payment.currency, symbol: data.payment.currencySymbol });
+    const nameNode = qs('#companyName');
+    if (nameNode) nameNode.textContent = data.company.name;
+  } catch { /* defaults are fine */ }
+
+  addEventListener('hashchange', renderRoute);
+  await renderRoute();
+  refreshBadges();
+  setInterval(refreshBadges, 60000);
+}
+
+export { toast, toastError };
