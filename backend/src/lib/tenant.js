@@ -39,6 +39,16 @@ function tenantWhere(req, extra = {}) {
   return { ...extra, businessId: tenantOf(req) };
 }
 
+/**
+ * User roster scope for the Team page.
+ * Tenant admins see only users in their own business. Platform admins retain
+ * the platform-wide roster so they can manage tenants without becoming a
+ * tenant themselves.
+ */
+function teamUserWhere(req) {
+  return isPlatformAdmin(req) ? undefined : { businessId: tenantOf(req) };
+}
+
 /** True when the requester is a platform admin (no tenant binding). */
 function isPlatformAdmin(req) {
   return roleFor(req?.user) === 'SUPER_ADMIN';
@@ -61,4 +71,4 @@ function platformAdminOnly(req, res, next) {
  * the caller's tenant. Usage inside a handler:
  *   const row = await prisma.customer.findFirst({ where: tenantWhere(req, { id }) });
  */
-module.exports = { DEFAULT_TENANT, tenantOf, scopeTenant, tenantWhere, isPlatformAdmin, platformAdminOnly };
+module.exports = { DEFAULT_TENANT, tenantOf, scopeTenant, tenantWhere, teamUserWhere, isPlatformAdmin, platformAdminOnly };

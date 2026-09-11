@@ -15,6 +15,10 @@ const prisma = require('../src/lib/prisma');
 
 const ADMIN_DIR = path.join(__dirname, '..', '..', 'admin');
 const ROLE_AUTH_FILE = path.join(__dirname, '..', '..', 'role-auth.js');
+const ADMIN_LAYOUT_FILE = path.join(ADMIN_DIR, 'js', 'layout.js');
+const ADMIN_LAYOUT_SOURCE = fs.readFileSync(ADMIN_LAYOUT_FILE, 'utf8');
+assert.match(ADMIN_LAYOUT_SOURCE, /export async function boot\s*\(/, 'admin layout must export boot()');
+assert.match(ADMIN_LAYOUT_SOURCE, /export function setTitle\s*\(/, 'admin layout must export setTitle()');
 
 /**
  * jsdom cannot execute native ES modules (real browsers can), so for the test
@@ -298,11 +302,12 @@ async function main() {
   const w = dom.window;
   const doc = w.document;
   cookies.split(';').forEach((c) => { if (c.trim()) doc.cookie = c.trim(); });
+  record(!!doc.getElementById('app'), 'Admin dashboard provides the app mount root');
   bootBundle(w, spaPage.script);
 
   const shellReady = await until(() => doc.querySelector('.sidebar') && doc.querySelector('#view'));
   record(shellReady, 'Admin shell renders sidebar, topbar and content area');
-  record(!!doc.querySelector('.topbar') && !!doc.querySelector('#userBtn'), 'Top navigation with user menu is present');
+  record(!!doc.querySelector('.topbar') && !!doc.querySelector('.user-menu') && !!doc.querySelector('#userMenuTrigger'), 'Top navigation with user menu is present');
   record(doc.querySelectorAll('.nav-link').length >= 12, 'Sidebar navigation lists every section',
     `${doc.querySelectorAll('.nav-link').length} links`);
 
