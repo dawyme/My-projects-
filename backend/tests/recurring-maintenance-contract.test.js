@@ -43,6 +43,8 @@ async function main() {
     seriesId = created.body.data.id;
     assert.strictEqual(created.body.data.status, 'ACTIVE');
     assert.strictEqual(created.body.data.occurrences.length, 1);
+    assert.strictEqual(created.body.data.occurrences[0].reminders.length, 4, 'recurring occurrence should create four configured email reminders');
+    assert.deepStrictEqual(created.body.data.occurrences[0].reminders.map((r) => r.offsetDays).sort((a, b) => b - a), [30, 7, 1, 0]);
     occurrenceId = created.body.data.occurrences[0].id;
     createdBookingId = created.body.data.occurrences[0].bookingId;
     const cross = await client.get(`/api/recurring-maintenance/${seriesId}`); assert.strictEqual(cross.status, 200);
