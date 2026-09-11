@@ -72,4 +72,14 @@ async function sendMessageReplyEmail(message, body) {
   });
 }
 
-module.exports = { sendMail, sendBookingStatusEmail, sendBookingReminderEmail, sendMessageReplyEmail };
+async function sendRecurringMaintenanceReminderEmail(occurrence, customer, series) {
+  const when = new Date(occurrence.scheduledAt).toLocaleString();
+  return sendMail({
+    to: customer.email,
+    subject: `Maintenance reminder: ${series.serviceLabel || 'scheduled service'} ${occurrence.booking.reference}`,
+    text: `Hi ${customer.name}, this is a reminder that your recurring maintenance appointment ${occurrence.booking.reference} is scheduled for ${when}. Please contact N&D'S if you need to reschedule.`,
+    html: layout('Recurring Maintenance Reminder', `<p>Hi <strong>${customer.name}</strong>,</p><p>This is a reminder that your recurring maintenance appointment <strong>${occurrence.booking.reference}</strong> is scheduled for <strong>${when}</strong>.</p><p>If you need to change the appointment, please contact N&D'S Air Conditioning & Refrigeration Services.</p>`),
+  });
+}
+
+module.exports = { sendMail, sendBookingStatusEmail, sendBookingReminderEmail, sendRecurringMaintenanceReminderEmail, sendMessageReplyEmail };

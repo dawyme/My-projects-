@@ -6,7 +6,7 @@ const { protect, adminOnly } = require('../middleware/auth');
 const { tenantWhere } = require('../lib/tenant');
 const { notFound, badRequest, unauthorized } = require('../lib/errors');
 const { audit } = require('../lib/audit');
-const { sendBookingReminderEmail } = require('../lib/mailer');
+const { sendBookingReminderEmail, sendRecurringMaintenanceReminderEmail } = require('../lib/mailer');
 
 const router = express.Router();
 
@@ -69,5 +69,47 @@ router.get('/run', asyncHandler(async (req, res) => {
   }
   res.json({ success: true, data: { scanned: bookings.length, results } });
 }));
+
+module.exports = router;
+async function processRecurringReminders() {
+  const now = new Date();
+  const due = await prisma.recurringMaintenanceReminder.findMany({
+    where: { scheduledFor: { lte: now }, status: { in: ['PENDING', 'FAILED'] } },
+    include: {
+      occurrence: { include: { booking: true, series: true } },
+    },
+    orderBy: { scheduledFor: 'asc' },
+    take: 200,
+  });
+  const results = [];
+  for (const reminder of due) {
+    if (reminder.occurrence.status !== 'SCHEDULED' || reminder.occurrence.booking.status === 'CANCELLED') {
+      await prisma.recurringMaintenanceReminder.update({ where: { id: reminder.id }, data: { status: 'FAILED', error: 'Occurrence is no longer scheduled' } });
+      continue;
+    }
+    const customer = await prisma.customer.findFirst({ where: { id: reminder.occurrence.booking.customerId, businessId: reminder.businessId } });
+    if (!customer?.email) {
+      await prisma.recurringMaintenanceReminder.update({ where: { id: reminder.id }, data: { status: 'FAILED', error: 'Customer email is missing' } });
+      continue;
+    }
+    try {
+      const sent = await sendRecurringMaintenanceReminderEmail(reminder.occurrence, customer, reminder.occurrence.series);
+      await prisma.recurringMaintenanceReminder.update({ where: { id: reminder.id }, data: { status: 'SENT', sentAt: new Date(), providerId: sent?.id || null, error: null } });
+      results.push({ id: reminder.id, sent: true });
+    } catch (error) {
+      await prisma.recurringMaintenanceReminder.update({ where: { id: reminder.id }, data: { status: 'FAILED', error: String(error.message || error).slice(0, 1000) } });
+      results.push({ id: reminder.id, sent: false, error: error.message });
+    }
+  }
+  return { scanned: due.length, results };
+}
+
+router.get('/recurring/run', asyncHandler(async (req, res) => {
+  const secret = process.env.CRON_SECRET;
+  const supplied = req.get('authorization')?.replace(/^Bearer\s+/i, '') || req.get('x-cron-secret');
+  if (!secret || supplied !== secret) throw unauthorized('Invalid cron authorization');
+  res.json({ success: true, data: await processRecurringReminders() });
+}));
+
 
 module.exports = router;

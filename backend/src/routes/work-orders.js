@@ -270,6 +270,10 @@ router.post('/:id/status', protect, authorize('ADMIN', 'STAFF'), validate(status
       },
     }).catch(() => {});
   }
+  if (nextStatus === 'COMPLETED' && workOrder.bookingId) {
+    const { advanceFromCompletedBooking } = require('./recurring-maintenance');
+    await advanceFromCompletedBooking(req.tenantId, workOrder.bookingId).catch(() => {});
+  }
   if (nextStatus === 'COMPLETED') {
     await activity(req.user.id, 'work-order', `${req.user.name} completed a work order`, undefined, req);
   }
