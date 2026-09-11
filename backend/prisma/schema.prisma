@@ -63,6 +63,7 @@ model Business {
   jobStatuses          JobStatus[]
   mediaAssets          MediaAsset[]
   subscription         Subscription?
+  subscriptionPayments SubscriptionPayment[]
 
 sales             Sale[]
   saleRefunds       SaleRefund[]
@@ -118,6 +119,7 @@ model Plan {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   subscriptions Subscription[]
+  subscriptionPayments SubscriptionPayment[]
 
   @@index([isActive])
 }
@@ -138,6 +140,30 @@ model Subscription {
 
   @@index([planId])
   @@index([status])
+}
+
+model SubscriptionPayment {
+  id              String   @id @default(uuid())
+  reference       String   @unique
+  businessId      String
+  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  planId          String
+  plan            Plan     @relation(fields: [planId], references: [id])
+  amount          Float
+  currency        String
+  paymentMethod   String
+  gatewayReference String?
+  status          String   @default("PENDING") // PENDING PAID FAILED CANCELLED
+  paidAt          DateTime?
+  failedAt        DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([businessId])
+  @@index([planId])
+  @@index([status])
+  @@index([gatewayReference])
+  @@unique([paymentMethod, gatewayReference])
 }
 
 model RefreshToken {

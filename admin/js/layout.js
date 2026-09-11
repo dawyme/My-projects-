@@ -5,7 +5,8 @@ import { el, qs, icon, esc, initials, setCurrency, toast, toastError } from './u
 const NAV = [
   { group: 'Overview', items: [
     { path: '/', label: 'Dashboard', icon: 'dashboard' },
-    { path: '/analytics', label: 'Analytics', icon: 'chart' },
+    { path: '/analytics', label: 'Analytics', icon: 'chart', platformOnly: true },
+    { path: '/analytics', label: 'Reports', icon: 'chart', tenantOnly: true },
   ] },
   { group: 'Catalogue', items: [
     { path: '/products', label: 'Products', icon: 'box' },
@@ -50,7 +51,7 @@ const NAV = [
   ] },
   { group: 'Administration', items: [
     { path: '/settings', label: 'Settings', icon: 'settings' },
-    { path: '/users', label: 'Team', icon: 'user', adminOnly: true },
+    { path: '/users', label: 'Team', icon: 'user' },
     { path: '/audit', label: 'Audit Log', icon: 'shield', adminOnly: true },
   ] },
   { group: 'Website', items: [
