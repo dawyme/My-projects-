@@ -3,8 +3,8 @@
 CREATE TABLE "SubscriptionPayment" (
   "id" TEXT NOT NULL,
   "reference" TEXT NOT NULL,
-  "businessId" TEXT NOT NULL,
-  "planId" TEXT NOT NULL,
+  "businessId" TEXT NOT NULL REFERENCES "Business"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+  "planId" TEXT NOT NULL REFERENCES "Plan"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
   "amount" DOUBLE PRECISION NOT NULL,
   "currency" TEXT NOT NULL,
   "paymentMethod" TEXT NOT NULL,
@@ -23,6 +23,3 @@ CREATE INDEX "SubscriptionPayment_businessId_idx" ON "SubscriptionPayment"("busi
 CREATE INDEX "SubscriptionPayment_planId_idx" ON "SubscriptionPayment"("planId");
 CREATE INDEX "SubscriptionPayment_status_idx" ON "SubscriptionPayment"("status");
 CREATE INDEX "SubscriptionPayment_gatewayReference_idx" ON "SubscriptionPayment"("gatewayReference");
-
-ALTER TABLE "SubscriptionPayment" ADD CONSTRAINT "SubscriptionPayment_businessId_fkey" FOREIGN KEY ("businessId") REFERENCES "Business"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "SubscriptionPayment" ADD CONSTRAINT "SubscriptionPayment_planId_fkey" FOREIGN KEY ("planId") REFERENCES "Plan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
