@@ -9,7 +9,7 @@ const { badRequest, notFound } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
 const { revokeAllForUser } = require('../lib/tokens');
 const { publicUser } = require('./auth');
-const { isPlatformAdmin } = require('../lib/tenant');
+const { isPlatformAdmin, teamUserWhere } = require('../lib/tenant');
 
 const router = express.Router();
 const ROLES = ['ADMIN', 'STAFF'];
@@ -17,7 +17,7 @@ const ROLES = ['ADMIN', 'STAFF'];
 // GET /api/users — staff can read the roster (needed for technician assignment)
 router.get('/', protect, asyncHandler(async (req, res) => {
   const users = await prisma.user.findMany({
-    where: isPlatformAdmin(req) ? undefined : { OR: [{ businessId: req.tenantId }, { businessId: null }] },
+    where: teamUserWhere(req),
     orderBy: { name: 'asc' },
     select: {
       id: true, name: true, email: true, role: true, phone: true, avatarUrl: true,

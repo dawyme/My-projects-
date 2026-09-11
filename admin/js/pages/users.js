@@ -65,7 +65,7 @@ export async function render(view) {
           <div class="field"><label for="uf-email">Email *</label><input id="uf-email" name="email" type="email" required value="${esc(user?.email || '')}"></div>
           <div class="field"><label for="uf-phone">Phone</label><input id="uf-phone" name="phone" type="tel" value="${esc(user?.phone || '')}"></div>
           <div class="field"><label for="uf-role">Role *</label><select id="uf-role" name="role">
-            <option value="STAFF" ${user?.role === 'STAFF' ? 'selected' : ''}>Staff — day-to-day operations</option>
+            <option value="STAFF" ${user?.role === 'STAFF' ? 'selected' : ''}>Technician / Staff — field operations</option>
             <option value="ADMIN" ${user?.role === 'ADMIN' ? 'selected' : ''}>Administrator — full access</option></select></div>
         </div>
         <div class="field"><label for="uf-password">${isEdit ? 'New password (leave blank to keep current)' : 'Password *'}</label>
