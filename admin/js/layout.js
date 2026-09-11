@@ -20,7 +20,7 @@ const NAV = [
     { path: '/services', label: 'Services', icon: 'wrench' },
     { path: '/equipment', label: 'Equipment', icon: 'settings' },
     { path: '/service-history', label: 'Service History', icon: 'history' },
-    { path: '/recurring-maintenance', label: 'Recurring Maintenance', icon: 'calendar', tenantOnly: true },
+    { path: '/recurring-maintenance', label: 'Recurring Maintenance', icon: 'calendar', feature: 'recurring-maintenance' },
     { path: '/estimates', label: 'Estimates', icon: 'file' },
     { path: '/invoices', label: 'Invoices', icon: 'file' },
     { path: '/orders', label: 'Orders', icon: 'file' },
@@ -45,6 +45,7 @@ const NAV = [
   { group: 'Platform', items: [
     { path: '/platform', label: 'Platform Dashboard', icon: 'dashboard', platformOnly: true },
     { path: '/saas', label: 'Tenants & Plans', icon: 'briefcase', platformOnly: true },
+    { path: '/features', label: 'Feature Management', icon: 'settings', platformOnly: true },
     { path: '/platform-analytics', label: 'Platform Analytics', icon: 'chart', platformOnly: true },
     { path: '/billing', label: 'Billing & Subscriptions', icon: 'money', platformOnly: true },
     { path: '/system-health', label: 'System Health', icon: 'shield', platformOnly: true },
@@ -84,7 +85,8 @@ function navMarkup(user) {
   return NAV.map((group) => {
     const isPlatform = user.role === 'SUPER_ADMIN' || (user.role === 'ADMIN' && !user.businessId);
     const isTenant = user.role === 'TENANT_ADMIN' || (user.role === 'ADMIN' && !!user.businessId);
-    const items = group.items.filter((i) => (!i.adminOnly || user.role === 'ADMIN' || isPlatform) && (!i.platformOnly || isPlatform) && (!i.tenantOnly || isTenant));
+    const featureAccess = new Set((user.featureAccess || []).map((f) => f.key));
+    const items = group.items.filter((i) => (!i.feature || featureAccess.has(i.feature)) && (!i.adminOnly || user.role === 'ADMIN' || isPlatform) && (!i.platformOnly || isPlatform) && (!i.tenantOnly || isTenant));
     if (!items.length) return '';
     const groupId = `nav-group-${NAV.indexOf(group)}`;
     return `<section class="nav-group">
@@ -261,6 +263,7 @@ const routes = {
   '/users': () => import('./pages/users.js'),
   '/audit': () => import('./pages/audit.js'),
   '/saas': () => import('./pages/saas.js'),
+  '/features': () => import('./pages/features.js'),
   '/platform': () => import('./pages/superadmin.js'),
   '/platform-analytics': () => import('./pages/platform-analytics.js'),
   '/billing': () => import('./pages/billing.js'),
@@ -327,6 +330,7 @@ async function renderRoute() {
 export async function boot() {
   const user = await requireAuth();
   if (!user) return;
+  try { user.featureAccess = (await api.get('/features/access')).data || []; } catch { user.featureAccess = []; }
   renderShell(user);
   try {
     const { data } = await api.get('/settings');

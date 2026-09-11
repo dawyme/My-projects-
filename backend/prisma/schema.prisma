@@ -67,6 +67,7 @@ model Business {
   mediaAssets          MediaAsset[]
   subscription         Subscription?
   subscriptionPayments SubscriptionPayment[]
+  featureAccesses    TenantFeatureAccess[]
 
 sales             Sale[]
   saleRefunds       SaleRefund[]
@@ -168,6 +169,38 @@ model SubscriptionPayment {
   @@index([status])
   @@index([gatewayReference])
   @@unique([paymentMethod, gatewayReference])
+}
+
+model PlatformFeature {
+  id             String   @id @default(uuid())
+  key            String   @unique
+  name           String
+  description    String?
+  isActive       Boolean  @default(true)
+  isCore         Boolean  @default(false)
+  defaultEnabled Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenantAccess   TenantFeatureAccess[]
+
+  @@index([isActive])
+  @@index([isCore])
+}
+
+model TenantFeatureAccess {
+  id         String         @id @default(uuid())
+  featureId  String
+  businessId String
+  enabled    Boolean        @default(true)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  feature    PlatformFeature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  business   Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([featureId, businessId])
+  @@index([businessId])
+  @@index([featureId, enabled])
 }
 
 model RefreshToken {
