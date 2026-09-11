@@ -219,50 +219,6 @@ export async function refreshBadges() {
   } catch { return null; }
 }
 
-/* ------------------------------------------------------------ router */
-const routes = {
-  '/': () => import('./pages/dashboard.js'),
-  '/analytics': () => import('./pages/analytics.js'),
-  '/products': () => import('./pages/products.js'),
-  '/categories': () => import('./pages/categories.js'),
-  '/inventory': () => import('./pages/inventory.js'),
-  '/bookings': () => import('./pages/bookings.js'),
-  '/calendar': () => import('./pages/calendar.js'),
-  '/dispatch': () => import('./pages/dispatch.js'),
-  '/services': () => import('./pages/services.js'),
-  '/equipment': () => import('./pages/equipment.js'),
-  '/service-history': () => import('./pages/service-history.js'),
-  '/recurring-maintenance': () => import('./pages/recurring-maintenance.js'),
-  '/estimates': () => import('./pages/estimates.js'),
-  '/invoices': () => import('./pages/invoices.js'),
-  '/orders': () => import('./pages/orders.js'),
-  '/pos': () => import('./pages/pos.js'),
-  '/customers': () => import('./pages/customers.js'),
-  '/messages': () => import('./pages/messages.js'),
-  '/settings': () => import('./pages/settings.js'),
-  '/users': () => import('./pages/users.js'),
-  '/audit': () => import('./pages/audit.js'),
-  '/saas': () => import('./pages/saas.js'),
-  '/platform': () => import('./pages/superadmin.js'),
-  '/platform-analytics': () => import('./pages/platform-analytics.js'),
-  '/billing': () => import('./pages/billing.js'),
-  '/system-health': () => import('./pages/system-health.js'),
-  '/subscription': () => import('./pages/subscription.js'),
-  '/profile': () => import('./pages/profile.js'),
-  '/content': () => import('./pages/content.js'),
-  '/media': () => import('./pages/media.js'),
-  // Supplier Marketplace — dedicated top-level section
-  '/supplier-marketplace': () => import('./pages/supplier-marketplace.js'),
-  '/suppliers': () => import('./pages/suppliers.js'),
-  '/supplier-integrations': () => import('./pages/supplier-integrations.js'),
-  '/supplier-imports': () => import('./pages/supplier-imports.js'),
-  '/supplier-products': () => import('./pages/supplier-products.js'),
-  '/supplier-fulfillment': () => import('./pages/supplier-fulfillment.js'),
-  '/supplier-shipping': () => import('./pages/supplier-shipping.js'),
-  '/supplier-sync': () => import('./pages/supplier-sync.js'),
-  '/supplier-logs': () => import('./pages/supplier-logs.js'),
-  '/supplier-settings': () => import('./pages/supplier-settings.js'),
-};
 
 function parseHash() {
   const raw = location.hash.slice(1) || '/';
