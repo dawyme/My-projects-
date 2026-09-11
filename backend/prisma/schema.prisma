@@ -125,7 +125,6 @@ model Plan {
   updatedAt   DateTime       @updatedAt
   subscriptions Subscription[]
   subscriptionPayments SubscriptionPayment[]
-  featureAccesses    TenantFeatureAccess[]
 
   @@index([isActive])
 }
