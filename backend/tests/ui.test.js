@@ -14,7 +14,10 @@ const app = require('../src/app');
 const prisma = require('../src/lib/prisma');
 
 const ADMIN_DIR = path.join(__dirname, '..', '..', 'admin');
+const TENANT_INDEX_FILE = path.join(__dirname, '..', '..', 'tenant', 'index.html');
 const ROLE_AUTH_FILE = path.join(__dirname, '..', '..', 'role-auth.js');
+const TENANT_INDEX_SOURCE = fs.readFileSync(TENANT_INDEX_FILE, 'utf8');
+assert.match(TENANT_INDEX_SOURCE, /<div id=\"app\"><\/div>/, 'tenant dashboard must provide the app mount root');
 const ADMIN_LAYOUT_FILE = path.join(ADMIN_DIR, 'js', 'layout.js');
 const ADMIN_LAYOUT_SOURCE = fs.readFileSync(ADMIN_LAYOUT_FILE, 'utf8');
 assert.match(ADMIN_LAYOUT_SOURCE, /export async function boot\s*\(/, 'admin layout must export boot()');
