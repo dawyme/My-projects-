@@ -153,7 +153,7 @@ app.use('/admin', express.static(path.join(ROOT, 'admin'), { etag: true }));
 // ---------------------------------------------------------------- api
 app.use('/api', apiLimiter);
 app.use('/api', verifyCsrf);
-app.use(['/api/products', '/api/bookings', '/api/customers', '/api/messages', '/api/inventory', '/api/orders', '/api/users', '/api/settings', '/api/categories', '/api/services', '/api/content', '/api/site-content', '/api/media', '/api/service-requests', '/api/work-orders', '/api/business', '/api/pos'], writeLimiter);
+app.use(['/api/products', '/api/bookings', '/api/customers', '/api/messages', '/api/inventory', '/api/orders', '/api/users', '/api/settings', '/api/categories', '/api/services', '/api/content', '/api/site-content', '/api/media', '/api/service-requests', '/api/work-orders', '/api/business', '/api/pos', '/api/saas', '/api/features'], writeLimiter);
 // Supplier Marketplace writes are bursty by nature (imports, bulk publish,
 // sync triggers) and get their own budget.
 app.use([
@@ -183,6 +183,8 @@ app.use('/api/tenant', require('./routes/tenant'));
 app.use('/api/technician-portal', require('./routes/technician-portal'));
 app.use('/api/customer-portal', require('./routes/customer-portal'));
 app.use('/api/saas', require('./routes/saas'));
+app.use('/api/features', require('./routes/features'));
+app.use('/api/features', require('./routes/feature-access'));
 app.use('/api/audit-logs', require('./routes/audit'));
 app.use('/api/public', require('./routes/public'));
 app.use('/api/public', require('./routes/public-content'));
