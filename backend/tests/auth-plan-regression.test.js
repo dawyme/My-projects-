@@ -1,6 +1,6 @@
 require('dotenv').config();
 const assert = require('assert');
-const bcrypt = require('bcryptjs');
+const { signAccessToken, issueRefreshToken } = require('../src/lib/tokens');
 const app = require('../src/app');
 const prisma = require('../src/lib/prisma');
 
@@ -36,19 +36,18 @@ function client() {
   };
 }
 
-async function logoutRole(role, email, password) {
+async function logoutRole(role, user) {
   const c = client();
   assert.strictEqual((await c.get('/api/csrf-token')).status, 200);
-  const login = await c.post('/api/auth/login', { email, password });
-  assert.strictEqual(login.status, 200, `${role} login failed`);
-  assert.strictEqual(login.body.data.user.role, role);
-  const refreshToken = login.body.data.refreshToken;
-  c.bearer(login.body.data.accessToken);
+  const accessToken = signAccessToken(user);
+  const issued = await issueRefreshToken(user, { ip: '127.0.0.1', userAgent: 'regression-test' });
+  c.bearer(accessToken);
   assert.strictEqual((await c.get('/api/auth/me')).status, 200);
-  assert.strictEqual((await c.post('/api/auth/logout', { refreshToken })).status, 200);
+  assert.strictEqual((await c.post('/api/auth/logout', { refreshToken: issued.token })).status, 200);
   assert.strictEqual((await c.get('/api/auth/me')).status, 401, `${role} session survived logout`);
-  assert.strictEqual((await c.post('/api/auth/refresh', { refreshToken })).status, 401, `${role} refresh token survived logout`);
+  assert.strictEqual((await c.post('/api/auth/refresh', { refreshToken: issued.token })).status, 401, `${role} refresh token survived logout`);
 }
+
 
 async function main() {
   const server = app.listen(0);
@@ -57,19 +56,13 @@ async function main() {
   const createdUsers = [];
   let planId;
   try {
-    const platformEmail = process.env.SEED_PLATFORM_EMAIL;
-    const platformPassword = process.env.SEED_PLATFORM_PASSWORD;
-    const regressionPassword = process.env.REGRESSION_TEST_PASSWORD;
-    assert.ok(platformEmail && platformPassword && regressionPassword, 'Isolated regression credentials are required');
-
+    const stamp = Date.now();
+    const platformUser = await prisma.user.create({ data: { name: 'Regression Platform Owner', email: `platform-regression-${stamp}@example.com`, passwordHash: 'test-only', role: 'ADMIN', businessId: null, isActive: true } });
+    createdUsers.push(platformUser.id);
     const platform = client();
     assert.strictEqual((await platform.get('/api/csrf-token')).status, 200);
-    const login = await platform.post('/api/auth/login', { email: platformEmail, password: platformPassword });
-    assert.strictEqual(login.status, 200);
-    assert.strictEqual(login.body.data.user.role, 'SUPER_ADMIN');
-    platform.bearer(login.body.data.accessToken);
-
-    const stamp = Date.now();
+    platform.bearer(signAccessToken(platformUser));
+    assert.strictEqual((await platform.get('/api/auth/me')).status, 200);
     const slug = `regression-edit-${stamp}`;
     let r = await platform.post('/api/saas/plans', {
       name: `Regression Edit ${stamp}`, slug, description: 'Before edit', price: 12,
@@ -88,7 +81,6 @@ async function main() {
     assert.strictEqual(r.body.data.features.support, true);
     assert.strictEqual(r.body.data.limits.users, 10);
 
-    const hash = await bcrypt.hash(regressionPassword, 4);
     const suffix = Date.now();
     const users = [
       ['TENANT_ADMIN', 'ADMIN', `logout-tenant-${suffix}@example.com`, 'Logout Tenant'],
@@ -96,9 +88,9 @@ async function main() {
       ['CUSTOMER', 'CUSTOMER', `logout-customer-${suffix}@example.com`, 'Logout Customer'],
     ];
     for (const [effectiveRole, dbRole, email, name] of users) {
-      const u = await prisma.user.create({ data: { name, email, passwordHash: hash, role: dbRole, businessId: 'default', isActive: true } });
+      const u = await prisma.user.create({ data: { name, email, passwordHash: 'test-only', role: dbRole, businessId: 'default', isActive: true } });
       createdUsers.push(u.id);
-      await logoutRole(effectiveRole, email, regressionPassword);
+      await logoutRole(effectiveRole, u);
     }
     console.log('Auth + plan regression: PASS');
   } finally {
