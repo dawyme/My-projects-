@@ -176,6 +176,13 @@ const routes = {
   '/supplier-marketplace': () => import('./pages/supplier-marketplace.js'),
   '/suppliers': () => import('./pages/suppliers.js'),
   '/supplier-integrations': () => import('./pages/supplier-integrations.js'),
+  '/supplier-imports': () => import('./pages/supplier-imports.js'),
+  '/supplier-products': () => import('./pages/supplier-products.js'),
+  '/supplier-fulfillment': () => import('./pages/supplier-fulfillment.js'),
+  '/supplier-shipping': () => import('./pages/supplier-shipping.js'),
+  '/supplier-sync': () => import('./pages/supplier-sync.js'),
+  '/supplier-logs': () => import('./pages/supplier-logs.js'),
+  '/supplier-settings': () => import('./pages/supplier-settings.js'),
 };
 
 export function setTitle(title) {
