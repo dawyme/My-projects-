@@ -43,7 +43,7 @@ router.post('/plans', validate(planSchema), asyncHandler(async(req,res)=>{
 }));
 
 router.get('/businesses', asyncHandler(async(req,res)=>{
-  const rows=await prisma.business.findMany({orderBy:{createdAt:'asc'},include:{subscription:{include:{plan:true}},_count:{select:{users:true,customers:true,products:true,bookings:true,orders:true}}}});
+  const rows=await prisma.business.findMany({where:{isDefault:false,status:{not:'DELETED'}},orderBy:{createdAt:'asc'},include:{subscription:{include:{plan:true}},_count:{select:{users:true,customers:true,products:true,bookings:true,orders:true}}}});
   res.json({success:true,data:rows.map(publicBusiness)});
 }));
 
@@ -55,7 +55,7 @@ router.post('/businesses', validate(businessSchema), asyncHandler(async(req,res)
   const email=admin.email.toLowerCase(); if(await prisma.user.findUnique({where:{email}})) throw conflict('A user with that email already exists');
   const hash=await bcrypt.hash(admin.password,12);
   const business=await prisma.$transaction(async(tx)=>{
-    const b=await tx.business.create({data:{...payload,slug,users:{create:{name:admin.name,email,passwordHash:hash,role:'ADMIN'}}}});
+    const b=await tx.business.create({data:{...payload,slug,isDefault:false,users:{create:{name:admin.name,email,passwordHash:hash,role:'ADMIN'}}}});
     await tx.subscription.create({data:{businessId:b.id,planId:plan.id,status:'TRIAL',trialEndsAt:new Date(Date.now()+14*86400000)}});
     return tx.business.findUnique({where:{id:b.id},include:{subscription:{include:{plan:true}},_count:{select:{users:true,customers:true,products:true,bookings:true,orders:true}}}});
   });
@@ -69,6 +69,23 @@ router.patch('/businesses/:id/subscription', validate(subscriptionSchema), async
   if(req.body.status==='SUSPENDED') await prisma.business.update({where:{id:business.id},data:{status:'SUSPENDED'}});
   if(req.body.status==='ACTIVE' || req.body.status==='TRIAL') await prisma.business.update({where:{id:business.id},data:{status:'ACTIVE'}});
   await audit(req,'UPDATE','Subscription',subscription.id,{businessId:business.id,status:subscription.status,planId:subscription.planId}); res.json({success:true,data:subscription});
+}));
+
+
+// Remove a tenant from the platform roster without destroying its operational history.
+// The default N&D'S business is never removable.
+router.delete('/businesses/:id', asyncHandler(async(req,res)=>{
+  const business=await prisma.business.findUnique({where:{id:req.params.id},include:{subscription:true}});
+  if(!business) throw notFound('Business not found');
+  if(business.isDefault) throw badRequest('The N&D’S platform business cannot be removed');
+  if(business.status==='DELETED') return res.json({success:true,data:{id:business.id,status:'DELETED'}});
+  const result=await prisma.$transaction(async(tx)=>{
+    await tx.business.update({where:{id:business.id},data:{status:'DELETED'}});
+    if(business.subscription) await tx.subscription.update({where:{businessId:business.id},data:{status:'CANCELLED',cancelAtPeriodEnd:false}});
+    return {id:business.id,status:'DELETED'};
+  });
+  await audit(req,'DELETE','Business',business.id,{softDelete:true});
+  res.json({success:true,data:result});
 }));
 
 module.exports=router;
