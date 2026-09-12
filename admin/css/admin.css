@@ -68,7 +68,7 @@ img{max-width:100%;display:block}
 .nav-group__label{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:inherit}
 .nav-group__chevron{font-size:16px;line-height:1;transition:transform .16s ease}
 .nav-group__toggle[aria-expanded="true"] .nav-group__chevron{transform:rotate(180deg)}
-.nav-group__items{display:block}
+.nav-group__items{display:block;padding-left:8px}
 .nav-group__items[hidden]{display:none}
 .nav-link{
   display:flex;align-items:center;gap:11px;padding:9.5px 12px;border-radius:9px;color:var(--sidebar-text);

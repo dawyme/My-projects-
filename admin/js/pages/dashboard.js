@@ -62,6 +62,11 @@ export async function render(view, query) {
           <div class="card__actions"><a class="btn btn--ghost btn--sm" href="#/bookings">All bookings</a></div></div>
         <div class="card__body card__body--flush"><div id="upcoming"></div></div>
       </section>
+      <section class="card span-2">
+        <div class="card__head"><h2>Recurring appointments</h2>
+          <div class="card__actions"><a class="btn btn--ghost btn--sm" href="#/recurring-maintenance">Manage recurring maintenance</a></div></div>
+        <div class="card__body card__body--flush"><div id="recurringAppointments"></div></div>
+      </section>
       <section class="card">
         <div class="card__head"><h2>Recent activity</h2></div>
         <div class="card__body"><div id="activity"></div></div>
@@ -80,6 +85,7 @@ export async function render(view, query) {
       renderStatusChart(statsRes.data);
       renderActivity(activityRes.data);
       renderUpcoming(upcomingRes.data);
+      renderRecurring(upcomingRes.recurring || upcomingRes.data?.recurring || []);
       renderLowStock(lowStockRes.data);
     } catch (e) { toastError(e); }
   };
@@ -160,6 +166,20 @@ export async function render(view, query) {
         <td>${esc(b.service?.name || 'General service')}</td>
         <td><div>${esc(dateTime(b.scheduledAt))}</div><div class="cell-sub">${esc(relative(b.scheduledAt))}</div></td>
         <td>${statusBadge(b.status)}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+
+  function renderRecurring(items) {
+    const host = view.querySelector('#recurringAppointments');
+    if (!items.length) return void (host.innerHTML = emptyState('No recurring appointments', 'Scheduled recurring maintenance appointments will appear here.'));
+    host.innerHTML = `<div class="table-wrap"><table class="data"><caption class="sr-only">Recurring appointments</caption>
+      <thead><tr><th scope="col">Customer</th><th scope="col">Service</th><th scope="col">When</th><th scope="col">Status</th></tr></thead>
+      <tbody>${items.map((b) => `<tr>
+        <td><div class="cell-flex"><span class="avatar">${esc(initials(b.customer?.name))}</span>
+          <div><div class="cell-main">${esc(b.customer?.name || '—')}</div>
+          <div class="cell-sub">${esc(b.technician?.name || 'Unassigned')}</div></div></div></td>
+        <td>${esc(b.service?.name || 'General service')}</td>
+        <td><div>${esc(dateTime(b.scheduledAt))}</div><div class="cell-sub">${esc(relative(b.scheduledAt))}</div></td>
+        <td>${statusBadge(b.status, 'Recurring')}</td></tr>`).join('')}</tbody></table></div>`;
   }
 
   function renderLowStock(items) {
