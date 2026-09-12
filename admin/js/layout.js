@@ -151,9 +151,9 @@ export function renderShell(user) {
 
   const sidebar = qs('#sidebar');
   const backdrop = qs('#backdrop');
-  const closeNav = () => { sidebar.classList.remove('open'); backdrop.classList.remove('show'); qs('#menuToggle').setAttribute('aria-expanded', 'false'); };
+  const closeNav = () => { sidebar.classList.remove('is-open'); backdrop.classList.remove('show'); qs('#menuToggle').setAttribute('aria-expanded', 'false'); };
   qs('#menuToggle').onclick = () => {
-    const open = sidebar.classList.toggle('open');
+    const open = sidebar.classList.toggle('is-open');
     backdrop.classList.toggle('show', open);
     qs('#menuToggle').setAttribute('aria-expanded', String(open));
   };
