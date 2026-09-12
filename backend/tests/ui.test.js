@@ -485,24 +485,28 @@ async function main() {
   const tenantEmail = (process.env.SEED_ADMIN_EMAIL || 'admin@ndsairconditioning.com').toLowerCase();
   const tenantPassword = process.env.SEED_ADMIN_PASSWORD || 'Admin@12345';
   let tenantSession = null;
-  let tenantLoginDebug = '';
   try {
+    // Login is a cookie-authenticated mutation (no bearer token exists yet),
+    // so it's subject to the double-submit CSRF check — fetch a token first,
+    // the same way the SPA's own api.js does via ensureCsrf().
+    const csrfRes = await fetch(`${base}/api/csrf-token`);
+    const csrfSetCookie = (csrfRes.headers.getSetCookie?.() || []).find((c) => c.startsWith('hvac_csrf='));
+    const csrfValue = csrfSetCookie ? decodeURIComponent(csrfSetCookie.split(';')[0].split('=')[1]) : null;
     const tenantLogin = await fetch(`${base}/api/auth/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(csrfValue ? { 'x-csrf-token': csrfValue, Cookie: `hvac_csrf=${csrfValue}` } : {}),
+      },
       body: JSON.stringify({ email: tenantEmail, password: tenantPassword }),
     });
     const tenantJson = await tenantLogin.json();
     tenantSession = tenantJson?.data || null;
-    if (!tenantSession?.accessToken) {
-      tenantLoginDebug = `status=${tenantLogin.status} body=${JSON.stringify(tenantJson).slice(0, 300)}`;
-    }
-  } catch (err) {
+  } catch (_) {
     tenantSession = null;
-    tenantLoginDebug = `threw: ${err && err.message}`;
   }
   record(!!tenantSession?.accessToken && !!tenantSession?.user?.businessId,
-    'Tenant admin session is available for tenant-scoped Content Manager', tenantLoginDebug);
+    'Tenant admin session is available for tenant-scoped Content Manager');
 
   if (tenantSession?.accessToken) {
     w.localStorage.setItem('nds.auth', JSON.stringify(tenantSession));
