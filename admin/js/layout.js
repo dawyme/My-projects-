@@ -135,9 +135,8 @@ function bindShell() {
   const userMenuTrigger = qs('#userMenuTrigger');
   const dropdown = qs('#userMenuDropdown');
   userMenuTrigger?.addEventListener('click', () => { const open = !dropdown.hidden; dropdown.hidden = open; userMenuTrigger.setAttribute('aria-expanded', String(!open)); });
-  const logout = async () => {
-    try { await api.post('/auth/logout', {}); } catch (_) {}
-    auth.clear(); window.location.href = '/login.html';
+  const logout = () => {
+    void auth.logout();
   };
   qs('#logoutBtn')?.addEventListener('click', logout);
   qs('#logoutMenuBtn')?.addEventListener('click', logout);
@@ -195,19 +194,21 @@ export function setTitle(title) {
 }
 
 export function highlightNav(path) {
+  const links = [...document.querySelectorAll('.nav-link[data-path]')];
+  const active = links.find((link) => link.dataset.path === path) || null;
+  const activeGroup = active?.closest('.nav-group') || null;
+  links.forEach((link) => {
+    if (link === active) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  });
   document.querySelectorAll('.nav-group').forEach((group) => {
-    const active = group.querySelector(`.nav-link[data-path="${path}"]`);
     const toggle = group.querySelector('.nav-group__toggle');
     const items = group.querySelector('.nav-group__items');
-    const isActiveGroup = !!active;
+    const isActiveGroup = group === activeGroup;
     if (toggle && items) {
       toggle.setAttribute('aria-expanded', String(isActiveGroup));
       items.hidden = !isActiveGroup;
     }
-    group.querySelectorAll('.nav-link').forEach((link) => {
-      if (link.dataset.path === path) link.setAttribute('aria-current', 'page');
-      else link.removeAttribute('aria-current');
-    });
   });
 }
 

@@ -183,6 +183,7 @@ app.use('/api/tenant', require('./routes/tenant'));
 app.use('/api/technician-portal', require('./routes/technician-portal'));
 app.use('/api/customer-portal', require('./routes/customer-portal'));
 app.use('/api/saas', require('./routes/saas'));
+app.use('/api/saas/features', require('./routes/features'));
 app.use('/api/features', require('./routes/features'));
 app.use('/api/features', require('./routes/feature-access'));
 app.use('/api/audit-logs', require('./routes/audit'));

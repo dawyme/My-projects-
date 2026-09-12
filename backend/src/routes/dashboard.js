@@ -89,12 +89,32 @@ router.get('/activity', protect, asyncHandler(async (req, res) => {
 
 // GET /api/dashboard/upcoming
 router.get('/upcoming', protect, asyncHandler(async (req, res) => {
+  const now = new Date();
   const bookings = await prisma.booking.findMany({
-    where: { ...tenantWhere(req), scheduledAt: { gte: new Date() }, status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] } },
+    where: { ...tenantWhere(req), scheduledAt: { gte: now }, status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] } },
     orderBy: { scheduledAt: 'asc' }, take: 8,
     include: { customer: { select: { name: true, phone: true } }, service: { select: { name: true } }, technician: { select: { name: true } } },
   });
-  res.json({ success: true, data: bookings });
+  const recurringOccurrences = await prisma.recurringMaintenanceOccurrence.findMany({
+    where: { businessId: req.tenantId, scheduledAt: { gte: now }, status: 'SCHEDULED' },
+    orderBy: { scheduledAt: 'asc' }, take: 8,
+    include: {
+      booking: {
+        include: {
+          customer: { select: { name: true, phone: true } },
+          service: { select: { name: true } },
+          technician: { select: { name: true } },
+        },
+      },
+    },
+  });
+  const recurringBookings = recurringOccurrences.map((occurrence) => ({
+    ...occurrence.booking,
+    recurring: true,
+    recurringOccurrenceId: occurrence.id,
+    recurringSeriesId: occurrence.seriesId,
+  }));
+  res.json({ success: true, data: bookings, recurring: recurringBookings });
 }));
 
 // GET /api/dashboard/low-stock
