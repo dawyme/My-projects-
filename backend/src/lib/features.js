@@ -21,6 +21,7 @@ function resolveFeatureAccess({ role, feature, access }) {
 }
 
 async function featureForKey(key) {
+  await ensurePlatformFeatures();
   return prisma.platformFeature.findUnique({ where: { key: normalizeFeatureKey(key) } });
 }
 

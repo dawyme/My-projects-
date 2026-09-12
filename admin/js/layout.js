@@ -16,6 +16,7 @@ const NAV = [
   { group: 'Operations', items: [
     { path: '/bookings', label: 'Service Bookings', icon: 'calendar', badge: 'pending' , feature: 'service-bookings' },
     { path: '/calendar', label: 'Calendar', icon: 'clock' , feature: 'calendar' },
+    { path: '/recurring-maintenance', label: 'Recurring Maintenance', icon: 'refresh', feature: 'recurring-maintenance' },
     { path: '/dispatch', label: 'Dispatch Board', icon: 'truck' , feature: 'dispatch' },
     { path: '/services', label: 'Services', icon: 'wrench' , feature: 'services' },
     { path: '/equipment', label: 'Equipment', icon: 'settings' , feature: 'equipment' },
@@ -120,9 +121,9 @@ export function renderShell(user) {
         </div>
         <button class="icon-btn" id="themeToggle" type="button"></button>
         <a class="icon-btn" href="#/messages" id="bellBtn" aria-label="Contact messages">${icon('bell')}<span class="icon-btn__dot" hidden></span></a>
-        <div class="usermenu">
-          <button class="usermenu__btn" id="userBtn" aria-haspopup="menu" aria-expanded="false">
-            <span class="avatar">${esc(initials(user.name))}</span>
+        <div class="usermenu user-menu">
+          <button class="usermenu__btn" id="userBtn" aria-label="Open user menu" data-user-menu-trigger="userMenuTrigger" aria-haspopup="menu" aria-expanded="false">
+            <span class="avatar" id="userMenuTrigger">${esc(initials(user.name))}</span>
             <span><span class="usermenu__name">${esc(user.name)}</span><br><span class="usermenu__role">${esc(user.role)}</span></span>
           </button>
           <div class="dropdown" id="userMenu" role="menu">
@@ -204,6 +205,10 @@ export function setTitle(title) {
 export function highlightNav(path) {
   document.querySelectorAll('.nav-group').forEach((group) => {
     const active = group.querySelector(`.nav-link[data-path="${path}"]`);
+    document.querySelectorAll('.nav-link[data-path]').forEach((link) => {
+      if (link.dataset.path === path) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    });
     const toggle = group.querySelector('.nav-group__toggle');
     const items = group.querySelector('.nav-group__items');
     const isActiveGroup = !!active;
@@ -211,10 +216,6 @@ export function highlightNav(path) {
       toggle.setAttribute('aria-expanded', String(isActiveGroup));
       items.hidden = !isActiveGroup;
     }
-    group.querySelectorAll('.nav-link').forEach((link) => {
-      if (link.dataset.path === path) link.setAttribute('aria-current', 'page');
-      else link.removeAttribute('aria-current');
-    });
   });
 }
 
