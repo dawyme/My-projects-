@@ -482,21 +482,19 @@ async function main() {
   // Website Content Manager is tenant-scoped. The platform owner intentionally has
   // no businessId, so switch the SPA session to the seeded tenant admin for this
   // tenant-content verification, then restore the platform-owner session below.
-  const tenantEmail = process.env.SEED_ADMIN_EMAIL?.toLowerCase();
-  const tenantPassword = process.env.SEED_ADMIN_PASSWORD;
+  const tenantEmail = (process.env.SEED_ADMIN_EMAIL || 'admin@ndsairconditioning.com').toLowerCase();
+  const tenantPassword = process.env.SEED_ADMIN_PASSWORD || 'Admin@12345';
   let tenantSession = null;
-  if (tenantEmail && tenantPassword) {
-    try {
-      const tenantLogin = await fetch(`${base}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: tenantEmail, password: tenantPassword }),
-      });
-      const tenantJson = await tenantLogin.json();
-      tenantSession = tenantJson?.data || null;
-    } catch (_) {
-      tenantSession = null;
-    }
+  try {
+    const tenantLogin = await fetch(`${base}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: tenantEmail, password: tenantPassword }),
+    });
+    const tenantJson = await tenantLogin.json();
+    tenantSession = tenantJson?.data || null;
+  } catch (_) {
+    tenantSession = null;
   }
   record(!!tenantSession?.accessToken && !!tenantSession?.user?.businessId,
     'Tenant admin session is available for tenant-scoped Content Manager');
