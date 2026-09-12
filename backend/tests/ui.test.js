@@ -364,10 +364,10 @@ async function main() {
   if (menuToggle && backdrop && sidebar) {
     menuToggle.click();
     await wait(50);
-    record(sidebar.classList.contains('open'), 'Mobile menu opens the sidebar');
+    record(sidebar.classList.contains('is-open'), 'Mobile menu opens the sidebar');
     backdrop.click();
     await wait(50);
-    record(!sidebar.classList.contains('open'), 'Mobile menu closes via the backdrop');
+    record(!sidebar.classList.contains('is-open'), 'Mobile menu closes via the backdrop');
   }
 
   // ---------- every route
