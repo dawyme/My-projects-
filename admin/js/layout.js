@@ -4,61 +4,59 @@ import { el, qs, icon, esc, initials, setCurrency, toast, toastError } from './u
 
 const NAV = [
   { group: 'Overview', items: [
-    { path: '/', label: 'Dashboard', icon: 'dashboard' },
+    { path: '/', label: 'Dashboard', icon: 'dashboard' , feature: 'dashboard' }
     { path: '/analytics', label: 'Analytics', icon: 'chart', platformOnly: true },
-    { path: '/analytics', label: 'Reports', icon: 'chart', tenantOnly: true },
+    { path: '/analytics', label: 'Reports', icon: 'chart', tenantOnly: true , feature: 'reports' }
   ] },
   { group: 'Catalogue', items: [
-    { path: '/products', label: 'Products', icon: 'box' },
-    { path: '/categories', label: 'Categories', icon: 'tag' },
-    { path: '/inventory', label: 'Inventory', icon: 'layers', badge: 'lowStock' },
+    { path: '/products', label: 'Products', icon: 'box' , feature: 'products' }
+    { path: '/categories', label: 'Categories', icon: 'tag' , feature: 'categories' }
+    { path: '/inventory', label: 'Inventory', icon: 'layers', badge: 'lowStock' , feature: 'inventory' }
   ] },
   { group: 'Operations', items: [
-    { path: '/bookings', label: 'Service Bookings', icon: 'calendar', badge: 'pending' },
-    { path: '/calendar', label: 'Calendar', icon: 'clock' },
-    { path: '/dispatch', label: 'Dispatch Board', icon: 'truck' },
-    { path: '/services', label: 'Services', icon: 'wrench' },
-    { path: '/equipment', label: 'Equipment', icon: 'settings' },
-    { path: '/service-history', label: 'Service History', icon: 'history' },
-    { path: '/recurring-maintenance', label: 'Recurring Maintenance', icon: 'calendar', feature: 'recurring-maintenance' },
-    { path: '/estimates', label: 'Estimates', icon: 'file' },
-    { path: '/invoices', label: 'Invoices', icon: 'file' },
-    { path: '/orders', label: 'Orders', icon: 'file' },
-    { path: '/pos', label: 'Point of Sale', icon: 'cart' },
+    { path: '/bookings', label: 'Service Bookings', icon: 'calendar', badge: 'pending' , feature: 'service-bookings' }
+    { path: '/calendar', label: 'Calendar', icon: 'clock' , feature: 'calendar' }
+    { path: '/dispatch', label: 'Dispatch Board', icon: 'truck' , feature: 'dispatch' }
+    { path: '/services', label: 'Services', icon: 'wrench' , feature: 'services' }
+    { path: '/equipment', label: 'Equipment', icon: 'settings' , feature: 'equipment' }
+    { path: '/service-history', label: 'Service History', icon: 'history' , feature: 'service-history' }
+    { path: '/estimates', label: 'Estimates', icon: 'file' , feature: 'estimates' }
+    { path: '/invoices', label: 'Invoices', icon: 'file' , feature: 'invoices' }
+    { path: '/orders', label: 'Orders', icon: 'file' , feature: 'orders' }
+    { path: '/pos', label: 'Point of Sale', icon: 'cart' , feature: 'point-of-sale' }
   ] },
   { group: 'People', items: [
-    { path: '/customers', label: 'Customers', icon: 'users' },
-    { path: '/messages', label: 'Messages', icon: 'mail', badge: 'unread' },
+    { path: '/customers', label: 'Customers', icon: 'users' , feature: 'customers' }
+    { path: '/messages', label: 'Messages', icon: 'mail', badge: 'unread' , feature: 'messages' }
   ] },
   { group: 'Supplier Marketplace', items: [
-    { path: '/supplier-marketplace', label: 'Marketplace Dashboard', icon: 'dashboard' },
-    { path: '/suppliers', label: 'Suppliers', icon: 'warehouse' },
-    { path: '/supplier-integrations', label: 'Integrations / Plugins', icon: 'plug' },
-    { path: '/supplier-imports', label: 'Import Products', icon: 'upload' },
-    { path: '/supplier-products', label: 'Supplier Products', icon: 'box' },
-    { path: '/supplier-fulfillment', label: 'Fulfillment', icon: 'truck' },
-    { path: '/supplier-shipping', label: 'Shipping', icon: 'globe' },
-    { path: '/supplier-sync', label: 'Sync & Automation', icon: 'refresh' },
-    { path: '/supplier-logs', label: 'Sync Logs', icon: 'history' },
-    { path: '/supplier-settings', label: 'Marketplace Settings', icon: 'settings' },
+    { path: '/supplier-marketplace', label: 'Marketplace Dashboard', icon: 'dashboard' , feature: 'supplier-marketplace' }
+    { path: '/suppliers', label: 'Suppliers', icon: 'warehouse' , feature: 'suppliers' }
+    { path: '/supplier-integrations', label: 'Integrations / Plugins', icon: 'plug' , feature: 'supplier-integrations' }
+    { path: '/supplier-imports', label: 'Import Products', icon: 'upload' , feature: 'supplier-imports' }
+    { path: '/supplier-products', label: 'Supplier Products', icon: 'box' , feature: 'supplier-products' }
+    { path: '/supplier-fulfillment', label: 'Fulfillment', icon: 'truck' , feature: 'supplier-fulfillment' }
+    { path: '/supplier-shipping', label: 'Shipping', icon: 'globe' , feature: 'supplier-shipping' }
+    { path: '/supplier-sync', label: 'Sync & Automation', icon: 'refresh' , feature: 'supplier-sync' }
+    { path: '/supplier-logs', label: 'Sync Logs', icon: 'history' , feature: 'supplier-logs' }
+    { path: '/supplier-settings', label: 'Marketplace Settings', icon: 'settings' , feature: 'supplier-settings' }
   ] },
   { group: 'Platform', items: [
     { path: '/platform', label: 'Platform Dashboard', icon: 'dashboard', platformOnly: true },
     { path: '/saas', label: 'Tenants & Plans', icon: 'briefcase', platformOnly: true },
-    { path: '/features', label: 'Feature Management', icon: 'settings', platformOnly: true },
     { path: '/platform-analytics', label: 'Platform Analytics', icon: 'chart', platformOnly: true },
     { path: '/billing', label: 'Billing & Subscriptions', icon: 'money', platformOnly: true },
     { path: '/system-health', label: 'System Health', icon: 'shield', platformOnly: true },
-    { path: '/subscription', label: 'Plans & Subscription', icon: 'briefcase', tenantOnly: true },
+    { path: '/subscription', label: 'Plans & Subscription', icon: 'briefcase', tenantOnly: true , feature: 'plans-subscription' }
   ] },
   { group: 'Administration', items: [
-    { path: '/settings', label: 'Settings', icon: 'settings' },
-    { path: '/users', label: 'Team', icon: 'user' },
+    { path: '/settings', label: 'Settings', icon: 'settings' , feature: 'settings' }
+    { path: '/users', label: 'Team', icon: 'user' , feature: 'team' }
     { path: '/audit', label: 'Audit Log', icon: 'shield', adminOnly: true },
   ] },
   { group: 'Website', items: [
-    { path: '/content', label: 'Website Content', icon: 'edit' },
-    { path: '/media', label: 'Media Library', icon: 'image' },
+    { path: '/content', label: 'Website Content', icon: 'edit' , feature: 'content-manager' }
+    { path: '/media', label: 'Media Library', icon: 'image' , feature: 'media-library' }
   ] },
 ];
 
@@ -85,8 +83,7 @@ function navMarkup(user) {
   return NAV.map((group) => {
     const isPlatform = user.role === 'SUPER_ADMIN' || (user.role === 'ADMIN' && !user.businessId);
     const isTenant = user.role === 'TENANT_ADMIN' || (user.role === 'ADMIN' && !!user.businessId);
-    const featureAccess = new Set((user.featureAccess || []).map((f) => f.key));
-    const items = group.items.filter((i) => (!i.feature || featureAccess.has(i.feature)) && (!i.adminOnly || user.role === 'ADMIN' || isPlatform) && (!i.platformOnly || isPlatform) && (!i.tenantOnly || isTenant));
+    const items = group.items.filter((i) => (!i.adminOnly || user.role === 'ADMIN' || isPlatform) && (!i.platformOnly || isPlatform) && (!i.tenantOnly || isTenant));
     if (!items.length) return '';
     const groupId = `nav-group-${NAV.indexOf(group)}`;
     return `<section class="nav-group">
@@ -95,97 +92,108 @@ function navMarkup(user) {
       </button>
       <div class="nav-group__items" id="${groupId}" hidden>
         ${items.map((i) => `<a class="nav-link" href="#${i.path}" data-path="${i.path}">
-          ${icon(i.icon)}<span>${esc(i.label)}</span>${i.badge ? `<span class="nav-link__badge" data-badge="${i.badge}" hidden>0</span>` : ''}</a>`).join('')}
+          ${icon(i.icon)}<span>${esc(i.label)}</span>
+          ${i.badge ? `<span class="nav-link__badge" data-badge="${i.badge}" hidden>0</span>` : ''}</a>`).join('')}
       </div>
     </section>`;
   }).join('');
 }
 
 export function renderShell(user) {
-  const root = qs('#app');
-  if (!root) return;
-  root.innerHTML = `<div class="app-shell">
+  const shell = el(`<div class="layout">
     <aside class="sidebar" id="sidebar" aria-label="Main navigation">
-      <div class="sidebar__brand"><a href="#/" aria-label="N&D'S Admin"><span class="brand-mark">N&D'S</span><span class="brand-text">HVAC · Refrigeration</span></a></div>
+      <div class="sidebar__brand">
+        <div class="sidebar__logo">${icon('wrench')}</div>
+        <div><div class="sidebar__title">N&D'S Admin</div><div class="sidebar__sub">HVAC &middot; Refrigeration</div></div>
+      </div>
       <nav class="sidebar__nav">${navMarkup(user)}</nav>
-      <div class="sidebar__footer"><a href="#/profile" class="nav-link">${icon('user')}<span>Profile</span></a><button class="nav-link nav-link--button" id="logoutBtn">${icon('logout')}<span>Sign out</span></button></div>
+      <div class="sidebar__footer"><span id="companyName">N&D'S Air Conditioning & Refrigeration Services</span> &middot; v1.0</div>
     </aside>
-    <main class="main"><header class="topbar"><button class="icon-btn menu-toggle" id="menuToggle" aria-label="Toggle navigation" aria-expanded="false">${icon('menu')}</button><div class="topbar__title"><h1 id="pageTitle">Dashboard</h1><p id="pageSubtitle"></p></div><div class="topbar__actions"><button class="icon-btn" id="themeToggle" aria-label="Toggle theme"></button><div class="user-menu"><button class="user-menu__trigger" id="userMenuTrigger" aria-expanded="false"><span class="avatar">${esc(initials(user.name))}</span><span class="user-menu__text"><strong>${esc(user.name)}</strong><small>${esc(user.role)}</small></span></button><div class="user-menu__dropdown" id="userMenuDropdown" hidden><a href="#/profile">Profile</a><button id="logoutMenuBtn">Sign out</button></div></div></div></header><div class="main__content" id="view"></div></main></div>`;
-  bindShell();
-  applyTheme();
-}
+    <div class="main">
+      <header class="topbar">
+        <button class="icon-btn menu-toggle" id="menuToggle" aria-label="Toggle navigation" aria-expanded="false">${icon('menu')}</button>
+        <span class="topbar__title" id="pageTitle">Dashboard</span>
+        <div class="topbar__search">
+          <label for="globalSearch" class="sr-only">Search products, bookings and customers</label>
+          ${icon('search')}
+          <input id="globalSearch" type="search" placeholder="Search products, bookings, customers…" autocomplete="off">
+        </div>
+        <button class="icon-btn" id="themeToggle" type="button"></button>
+        <a class="icon-btn" href="#/messages" id="bellBtn" aria-label="Contact messages">${icon('bell')}<span class="icon-btn__dot" hidden></span></a>
+        <div class="usermenu">
+          <button class="usermenu__btn" id="userBtn" aria-haspopup="menu" aria-expanded="false">
+            <span class="avatar">${esc(initials(user.name))}</span>
+            <span><span class="usermenu__name">${esc(user.name)}</span><br><span class="usermenu__role">${esc(user.role)}</span></span>
+          </button>
+          <div class="dropdown" id="userMenu" role="menu">
+            <a class="dropdown__item" href="#/profile" role="menuitem">${icon('user')} My profile</a>
+            <a class="dropdown__item" href="#/settings" role="menuitem">${icon('settings')} Settings</a>
+            <a class="dropdown__item" href="../index.html" target="_blank" rel="noopener" role="menuitem">${icon('eye')} View website</a>
+            <div class="dropdown__sep"></div>
+            <button class="dropdown__item" id="logoutBtn" role="menuitem">${icon('logout')} Sign out</button>
+          </div>
+        </div>
+      </header>
+      <main class="content" id="view" tabindex="-1"></main>
+    </div>
+    <div class="backdrop" id="backdrop"></div>
+  </div>`);
 
-function bindShell() {
+  document.body.prepend(el('<a class="skip-link" href="#view">Skip to main content</a>'));
+  document.body.appendChild(shell);
+  // Keep the theme control available even if a DOM parser drops the inline control.
+  if (!qs('#themeToggle')) {
+    const topbar = qs('.topbar');
+    if (topbar) topbar.appendChild(el('<button class="icon-btn" id="themeToggle" type="button"></button>'));
+  }
+  applyTheme();
+
   const sidebar = qs('#sidebar');
-  const toggleBtn = qs('#menuToggle');
-  const closeNav = () => { sidebar?.classList.remove('is-open'); toggleBtn?.setAttribute('aria-expanded', 'false'); };
-  toggleBtn?.addEventListener('click', () => { const open = sidebar.classList.toggle('is-open'); toggleBtn.setAttribute('aria-expanded', String(open)); });
-  sidebar?.addEventListener('click', (e) => {
+  const backdrop = qs('#backdrop');
+  const closeNav = () => { sidebar.classList.remove('open'); backdrop.classList.remove('show'); qs('#menuToggle').setAttribute('aria-expanded', 'false'); };
+  qs('#menuToggle').onclick = () => {
+    const open = sidebar.classList.toggle('open');
+    backdrop.classList.toggle('show', open);
+    qs('#menuToggle').setAttribute('aria-expanded', String(open));
+  };
+  backdrop.onclick = closeNav;
+  sidebar.addEventListener('click', (e) => {
     const toggle = e.target.closest('.nav-group__toggle');
     if (toggle) {
       const group = toggle.closest('.nav-group');
       const items = group?.querySelector('.nav-group__items');
-      const expanded = toggle.getAttribute('aria-expanded') === 'true';
-      toggle.setAttribute('aria-expanded', String(!expanded));
-      if (items) items.hidden = expanded;
+      if (!items) return;
+      const open = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!open));
+      items.hidden = open;
+      return;
     }
     if (e.target.closest('.nav-link') && innerWidth <= 1024) closeNav();
   });
-  qs('#themeToggle')?.addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
-  const userMenuTrigger = qs('#userMenuTrigger');
-  const dropdown = qs('#userMenuDropdown');
-  userMenuTrigger?.addEventListener('click', () => { const open = !dropdown.hidden; dropdown.hidden = open; userMenuTrigger.setAttribute('aria-expanded', String(!open)); });
-  const logout = () => {
-    void auth.logout();
-  };
-  qs('#logoutBtn')?.addEventListener('click', logout);
-  qs('#logoutMenuBtn')?.addEventListener('click', logout);
-}
 
-/* ------------------------------------------------------------ router */
-const routes = {
-  '/': () => import('./pages/dashboard.js'),
-  '/analytics': () => import('./pages/analytics.js'),
-  '/products': () => import('./pages/products.js'),
-  '/categories': () => import('./pages/categories.js'),
-  '/inventory': () => import('./pages/inventory.js'),
-  '/bookings': () => import('./pages/bookings.js'),
-  '/calendar': () => import('./pages/calendar.js'),
-  '/dispatch': () => import('./pages/dispatch.js'),
-  '/services': () => import('./pages/services.js'),
-  '/equipment': () => import('./pages/equipment.js'),
-  '/service-history': () => import('./pages/service-history.js'),
-  '/recurring-maintenance': () => import('./pages/recurring-maintenance.js'),
-  '/estimates': () => import('./pages/estimates.js'),
-  '/invoices': () => import('./pages/invoices.js'),
-  '/orders': () => import('./pages/orders.js'),
-  '/pos': () => import('./pages/pos.js'),
-  '/customers': () => import('./pages/customers.js'),
-  '/messages': () => import('./pages/messages.js'),
-  '/settings': () => import('./pages/settings.js'),
-  '/users': () => import('./pages/users.js'),
-  '/audit': () => import('./pages/audit.js'),
-  '/saas': () => import('./pages/saas.js'),
-  '/features': () => import('./pages/features.js'),
-  '/platform': () => import('./pages/superadmin.js'),
-  '/platform-analytics': () => import('./pages/platform-analytics.js'),
-  '/billing': () => import('./pages/billing.js'),
-  '/system-health': () => import('./pages/system-health.js'),
-  '/subscription': () => import('./pages/subscription.js'),
-  '/profile': () => import('./pages/profile.js'),
-  '/content': () => import('./pages/content.js'),
-  '/media': () => import('./pages/media.js'),
-  '/supplier-marketplace': () => import('./pages/supplier-marketplace.js'),
-  '/suppliers': () => import('./pages/suppliers.js'),
-  '/supplier-integrations': () => import('./pages/supplier-integrations.js'),
-  '/supplier-imports': () => import('./pages/supplier-imports.js'),
-  '/supplier-products': () => import('./pages/supplier-products.js'),
-  '/supplier-fulfillment': () => import('./pages/supplier-fulfillment.js'),
-  '/supplier-shipping': () => import('./pages/supplier-shipping.js'),
-  '/supplier-sync': () => import('./pages/supplier-sync.js'),
-  '/supplier-logs': () => import('./pages/supplier-logs.js'),
-  '/supplier-settings': () => import('./pages/supplier-settings.js'),
-};
+  qs('#themeToggle').onclick = () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+
+  const menu = qs('#userMenu');
+  qs('#userBtn').onclick = (e) => {
+    e.stopPropagation();
+    const open = menu.classList.toggle('open');
+    qs('#userBtn').setAttribute('aria-expanded', String(open));
+  };
+  document.addEventListener('click', () => { menu.classList.remove('open'); qs('#userBtn')?.setAttribute('aria-expanded', 'false'); });
+  qs('#logoutBtn').onclick = () => auth.logout();
+
+  const search = qs('#globalSearch');
+  search.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || !search.value.trim()) return;
+    const q = encodeURIComponent(search.value.trim());
+    const target = location.hash.slice(1).split('?')[0] || '/products';
+    const searchable = ['/products', '/bookings', '/customers', '/messages', '/orders', '/inventory', '/suppliers', '/supplier-products'];
+    location.hash = `${searchable.includes(target) ? target : '/products'}?search=${q}`;
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === '/' && !/input|textarea|select/i.test(document.activeElement.tagName)) { e.preventDefault(); search.focus(); }
+  });
+}
 
 export function setTitle(title) {
   const node = qs('#pageTitle');
@@ -194,21 +202,19 @@ export function setTitle(title) {
 }
 
 export function highlightNav(path) {
-  const links = [...document.querySelectorAll('.nav-link[data-path]')];
-  const active = links.find((link) => link.dataset.path === path) || null;
-  const activeGroup = active?.closest('.nav-group') || null;
-  links.forEach((link) => {
-    if (link === active) link.setAttribute('aria-current', 'page');
-    else link.removeAttribute('aria-current');
-  });
   document.querySelectorAll('.nav-group').forEach((group) => {
+    const active = group.querySelector(`.nav-link[data-path="${path}"]`);
     const toggle = group.querySelector('.nav-group__toggle');
     const items = group.querySelector('.nav-group__items');
-    const isActiveGroup = group === activeGroup;
+    const isActiveGroup = !!active;
     if (toggle && items) {
       toggle.setAttribute('aria-expanded', String(isActiveGroup));
       items.hidden = !isActiveGroup;
     }
+    group.querySelectorAll('.nav-link').forEach((link) => {
+      if (link.dataset.path === path) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    });
   });
 }
 
@@ -229,6 +235,50 @@ export async function refreshBadges() {
     return data;
   } catch { return null; }
 }
+
+/* ------------------------------------------------------------ router */
+const routes = {
+  '/': () => import('./pages/dashboard.js'),
+  '/analytics': () => import('./pages/analytics.js'),
+  '/products': () => import('./pages/products.js'),
+  '/categories': () => import('./pages/categories.js'),
+  '/inventory': () => import('./pages/inventory.js'),
+  '/bookings': () => import('./pages/bookings.js'),
+  '/calendar': () => import('./pages/calendar.js'),
+  '/dispatch': () => import('./pages/dispatch.js'),
+  '/services': () => import('./pages/services.js'),
+  '/equipment': () => import('./pages/equipment.js'),
+  '/service-history': () => import('./pages/service-history.js'),
+  '/estimates': () => import('./pages/estimates.js'),
+  '/invoices': () => import('./pages/invoices.js'),
+  '/orders': () => import('./pages/orders.js'),
+  '/pos': () => import('./pages/pos.js'),
+  '/customers': () => import('./pages/customers.js'),
+  '/messages': () => import('./pages/messages.js'),
+  '/settings': () => import('./pages/settings.js'),
+  '/users': () => import('./pages/users.js'),
+  '/audit': () => import('./pages/audit.js'),
+  '/saas': () => import('./pages/saas.js'),
+  '/platform': () => import('./pages/superadmin.js'),
+  '/platform-analytics': () => import('./pages/platform-analytics.js'),
+  '/billing': () => import('./pages/billing.js'),
+  '/system-health': () => import('./pages/system-health.js'),
+  '/subscription': () => import('./pages/subscription.js'),
+  '/profile': () => import('./pages/profile.js'),
+  '/content': () => import('./pages/content.js'),
+  '/media': () => import('./pages/media.js'),
+  // Supplier Marketplace — dedicated top-level section
+  '/supplier-marketplace': () => import('./pages/supplier-marketplace.js'),
+  '/suppliers': () => import('./pages/suppliers.js'),
+  '/supplier-integrations': () => import('./pages/supplier-integrations.js'),
+  '/supplier-imports': () => import('./pages/supplier-imports.js'),
+  '/supplier-products': () => import('./pages/supplier-products.js'),
+  '/supplier-fulfillment': () => import('./pages/supplier-fulfillment.js'),
+  '/supplier-shipping': () => import('./pages/supplier-shipping.js'),
+  '/supplier-sync': () => import('./pages/supplier-sync.js'),
+  '/supplier-logs': () => import('./pages/supplier-logs.js'),
+  '/supplier-settings': () => import('./pages/supplier-settings.js'),
+};
 
 function parseHash() {
   const raw = location.hash.slice(1) || '/';
@@ -275,7 +325,6 @@ async function renderRoute() {
 export async function boot() {
   const user = await requireAuth();
   if (!user) return;
-  try { user.featureAccess = (await api.get('/features/access')).data || []; } catch { user.featureAccess = []; }
   renderShell(user);
   try {
     const { data } = await api.get('/settings');

@@ -6,6 +6,7 @@ const { validate } = require('../middleware/validate');
 const { protect } = require('../middleware/auth');
 const { platformAdminOnly } = require('../lib/tenant');
 const { normalizeFeatureKey } = require('../lib/features');
+const { ensurePlatformFeatures, getTenantFeatureDefinition } = require('../lib/feature-registry');
 const { badRequest, notFound, conflict } = require('../lib/errors');
 const { audit } = require('../lib/audit');
 
@@ -21,6 +22,8 @@ const featureSchema = z.object({
 
 const publicFeature = (feature, tenants = []) => ({
   id: feature.id, key: feature.key, name: feature.name, description: feature.description,
+  tenantCapable: Boolean(getTenantFeatureDefinition(feature.key)),
+  category: getTenantFeatureDefinition(feature.key)?.category || 'Platform',
   isActive: feature.isActive, isCore: feature.isCore, defaultEnabled: feature.defaultEnabled,
   createdAt: feature.createdAt, updatedAt: feature.updatedAt, tenants,
 });
@@ -28,6 +31,7 @@ const publicFeature = (feature, tenants = []) => ({
 router.use(protect, platformAdminOnly);
 
 router.get('/', asyncHandler(async (req, res) => {
+  await ensurePlatformFeatures();
   const [features, businesses, accesses] = await Promise.all([
     prisma.platformFeature.findMany({ orderBy: { name: 'asc' } }),
     prisma.business.findMany({ where: { isDefault: false, status: { not: 'DELETED' } }, orderBy: { name: 'asc' }, select: { id: true, name: true, slug: true, status: true } }),
