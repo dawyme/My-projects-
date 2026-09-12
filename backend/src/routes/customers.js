@@ -1,5 +1,6 @@
 const express = require('express');
 const { z } = require('zod');
+const bcrypt = require('bcryptjs');
 const prisma = require('../lib/prisma');
 const asyncHandler = require('../lib/async');
 const { validate } = require('../middleware/validate');
@@ -98,6 +99,32 @@ router.post('/', protect, validate(body), asyncHandler(async (req, res) => {
   await audit(req, 'CREATE', 'Customer', customer.id, { email: customer.email });
   await activity(req.user.id, 'customer', `${req.user.name} added customer ${customer.name}`);
   res.status(201).json({ success: true, data: customer });
+}));
+
+// POST /api/customers/:id/create-account — give an existing customer a
+// login. Customer records and User records are linked only by matching
+// email within a tenant (see backend/src/routes/customer-portal.js), so this
+// creates the User row with that same email; nothing on the Customer row
+// itself changes.
+router.post('/:id/create-account', protect, adminOnly, validate(z.object({
+  password: z.string().min(8, 'Password must be at least 8 characters').max(200)
+    .regex(/[A-Za-z]/, 'Password must contain a letter')
+    .regex(/[0-9]/, 'Password must contain a number'),
+})), asyncHandler(async (req, res) => {
+  const customer = await prisma.customer.findFirst({ where: tenantWhere(req, { id: req.params.id }) });
+  if (!customer) throw notFound('Customer not found');
+  const existing = await prisma.user.findUnique({ where: { email: customer.email } });
+  if (existing) throw badRequest('An account with this email already exists');
+  const user = await prisma.user.create({
+    data: {
+      name: customer.name, email: customer.email, role: 'CUSTOMER',
+      businessId: req.tenantId, isActive: true,
+      passwordHash: await bcrypt.hash(req.body.password, 12),
+    },
+  });
+  await audit(req, 'CREATE', 'User', user.id, { email: user.email, role: 'CUSTOMER', forCustomerId: customer.id });
+  await activity(req.user.id, 'customer', `${req.user.name} created a login for customer ${customer.name}`);
+  res.status(201).json({ success: true, data: { id: user.id, email: user.email } });
 }));
 
 // PUT /api/customers/:id
