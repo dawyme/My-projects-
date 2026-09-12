@@ -180,7 +180,7 @@ export function renderShell(user) {
     qs('#userBtn').setAttribute('aria-expanded', String(open));
   };
   document.addEventListener('click', () => { menu.classList.remove('open'); qs('#userBtn')?.setAttribute('aria-expanded', 'false'); });
-  qs('#logoutBtn').onclick = () => auth.logout();
+  qs('#logoutBtn').onclick = () => void auth.logout();
 
   const search = qs('#globalSearch');
   search.addEventListener('keydown', (e) => {
