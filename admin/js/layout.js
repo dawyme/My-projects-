@@ -4,42 +4,42 @@ import { el, qs, icon, esc, initials, setCurrency, toast, toastError } from './u
 
 const NAV = [
   { group: 'Overview', items: [
-    { path: '/', label: 'Dashboard', icon: 'dashboard' , feature: 'dashboard' }
+    { path: '/', label: 'Dashboard', icon: 'dashboard' , feature: 'dashboard' },
     { path: '/analytics', label: 'Analytics', icon: 'chart', platformOnly: true },
-    { path: '/analytics', label: 'Reports', icon: 'chart', tenantOnly: true , feature: 'reports' }
+    { path: '/analytics', label: 'Reports', icon: 'chart', tenantOnly: true , feature: 'reports' },
   ] },
   { group: 'Catalogue', items: [
-    { path: '/products', label: 'Products', icon: 'box' , feature: 'products' }
-    { path: '/categories', label: 'Categories', icon: 'tag' , feature: 'categories' }
-    { path: '/inventory', label: 'Inventory', icon: 'layers', badge: 'lowStock' , feature: 'inventory' }
+    { path: '/products', label: 'Products', icon: 'box' , feature: 'products' },
+    { path: '/categories', label: 'Categories', icon: 'tag' , feature: 'categories' },
+    { path: '/inventory', label: 'Inventory', icon: 'layers', badge: 'lowStock' , feature: 'inventory' },
   ] },
   { group: 'Operations', items: [
-    { path: '/bookings', label: 'Service Bookings', icon: 'calendar', badge: 'pending' , feature: 'service-bookings' }
-    { path: '/calendar', label: 'Calendar', icon: 'clock' , feature: 'calendar' }
-    { path: '/dispatch', label: 'Dispatch Board', icon: 'truck' , feature: 'dispatch' }
-    { path: '/services', label: 'Services', icon: 'wrench' , feature: 'services' }
-    { path: '/equipment', label: 'Equipment', icon: 'settings' , feature: 'equipment' }
-    { path: '/service-history', label: 'Service History', icon: 'history' , feature: 'service-history' }
-    { path: '/estimates', label: 'Estimates', icon: 'file' , feature: 'estimates' }
-    { path: '/invoices', label: 'Invoices', icon: 'file' , feature: 'invoices' }
-    { path: '/orders', label: 'Orders', icon: 'file' , feature: 'orders' }
-    { path: '/pos', label: 'Point of Sale', icon: 'cart' , feature: 'point-of-sale' }
+    { path: '/bookings', label: 'Service Bookings', icon: 'calendar', badge: 'pending' , feature: 'service-bookings' },
+    { path: '/calendar', label: 'Calendar', icon: 'clock' , feature: 'calendar' },
+    { path: '/dispatch', label: 'Dispatch Board', icon: 'truck' , feature: 'dispatch' },
+    { path: '/services', label: 'Services', icon: 'wrench' , feature: 'services' },
+    { path: '/equipment', label: 'Equipment', icon: 'settings' , feature: 'equipment' },
+    { path: '/service-history', label: 'Service History', icon: 'history' , feature: 'service-history' },
+    { path: '/estimates', label: 'Estimates', icon: 'file' , feature: 'estimates' },
+    { path: '/invoices', label: 'Invoices', icon: 'file' , feature: 'invoices' },
+    { path: '/orders', label: 'Orders', icon: 'file' , feature: 'orders' },
+    { path: '/pos', label: 'Point of Sale', icon: 'cart' , feature: 'point-of-sale' },
   ] },
   { group: 'People', items: [
-    { path: '/customers', label: 'Customers', icon: 'users' , feature: 'customers' }
-    { path: '/messages', label: 'Messages', icon: 'mail', badge: 'unread' , feature: 'messages' }
+    { path: '/customers', label: 'Customers', icon: 'users' , feature: 'customers' },
+    { path: '/messages', label: 'Messages', icon: 'mail', badge: 'unread' , feature: 'messages' },
   ] },
   { group: 'Supplier Marketplace', items: [
-    { path: '/supplier-marketplace', label: 'Marketplace Dashboard', icon: 'dashboard' , feature: 'supplier-marketplace' }
-    { path: '/suppliers', label: 'Suppliers', icon: 'warehouse' , feature: 'suppliers' }
-    { path: '/supplier-integrations', label: 'Integrations / Plugins', icon: 'plug' , feature: 'supplier-integrations' }
-    { path: '/supplier-imports', label: 'Import Products', icon: 'upload' , feature: 'supplier-imports' }
-    { path: '/supplier-products', label: 'Supplier Products', icon: 'box' , feature: 'supplier-products' }
-    { path: '/supplier-fulfillment', label: 'Fulfillment', icon: 'truck' , feature: 'supplier-fulfillment' }
-    { path: '/supplier-shipping', label: 'Shipping', icon: 'globe' , feature: 'supplier-shipping' }
-    { path: '/supplier-sync', label: 'Sync & Automation', icon: 'refresh' , feature: 'supplier-sync' }
-    { path: '/supplier-logs', label: 'Sync Logs', icon: 'history' , feature: 'supplier-logs' }
-    { path: '/supplier-settings', label: 'Marketplace Settings', icon: 'settings' , feature: 'supplier-settings' }
+    { path: '/supplier-marketplace', label: 'Marketplace Dashboard', icon: 'dashboard' , feature: 'supplier-marketplace' },
+    { path: '/suppliers', label: 'Suppliers', icon: 'warehouse' , feature: 'suppliers' },
+    { path: '/supplier-integrations', label: 'Integrations / Plugins', icon: 'plug' , feature: 'supplier-integrations' },
+    { path: '/supplier-imports', label: 'Import Products', icon: 'upload' , feature: 'supplier-imports' },
+    { path: '/supplier-products', label: 'Supplier Products', icon: 'box' , feature: 'supplier-products' },
+    { path: '/supplier-fulfillment', label: 'Fulfillment', icon: 'truck' , feature: 'supplier-fulfillment' },
+    { path: '/supplier-shipping', label: 'Shipping', icon: 'globe' , feature: 'supplier-shipping' },
+    { path: '/supplier-sync', label: 'Sync & Automation', icon: 'refresh' , feature: 'supplier-sync' },
+    { path: '/supplier-logs', label: 'Sync Logs', icon: 'history' , feature: 'supplier-logs' },
+    { path: '/supplier-settings', label: 'Marketplace Settings', icon: 'settings' , feature: 'supplier-settings' },
   ] },
   { group: 'Platform', items: [
     { path: '/platform', label: 'Platform Dashboard', icon: 'dashboard', platformOnly: true },
@@ -47,16 +47,16 @@ const NAV = [
     { path: '/platform-analytics', label: 'Platform Analytics', icon: 'chart', platformOnly: true },
     { path: '/billing', label: 'Billing & Subscriptions', icon: 'money', platformOnly: true },
     { path: '/system-health', label: 'System Health', icon: 'shield', platformOnly: true },
-    { path: '/subscription', label: 'Plans & Subscription', icon: 'briefcase', tenantOnly: true , feature: 'plans-subscription' }
+    { path: '/subscription', label: 'Plans & Subscription', icon: 'briefcase', tenantOnly: true , feature: 'plans-subscription' },
   ] },
   { group: 'Administration', items: [
-    { path: '/settings', label: 'Settings', icon: 'settings' , feature: 'settings' }
-    { path: '/users', label: 'Team', icon: 'user' , feature: 'team' }
+    { path: '/settings', label: 'Settings', icon: 'settings' , feature: 'settings' },
+    { path: '/users', label: 'Team', icon: 'user' , feature: 'team' },
     { path: '/audit', label: 'Audit Log', icon: 'shield', adminOnly: true },
   ] },
   { group: 'Website', items: [
-    { path: '/content', label: 'Website Content', icon: 'edit' , feature: 'content-manager' }
-    { path: '/media', label: 'Media Library', icon: 'image' , feature: 'media-library' }
+    { path: '/content', label: 'Website Content', icon: 'edit' , feature: 'content-manager' },
+    { path: '/media', label: 'Media Library', icon: 'image' , feature: 'media-library' },
   ] },
 ];
 
