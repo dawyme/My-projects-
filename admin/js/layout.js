@@ -48,6 +48,7 @@ const NAV = [
     { path: '/platform-analytics', label: 'Platform Analytics', icon: 'chart', platformOnly: true },
     { path: '/billing', label: 'Billing & Subscriptions', icon: 'money', platformOnly: true },
     { path: '/system-health', label: 'System Health', icon: 'shield', platformOnly: true },
+    { path: '/features', label: 'Feature Management', icon: 'settings', platformOnly: true },
     { path: '/subscription', label: 'Plans & Subscription', icon: 'briefcase', tenantOnly: true , feature: 'plans-subscription' },
   ] },
   { group: 'Administration', items: [
@@ -264,6 +265,7 @@ const routes = {
   '/platform-analytics': () => import('./pages/platform-analytics.js'),
   '/billing': () => import('./pages/billing.js'),
   '/system-health': () => import('./pages/system-health.js'),
+  '/features': () => import('./pages/features.js'),
   '/subscription': () => import('./pages/subscription.js'),
   '/profile': () => import('./pages/profile.js'),
   '/content': () => import('./pages/content.js'),
