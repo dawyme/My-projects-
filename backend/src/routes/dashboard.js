@@ -90,13 +90,31 @@ router.get('/activity', protect, asyncHandler(async (req, res) => {
 // GET /api/dashboard/upcoming
 router.get('/upcoming', protect, asyncHandler(async (req, res) => {
   const now = new Date();
+  // One-off bookings only. Bookings generated from a recurring series are
+  // rendered from their own dataset below, so they are excluded here to stop
+  // the same appointment from appearing twice on the dashboard.
   const bookings = await prisma.booking.findMany({
-    where: { ...tenantWhere(req), scheduledAt: { gte: now }, status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] } },
+    where: {
+      ...tenantWhere(req),
+      recurringOccurrence: { is: null },
+      scheduledAt: { gte: now },
+      status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] },
+    },
     orderBy: { scheduledAt: 'asc' }, take: 8,
     include: { customer: { select: { name: true, phone: true } }, service: { select: { name: true } }, technician: { select: { name: true } } },
   });
+  // Recurring occurrences are scoped through the same tenantWhere primitive
+  // as every other dashboard query (resolved server-side from the
+  // authenticated user; SUPER_ADMIN keeps businessId=NULL semantics) and skip
+  // occurrences whose booking was cancelled so stale series items never
+  // surface as upcoming work.
   const recurringOccurrences = await prisma.recurringMaintenanceOccurrence.findMany({
-    where: { businessId: req.tenantId, scheduledAt: { gte: now }, status: 'SCHEDULED' },
+    where: {
+      ...tenantWhere(req),
+      scheduledAt: { gte: now },
+      status: 'SCHEDULED',
+      booking: { is: { status: { not: 'CANCELLED' } } },
+    },
     orderBy: { scheduledAt: 'asc' }, take: 8,
     include: {
       booking: {
