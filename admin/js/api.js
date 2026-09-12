@@ -189,3 +189,16 @@ export async function requireAuth() {
     return null;
   }
 }
+
+// Back/forward cache guard: after signing out, a back/forward navigation can
+// restore this page from the browser cache with the authenticated UI still on
+// screen even though the session is gone from the device. When that happens,
+// send the stale page to the login screen immediately. Login pages are
+// excluded so the guard never fights the sign-in form.
+addEventListener('pageshow', (event) => {
+  if (!event.persisted) return;
+  if (location.pathname.endsWith('login.html')) return;
+  if (!store.get().accessToken) {
+    location.replace(`/login.html?next=${encodeURIComponent(location.hash || '#/')}`);
+  }
+});

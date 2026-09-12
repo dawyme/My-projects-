@@ -85,7 +85,9 @@ export async function render(view, query) {
       renderStatusChart(statsRes.data);
       renderActivity(activityRes.data);
       renderUpcoming(upcomingRes.data);
-      renderRecurring(upcomingRes.recurring || upcomingRes.data?.recurring || []);
+      // Recurring appointments arrive as their own dataset on the upcoming
+      // endpoint response; one-off bookings never contain series items.
+      renderRecurring(upcomingRes.recurring || []);
       renderLowStock(lowStockRes.data);
     } catch (e) { toastError(e); }
   };

@@ -204,19 +204,22 @@ export function setTitle(title) {
 }
 
 export function highlightNav(path) {
+  // Keep aria-current in sync across every nav link (exact route match).
+  document.querySelectorAll('.nav-link[data-path]').forEach((link) => {
+    if (link.dataset.path === path) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  });
+  // Auto-expand only the group that contains the active link. Groups the user
+  // expanded manually must stay open across navigation, so no group is ever
+  // force-collapsed here — closing them is the user's own toggle click.
   document.querySelectorAll('.nav-group').forEach((group) => {
     const active = group.querySelector(`.nav-link[data-path="${path}"]`);
-    document.querySelectorAll('.nav-link[data-path]').forEach((link) => {
-      if (link.dataset.path === path) link.setAttribute('aria-current', 'page');
-      else link.removeAttribute('aria-current');
-    });
+    if (!active) return;
     const toggle = group.querySelector('.nav-group__toggle');
     const items = group.querySelector('.nav-group__items');
-    const isActiveGroup = !!active;
-    if (toggle && items) {
-      toggle.setAttribute('aria-expanded', String(isActiveGroup));
-      items.hidden = !isActiveGroup;
-    }
+    if (!toggle || !items) return;
+    toggle.setAttribute('aria-expanded', 'true');
+    items.hidden = false;
   });
 }
 
