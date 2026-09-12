@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Create Account | N&amp;D's Air Conditioning &amp; Refrigeration</title>
+  <link rel="icon" type="image/png" href="/assets/favicon.png">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <style>
+    .auth-page{min-height:100vh;display:grid;place-items:center;padding:32px 16px;background:var(--bg-color,#f5f7fa)}
+    .auth-card{width:min(100%,440px);background:#fff;border-radius:16px;padding:32px;box-shadow:0 12px 40px rgba(0,0,0,.12)}
+    .auth-brand{text-align:center;margin-bottom:24px}.auth-brand img{width:72px;height:72px;object-fit:contain}.auth-brand h1{font-size:24px;margin:12px 0 4px}.auth-brand p{margin:0;color:#667085}
+    .auth-field{margin-bottom:16px}.auth-field label{display:block;font-weight:600;margin-bottom:7px}.auth-field input{width:100%;box-sizing:border-box;padding:12px 13px;border:1px solid #d0d5dd;border-radius:8px;font:inherit}
+    .auth-submit{width:100%;border:0;cursor:pointer}.auth-submit[disabled]{opacity:.65;cursor:wait}.auth-message{margin-bottom:16px;padding:12px;border-radius:8px;display:none}.auth-message.error{display:block;background:#fef3f2;color:#b42318}.auth-message.success{display:block;background:#ecfdf3;color:#027a48}
+    .auth-footer{text-align:center;margin-top:20px}.auth-footer a{color:inherit;font-weight:600}.auth-back{display:inline-block;margin-top:8px}
+  </style>
+</head>
+<body>
+  <main class="auth-page">
+    <section class="auth-card" aria-labelledby="registerTitle">
+      <div class="auth-brand">
+        <img src="/assets/logo.png" alt="N&amp;D's Air Conditioning and Refrigeration">
+        <h1 id="registerTitle">Create your account</h1>
+        <p>Book services and track your history with N&amp;D's</p>
+      </div>
+
+      <div id="authMessage" class="auth-message" role="alert" aria-live="polite"></div>
+
+      <form id="registerForm" novalidate>
+        <div class="auth-field">
+          <label for="name">Full name</label>
+          <input id="name" name="name" type="text" autocomplete="name" required autofocus>
+        </div>
+        <div class="auth-field">
+          <label for="email">Email address</label>
+          <input id="email" name="email" type="email" autocomplete="username" required>
+        </div>
+        <div class="auth-field">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="new-password" required minlength="8">
+        </div>
+        <button id="submitButton" class="btn-primary auth-submit" type="submit">Create account</button>
+      </form>
+
+      <div class="auth-footer">
+        <p>Already have an account? <a href="/login.html">Sign in</a></p>
+        <a class="auth-back" href="/">Back to N&amp;D's website</a>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { auth, store, ApiError } from '/admin/js/api.js';
+
+    const form = document.getElementById('registerForm');
+    const message = document.getElementById('authMessage');
+    const button = document.getElementById('submitButton');
+
+    const requestedNext = () => {
+      const value = new URLSearchParams(location.search).get('next');
+      return value && value.startsWith('/') && !value.startsWith('//') ? value : null;
+    };
+
+    if (store.get().accessToken) {
+      try {
+        await auth.me();
+        location.replace(requestedNext() || '/customer/');
+      } catch {
+        store.clear();
+      }
+    }
+
+    const showMessage = (text, type = 'error') => {
+      message.textContent = text;
+      message.className = `auth-message ${type}`;
+    };
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      message.className = 'auth-message';
+
+      const name = form.name.value.trim();
+      const email = form.email.value.trim();
+      const password = form.password.value;
+      if (!name || !email || !password) {
+        showMessage('Please fill in your name, email address and password.');
+        return;
+      }
+      if (password.length < 8) {
+        showMessage('Password must be at least 8 characters.');
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = 'Creating account…';
+      try {
+        await auth.register(name, email, password);
+        showMessage('Account created. Redirecting…', 'success');
+        location.replace(requestedNext() || '/customer/');
+      } catch (error) {
+        const text = error instanceof ApiError
+          ? error.message
+          : 'Unable to create your account. Please try again.';
+        showMessage(text);
+        button.disabled = false;
+        button.textContent = 'Create account';
+      }
+    });
+  </script>
+</body>
+</html>
