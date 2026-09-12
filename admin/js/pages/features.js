@@ -19,7 +19,7 @@ export async function render(view) {
   if (!platform) { view.innerHTML='<div class="card"><div class="card__body"><h3>Platform administrators only</h3></div></div>'; return; }
   view.innerHTML = `<div class="page-head"><div><h1>Feature Management</h1><p>Add platform features and control which SaaS tenants can use them.</p></div><button class="btn btn--primary" id="newFeature">${icon('plus')} Add feature</button></div>
     <section class="card" id="featurePanel" hidden><div class="card__head"><h2 id="featurePanelTitle">Add platform feature</h2></div><div class="card__body" id="featurePanelBody">${form()}</div></section>
-    <section class="card"><div class="card__head"><h2>Platform features</h2></div><div class="table-wrap"><table class="data"><thead><tr><th>Feature</th><th>Default</th><th>Core</th><th>Status</th><th>Tenant access</th><th>Actions</th></tr></thead><tbody id="features"><tr><td colspan="6">Loading…</td></tr></tbody></table></div></section>`;
+    <section class="card"><div class="card__head"><h2>Platform features</h2></div><div class="table-wrap"><table class="data"><thead><tr><th>Feature</th><th>Category</th><th>Default</th><th>Core</th><th>Status</th><th>Tenant access</th><th>Actions</th></tr></thead><tbody id="features"><tr><td colspan="7">Loading…</td></tr></tbody></table></div></section>`;
 
   const load = async () => {
     try {
@@ -28,8 +28,8 @@ export async function render(view) {
       qs('#features', view).innerHTML = view._features.length ? view._features.map((feature) => {
         const enabled = feature.tenants.filter((t) => t.enabled).length;
         const tenantControls = feature.tenants.length ? feature.tenants.map((tenant) => `<label style="display:inline-flex;align-items:center;gap:5px;margin:3px 10px 3px 0"><input type="checkbox" data-tenant-toggle data-feature-id="${esc(feature.id)}" data-business-id="${esc(tenant.id)}" ${tenant.enabled ? 'checked' : ''} ${feature.isCore ? 'disabled' : ''}>${esc(tenant.name)}</label>`).join('') : '<span class="cell-sub">No customer tenants</span>';
-        return `<tr data-feature-id="${esc(feature.id)}"><td><strong>${esc(feature.name)}</strong><div class="cell-sub">${esc(feature.key)}${feature.description ? ` · ${esc(feature.description)}` : ''}</div></td><td>${feature.defaultEnabled ? 'Enabled' : 'Disabled'}</td><td>${feature.isCore ? 'Yes' : 'No'}</td><td>${feature.isActive ? 'Active' : 'Inactive'}</td><td>${enabled}/${feature.tenants.length}<div style="margin-top:5px">${tenantControls}</div></td><td><button class="btn btn--ghost btn--sm" data-edit-feature="${esc(feature.id)}">Edit</button> <button class="btn btn--danger btn--sm" data-remove-feature="${esc(feature.id)}" ${feature.isActive ? '' : 'disabled'}>Remove</button></td></tr>`;
-      }).join('') : '<tr><td colspan="6">No platform features registered.</td></tr>';
+        return `<tr data-feature-id="${esc(feature.id)}"><td><strong>${esc(feature.name)}</strong><div class="cell-sub">${esc(feature.key)}${feature.description ? ` · ${esc(feature.description)}` : ''}</div></td><td>${esc(feature.category || 'Platform')}</td><td>${feature.defaultEnabled ? 'Enabled' : 'Disabled'}</td><td>${feature.isCore ? 'Yes' : 'No'}</td><td>${feature.isActive ? 'Active' : 'Inactive'}</td><td>${enabled}/${feature.tenants.length}<div style="margin-top:5px">${tenantControls}</div></td><td><button class="btn btn--ghost btn--sm" data-edit-feature="${esc(feature.id)}">Edit</button> <button class="btn btn--danger btn--sm" data-remove-feature="${esc(feature.id)}" ${feature.isActive ? '' : 'disabled'}>Remove</button></td></tr>`;
+      }).join('') : '<tr><td colspan="7">No platform features registered.</td></tr>';
     } catch (e) { toastError(e); }
   };
 

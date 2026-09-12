@@ -1,6 +1,7 @@
 const prisma = require('./prisma');
 const { roleFor } = require('./permissions');
 const { forbidden } = require('./errors');
+const { ensurePlatformFeatures, getTenantFeatureDefinition, getTenantFeatureDefinitions } = require('./feature-registry');
 
 function normalizeFeatureKey(value) {
   return String(value || '')
@@ -20,10 +21,12 @@ function resolveFeatureAccess({ role, feature, access }) {
 }
 
 async function featureForKey(key) {
+  await ensurePlatformFeatures();
   return prisma.platformFeature.findUnique({ where: { key: normalizeFeatureKey(key) } });
 }
 
 async function accessibleFeatures(user) {
+  await ensurePlatformFeatures();
   const role = roleFor(user);
   const features = await prisma.platformFeature.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } });
   if (role === 'SUPER_ADMIN') return features;
@@ -52,4 +55,7 @@ function requireFeature(key) {
   };
 }
 
-module.exports = { normalizeFeatureKey, resolveFeatureAccess, featureForKey, accessibleFeatures, requireFeature };
+
+function featureProtectedRoute(key) { const definition = getTenantFeatureDefinition(key); if (!definition) throw new Error(`Tenant feature '${normalizeFeatureKey(key)}' is not registered`); return [require('./../middleware/auth').protect, requireFeature(definition.key)]; }
+
+module.exports = { normalizeFeatureKey, resolveFeatureAccess, featureForKey, accessibleFeatures, requireFeature, featureProtectedRoute, getTenantFeatureDefinitions };
