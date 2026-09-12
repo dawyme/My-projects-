@@ -148,6 +148,11 @@ export const auth = {
     store.set({ accessToken: json.data.accessToken, refreshToken: json.data.refreshToken, user: json.data.user });
     return json.data.user;
   },
+  async register(name, email, password) {
+    const json = await request('POST', '/auth/register', { body: { name, email, password }, retry: false });
+    store.set({ accessToken: json.data.accessToken, refreshToken: json.data.refreshToken, user: json.data.user });
+    return json.data.user;
+  },
   async me() {
     const json = await api.get('/auth/me');
     store.set({ user: json.data.user });
