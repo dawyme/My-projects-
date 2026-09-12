@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { el, esc, toastError } from '../ui.js';
+import { esc, toastError } from '../ui.js';
 
 export async function render(view) {
   view.innerHTML = `<div class="page-head"><div><h1>Recurring Maintenance</h1><p>Schedule preventive maintenance and keep customers reminded. This core feature is available on every plan.</p></div></div>
@@ -17,8 +17,8 @@ export async function render(view) {
       </form><p id="maintenanceMessage" class="muted" aria-live="polite"></p>
     </div></div>`;
 
-  const list = el('#maintenanceList');
-  const message = el('#maintenanceMessage');
+  const list = view.querySelector('#maintenanceList');
+  const message = view.querySelector('#maintenanceMessage');
   async function load() {
     try {
       const { data } = await api.get('/recurring-maintenance');
@@ -41,7 +41,7 @@ export async function render(view) {
     } catch (error) { list.innerHTML = `<div class="card"><div class="card__body">${esc(error.message)}</div></div>`; }
   }
 
-  el('#recurringMaintenanceForm').onsubmit = async (event) => {
+  view.querySelector('#recurringMaintenanceForm').onsubmit = async (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     try {
