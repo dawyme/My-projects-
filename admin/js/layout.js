@@ -247,6 +247,7 @@ const routes = {
   '/inventory': () => import('./pages/inventory.js'),
   '/bookings': () => import('./pages/bookings.js'),
   '/calendar': () => import('./pages/calendar.js'),
+  '/recurring-maintenance': () => import('./pages/recurring-maintenance.js'),
   '/dispatch': () => import('./pages/dispatch.js'),
   '/services': () => import('./pages/services.js'),
   '/equipment': () => import('./pages/equipment.js'),
