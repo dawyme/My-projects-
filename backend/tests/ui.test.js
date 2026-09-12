@@ -485,6 +485,7 @@ async function main() {
   const tenantEmail = (process.env.SEED_ADMIN_EMAIL || 'admin@ndsairconditioning.com').toLowerCase();
   const tenantPassword = process.env.SEED_ADMIN_PASSWORD || 'Admin@12345';
   let tenantSession = null;
+  let tenantLoginDebug = '';
   try {
     const tenantLogin = await fetch(`${base}/api/auth/login`, {
       method: 'POST',
@@ -493,11 +494,15 @@ async function main() {
     });
     const tenantJson = await tenantLogin.json();
     tenantSession = tenantJson?.data || null;
-  } catch (_) {
+    if (!tenantSession?.accessToken) {
+      tenantLoginDebug = `status=${tenantLogin.status} body=${JSON.stringify(tenantJson).slice(0, 300)}`;
+    }
+  } catch (err) {
     tenantSession = null;
+    tenantLoginDebug = `threw: ${err && err.message}`;
   }
   record(!!tenantSession?.accessToken && !!tenantSession?.user?.businessId,
-    'Tenant admin session is available for tenant-scoped Content Manager');
+    'Tenant admin session is available for tenant-scoped Content Manager', tenantLoginDebug);
 
   if (tenantSession?.accessToken) {
     w.localStorage.setItem('nds.auth', JSON.stringify(tenantSession));
