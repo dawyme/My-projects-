@@ -63,6 +63,7 @@ export async function render(view, query) {
         <td><div class="row-actions">
           <button class="btn btn--ghost btn--icon" data-act="view" aria-label="View ${esc(c.name)}">${icon('eye')}</button>
           <button class="btn btn--ghost btn--icon" data-act="edit" aria-label="Edit ${esc(c.name)}">${icon('edit')}</button>
+          <button class="btn btn--ghost btn--icon" data-act="account" aria-label="Create login for ${esc(c.name)}" ${auth.isAdmin ? '' : 'disabled'}>${icon('shield')}</button>
           <button class="btn btn--ghost btn--icon" data-act="delete" aria-label="Delete ${esc(c.name)}" ${auth.isAdmin ? '' : 'disabled'}>${icon('trash')}</button>
         </div></td></tr>`).join('');
       pager.innerHTML = '';
@@ -84,11 +85,46 @@ export async function render(view, query) {
     else if (btn.dataset.act === 'edit') {
       const { data } = await api.get(`/customers/${id}`);
       openForm(data);
+    } else if (btn.dataset.act === 'account') {
+      openCreateAccount(id);
     } else if (btn.dataset.act === 'delete') {
       if (!await confirmDialog({ title: 'Delete customer', message: 'This also removes their bookings, orders and messages.', confirmLabel: 'Delete' })) return;
       try { await api.del(`/customers/${id}`); toast('Customer deleted'); load(); } catch (err) { toastError(err); }
     }
   });
+
+  async function openCreateAccount(id) {
+    const { data: c } = await api.get(`/customers/${id}`);
+    modal({
+      title: `Create login for ${c.name}`,
+      body: `
+        <p style="margin-top:0">This lets <strong>${esc(c.email)}</strong> sign in at the customer portal. Share the password with them directly — it isn't emailed automatically.</p>
+        <form id="accountForm">
+          <div class="form-field"><label for="accountPassword">Password</label>
+            <input id="accountPassword" name="password" type="password" minlength="8" required autocomplete="new-password">
+          </div>
+        </form>`,
+      footer: '<button class="btn btn--ghost" data-close>Cancel</button><button class="btn btn--primary" id="saveAccount">Create login</button>',
+      onMount: ({ body, close }) => {
+        const form = qs('#accountForm', body);
+        const btn = qs('#saveAccount', body);
+        form.addEventListener('submit', (e) => { e.preventDefault(); btn.click(); });
+        btn.onclick = async () => {
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner"></span> Creating…';
+          try {
+            await api.post(`/customers/${id}/create-account`, formData(form));
+            toast('Login created for ' + c.name);
+            close();
+          } catch (err) {
+            showFieldErrors(form, err);
+            btn.disabled = false;
+            btn.textContent = 'Create login';
+          }
+        };
+      },
+    });
+  }
 
   async function openProfile(id) {
     const m = modal({ title: 'Customer profile', size: 'lg',
