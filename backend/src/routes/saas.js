@@ -53,7 +53,7 @@ router.patch('/plans/:id', validate(planSchema), asyncHandler(async(req,res)=>{
 }));
 
 router.get('/businesses', asyncHandler(async(req,res)=>{
-  const rows=await prisma.business.findMany({where:{isDefault:false,status:{not:'DELETED'}},orderBy:{createdAt:'asc'},include:{subscription:{include:{plan:true}},_count:{select:{users:true,customers:true,products:true,bookings:true,orders:true}}}});
+  const rows=await prisma.business.findMany({where:{isDefault:false},orderBy:{createdAt:'asc'},include:{subscription:{include:{plan:true}},_count:{select:{users:true,customers:true,products:true,bookings:true,orders:true}}}});
   res.json({success:true,data:rows.map(publicBusiness)});
 }));
 
@@ -96,6 +96,70 @@ router.delete('/businesses/:id', asyncHandler(async(req,res)=>{
   });
   await audit(req,'DELETE','Business',business.id,{softDelete:true});
   res.json({success:true,data:result});
+}));
+
+// Permanently erase a tenant and every row scoped to it. Only allowed once
+// the tenant has already been soft-removed (status === 'DELETED') — this is
+// a deliberate second step, never a single click away from destroying an
+// active tenant's history, meant for test/demo tenants that should be fully
+// wiped rather than archived.
+router.delete('/businesses/:id/purge', asyncHandler(async(req,res)=>{
+  const business=await prisma.business.findUnique({where:{id:req.params.id}});
+  if(!business) throw notFound('Business not found');
+  if(business.isDefault) throw badRequest('The N&D’S platform business cannot be removed');
+  if(business.status!=='DELETED') throw badRequest('Remove the tenant first — permanent deletion is only available for tenants already marked removed');
+  const id=business.id;
+  await prisma.$transaction(async(tx)=>{
+    // Defensive: mirrors the same-purpose step in the single-user delete route.
+    await tx.booking.updateMany({where:{businessId:id},data:{technicianId:null}});
+    await Promise.all([
+      tx.orderItem.deleteMany({where:{businessId:id}}),
+      tx.bookingNote.deleteMany({where:{businessId:id}}),
+      tx.messageReply.deleteMany({where:{businessId:id}}),
+      tx.saleLineItem.deleteMany({where:{businessId:id}}),
+      tx.saleRefundLineItem.deleteMany({where:{businessId:id}}),
+      tx.serviceHistory.deleteMany({where:{businessId:id}}),
+      tx.inventoryAdjustment.deleteMany({where:{businessId:id}}),
+      tx.restock.deleteMany({where:{businessId:id}}),
+    ]);
+    await Promise.all([
+      tx.saleRefund.deleteMany({where:{businessId:id}}),
+      tx.sale.deleteMany({where:{businessId:id}}),
+      tx.order.deleteMany({where:{businessId:id}}),
+      tx.booking.deleteMany({where:{businessId:id}}),
+      tx.estimate.deleteMany({where:{businessId:id}}),
+      tx.invoice.deleteMany({where:{businessId:id}}),
+      tx.serviceRequest.deleteMany({where:{businessId:id}}),
+      tx.workOrder.deleteMany({where:{businessId:id}}),
+      tx.contactMessage.deleteMany({where:{businessId:id}}),
+    ]);
+    await Promise.all([
+      tx.customer.deleteMany({where:{businessId:id}}),
+      tx.equipment.deleteMany({where:{businessId:id}}),
+      tx.product.deleteMany({where:{businessId:id}}),
+      tx.category.deleteMany({where:{businessId:id}}),
+      tx.service.deleteMany({where:{businessId:id}}),
+      tx.serviceItem.deleteMany({where:{businessId:id}}),
+      tx.technician.deleteMany({where:{businessId:id}}),
+      tx.teamMember.deleteMany({where:{businessId:id}}),
+      tx.jobStatus.deleteMany({where:{businessId:id}}),
+      tx.mediaAsset.deleteMany({where:{businessId:id}}),
+      tx.promotionItem.deleteMany({where:{businessId:id}}),
+      tx.galleryItem.deleteMany({where:{businessId:id}}),
+      tx.faqItem.deleteMany({where:{businessId:id}}),
+      tx.testimonial.deleteMany({where:{businessId:id}}),
+      tx.setting.deleteMany({where:{businessId:id}}),
+    ]);
+    await Promise.all([
+      tx.activity.deleteMany({where:{businessId:id}}),
+      tx.auditLog.deleteMany({where:{businessId:id}}),
+      tx.contentPage.deleteMany({where:{businessId:id}}),
+    ]);
+    await tx.user.deleteMany({where:{businessId:id}});
+    await tx.business.delete({where:{id}});
+  });
+  await audit(req,'DELETE','Business',id,{permanentPurge:true,name:business.name});
+  res.json({success:true,data:{id,purged:true}});
 }));
 
 module.exports=router;
