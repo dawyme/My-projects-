@@ -71,7 +71,7 @@ assert.match(RECURRING_MAINTENANCE_SOURCE, /data-selector=\"customer\"/, 'recurr
 assert.match(RECURRING_MAINTENANCE_SOURCE, /data-selector=\"equipment\"/, 'recurring maintenance must provide an equipment searchable selector');
 assert.match(RECURRING_MAINTENANCE_SOURCE, /data-selector=\"service\"/, 'recurring maintenance must provide a service searchable selector');
 assert.match(RECURRING_MAINTENANCE_SOURCE, /data-selector=\"technician\"/, 'recurring maintenance must provide a technician searchable selector');
-assert.match(RECURRING_MAINTENANCE_SOURCE, /customerId.*equipmentId.*serviceId.*technicianId/, 'recurring maintenance must still submit internal IDs to the API');
+assert.match(RECURRING_MAINTENANCE_SOURCE, /customerId[\s\S]*equipmentId[\s\S]*serviceId[\s\S]*technicianId/, 'recurring maintenance must still submit internal IDs to the API');
 
 const ROUTES = [
   ['#/', 'Dashboard', ['Total Products', 'Service Bookings', 'Customers', 'Contact Messages', 'Low Stock', 'Revenue', 'Recent activity']],
@@ -81,6 +81,7 @@ const ROUTES = [
   ['#/inventory', 'Inventory', ['Total SKUs', 'Low stock', 'Stock value']],
   ['#/bookings', 'Service Bookings', ['Reference', 'Technician', 'Status']],
   ['#/calendar', 'Calendar', ['Mon', 'Pending', 'Completed', 'Appointments', 'Technician schedules', 'Day', 'Week', 'Agenda', 'Today']],
+  ['#/recurring-maintenance', 'Recurring Maintenance', ['Customer', 'Equipment', 'Service', 'Technician', 'Schedule maintenance']],
   ['#/services', 'Services', ['AC Installation', 'Base price']],
   ['#/dispatch', 'Dispatch Board', ['Dispatch Board']],
   ['#/equipment', 'Equipment', ['Equipment']],
