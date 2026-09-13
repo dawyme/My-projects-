@@ -140,7 +140,8 @@ export async function render(view) {
 
   view.querySelector('#recurringMaintenanceForm').onsubmit = async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formEl = event.currentTarget;
+    const form = new FormData(formEl);
     try {
       await api.post('/recurring-maintenance', {
         customerId: form.get('customerId'), equipmentId: form.get('equipmentId') || null,
@@ -148,7 +149,7 @@ export async function render(view) {
         startDate: new Date(form.get('startDate')).toISOString(), intervalMonths: Number(form.get('intervalMonths')),
         reminderOffsets: String(form.get('reminderOffsets')).split(',').map((value) => Number(value.trim())).filter(Number.isFinite),
       });
-      message.textContent = 'Maintenance schedule created.'; event.currentTarget.reset(); customerSelector.clear(); equipmentSelector.clear(); serviceSelector.clear(); technicianSelector.clear(); equipmentInput.disabled = true; equipmentInput.placeholder = 'Select a customer first'; await load();
+      message.textContent = 'Maintenance schedule created.'; formEl.reset(); customerSelector.clear(); equipmentSelector.clear(); serviceSelector.clear(); technicianSelector.clear(); equipmentInput.disabled = true; equipmentInput.placeholder = 'Select a customer first'; await load();
     } catch (error) { message.textContent = error.message; }
   };
   await load();
