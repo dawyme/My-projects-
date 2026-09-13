@@ -73,7 +73,7 @@ assert.match(RECURRING_MAINTENANCE_SOURCE, /data-selector=\"service\"/, 'recurri
 assert.match(RECURRING_MAINTENANCE_SOURCE, /data-selector=\"technician\"/, 'recurring maintenance must provide a technician searchable selector');
 assert.match(RECURRING_MAINTENANCE_SOURCE, /customerId[\s\S]*equipmentId[\s\S]*serviceId[\s\S]*technicianId/, 'recurring maintenance must still submit internal IDs to the API');
 assert.match(RECURRING_MAINTENANCE_SOURCE, /remoteSearch/, 'recurring maintenance selectors must execute their remote search callbacks');
-assert.match(RECURRING_MAINTENANCE_SOURCE, /customerId: selectedCustomerId[\\s\\S]*search: query/, 'equipment search must remain scoped to the selected customer');
+assert.ok(RECURRING_MAINTENANCE_SOURCE.includes('customerId: selectedCustomerId') && RECURRING_MAINTENANCE_SOURCE.includes('search: query'), 'equipment search must remain scoped to the selected customer');
 
 const ROUTES = [
   ['#/', 'Dashboard', ['Total Products', 'Service Bookings', 'Customers', 'Contact Messages', 'Low Stock', 'Revenue', 'Recent activity']],
