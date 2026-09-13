@@ -87,11 +87,17 @@ export async function render(view) {
           <button class="btn" data-action="pause" data-id="${esc(s.id)}" ${s.status !== 'ACTIVE' ? 'disabled' : ''}>Pause</button>
           <button class="btn" data-action="resume" data-id="${esc(s.id)}" ${s.status !== 'PAUSED' ? 'disabled' : ''}>Resume</button>
           <button class="btn btn--danger" data-action="cancel" data-id="${esc(s.id)}" ${['CANCELLED','COMPLETED'].includes(s.status) ? 'disabled' : ''}>Cancel</button>
+          <button class="btn btn--danger" data-action="delete" data-id="${esc(s.id)}" title="Permanently delete this recurring maintenance test schedule">Delete</button>
         </div>
       </div></article>`).join('') : '<div class="card"><div class="card__body">No recurring maintenance schedules yet.</div></div>';
       list.querySelectorAll('[data-action]').forEach((button) => button.onclick = async () => {
+        if (button.dataset.action === 'delete' && !window.confirm('Delete this recurring maintenance schedule permanently? Generated appointments for this schedule will also be removed. Completed historical records are protected.')) return;
         button.disabled = true;
-        try { await api.post(`/recurring-maintenance/${button.dataset.id}/${button.dataset.action}`, {}); await load(); }
+        try {
+          if (button.dataset.action === 'delete') await api.delete(`/recurring-maintenance/${button.dataset.id}`);
+          else await api.post(`/recurring-maintenance/${button.dataset.id}/${button.dataset.action}`, {});
+          await load();
+        }
         catch (error) { button.disabled = false; toastError(error.message); }
       });
     } catch (error) { list.innerHTML = `<div class="card"><div class="card__body">${esc(error.message)}</div></div>`; }

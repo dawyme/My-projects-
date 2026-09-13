@@ -262,6 +262,19 @@ router.post('/:id/resume', protect, authorize('ADMIN', 'STAFF'), requireFeature(
 }));
 router.post('/:id/cancel', protect, authorize('ADMIN', 'STAFF'), requireFeature('recurring-maintenance'), asyncHandler((req, res) => setLifecycle(req, res, 'CANCELLED')));
 
+router.delete('/:id', protect, authorize('ADMIN', 'STAFF'), requireFeature('recurring-maintenance'), asyncHandler(async (req, res) => {
+  const existing = await getSeries(req, req.params.id);
+  if (existing.occurrences.some((occurrence) => occurrence.status === 'COMPLETED')) {
+    throw badRequest('A recurring maintenance series with completed history cannot be deleted');
+  }
+  await prisma.$transaction(async (tx) => {
+    await tx.recurringMaintenanceSeries.delete({ where: { id: existing.id } });
+  });
+  await audit(req, 'DELETE', 'RecurringMaintenanceSeries', existing.id, { removedGeneratedAppointments: existing.occurrences.length });
+  await activity(req.user.id, 'recurring-maintenance', `${req.user.name} deleted a recurring maintenance schedule`, undefined, req);
+  res.json({ success: true, data: { id: existing.id, deleted: true } });
+}));
+
 router.post('/:id/generate-next', protect, authorize('ADMIN', 'STAFF'), requireFeature('recurring-maintenance'), asyncHandler(async (req, res) => {
   const existing = await getSeries(req, req.params.id);
   if (existing.status !== 'ACTIVE') throw badRequest('Only an active series can generate the next occurrence');
