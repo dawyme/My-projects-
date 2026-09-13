@@ -65,6 +65,16 @@ function bootBundle(window, script) {
   window.document.body.appendChild(s);
 }
 
+const RECURRING_MAINTENANCE_SOURCE = fs.readFileSync(path.join(ADMIN_DIR, 'js', 'pages', 'recurring-maintenance.js'), 'utf8');
+assert.doesNotMatch(RECURRING_MAINTENANCE_SOURCE, /Customer ID|Equipment ID|Service ID|Technician ID/, 'recurring maintenance must not expose raw database ID fields');
+assert.match(RECURRING_MAINTENANCE_SOURCE, /data-selector=\"customer\"/, 'recurring maintenance must provide a customer searchable selector');
+assert.match(RECURRING_MAINTENANCE_SOURCE, /data-selector=\"equipment\"/, 'recurring maintenance must provide an equipment searchable selector');
+assert.match(RECURRING_MAINTENANCE_SOURCE, /data-selector=\"service\"/, 'recurring maintenance must provide a service searchable selector');
+assert.match(RECURRING_MAINTENANCE_SOURCE, /data-selector=\"technician\"/, 'recurring maintenance must provide a technician searchable selector');
+assert.match(RECURRING_MAINTENANCE_SOURCE, /customerId[\s\S]*equipmentId[\s\S]*serviceId[\s\S]*technicianId/, 'recurring maintenance must still submit internal IDs to the API');
+assert.match(RECURRING_MAINTENANCE_SOURCE, /remoteSearch/, 'recurring maintenance selectors must execute their remote search callbacks');
+assert.ok(RECURRING_MAINTENANCE_SOURCE.includes('customerId: selectedCustomerId') && RECURRING_MAINTENANCE_SOURCE.includes('search: query'), 'equipment search must remain scoped to the selected customer');
+
 const ROUTES = [
   ['#/', 'Dashboard', ['Total Products', 'Service Bookings', 'Customers', 'Contact Messages', 'Low Stock', 'Revenue', 'Recent activity']],
   ['#/analytics', 'Analytics', ['Revenue trends', 'Monthly bookings', 'Customer growth', 'Top products', 'Technician performance']],
@@ -72,7 +82,8 @@ const ROUTES = [
   ['#/categories', 'Categories', ['Air Conditioners', 'Refrigerants', 'Compressors']],
   ['#/inventory', 'Inventory', ['Total SKUs', 'Low stock', 'Stock value']],
   ['#/bookings', 'Service Bookings', ['Reference', 'Technician', 'Status']],
-  ['#/calendar', 'Calendar', ['Mon', 'Pending', 'Completed']],
+  ['#/calendar', 'Calendar', ['Mon', 'Pending', 'Completed', 'Appointments', 'Technician schedules', 'Day', 'Week', 'Agenda', 'Today']],
+  ['#/recurring-maintenance', 'Recurring Maintenance', ['Customer', 'Equipment', 'Service', 'Technician', 'Schedule maintenance']],
   ['#/services', 'Services', ['AC Installation', 'Base price']],
   ['#/dispatch', 'Dispatch Board', ['Dispatch Board']],
   ['#/equipment', 'Equipment', ['Equipment']],

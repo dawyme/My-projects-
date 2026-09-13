@@ -16,6 +16,7 @@ export async function render(view) {
     <div class="tabs" role="tablist" id="tabs">
       <button class="tab" role="tab" data-tab="company" aria-selected="true">Company</button>
       <button class="tab" role="tab" data-tab="hours" aria-selected="false">Business hours</button>
+      <button class="tab" role="tab" data-tab="scheduling" aria-selected="false">Scheduling</button>
       <button class="tab" role="tab" data-tab="social" aria-selected="false">Social links</button>
       <button class="tab" role="tab" data-tab="email" aria-selected="false">Email</button>
       <button class="tab" role="tab" data-tab="payment" aria-selected="false">Payments</button>
@@ -67,6 +68,22 @@ export async function render(view) {
         <div class="grid grid--form">${DAYS.map((d) =>
           text(`hf-${d}`, d, d.charAt(0).toUpperCase() + d.slice(1), settings.hours[d], 'text', 'e.g. 08:00-17:00 or Closed')).join('')}</div>
         ${check('hf-emergency', 'emergency247', 'Advertise 24/7 emergency callout service', settings.hours.emergency247)}
+      </form></div>`,
+    scheduling: () => `
+      <div class="card__head"><h2>Appointment scheduling rules</h2></div>
+      <div class="card__body"><form id="form" data-section="scheduling">
+        <div class="alert alert--info">Controls how the calendar and booking form validate appointments server-side. Technicians' own working hours, time off, breaks and closed days are managed from the Calendar page.</div>
+        <div class="grid grid--form">
+          <div class="field"><label for="sf-conflictPolicy">Conflict handling</label>
+            <select id="sf-conflictPolicy" name="conflictPolicy" ${disabled}>
+              <option value="warn" ${settings.scheduling.conflictPolicy === 'warn' ? 'selected' : ''}>Warn — show conflicts but allow saving</option>
+              <option value="block" ${settings.scheduling.conflictPolicy === 'block' ? 'selected' : ''}>Block — reject double-bookings, approved time off, lead-time and window violations</option>
+            </select>
+            <span class="hint">Applies to technician double-bookings, approved time off, minimum lead time and the booking window.</span></div>
+          ${text('sf-minLead', 'minLeadHours', 'Minimum lead time (hours)', settings.scheduling.minLeadHours, 'number', '0 = no minimum. Bookings must start at least this many hours from now.')}
+          ${text('sf-maxDays', 'maxBookingDays', 'Maximum booking window (days)', settings.scheduling.maxBookingDays, 'number', '0 = no limit. Bookings must start within this many days.')}
+        </div>
+        ${check('sf-strict', 'strictWorkingHours', 'Enforce working hours strictly (appointments outside working hours, during breaks or on closed days are rejected)', settings.scheduling.strictWorkingHours)}
       </form></div>`,
     social: () => `
       <div class="card__head"><h2>Social links</h2></div>

@@ -31,6 +31,14 @@ const DEFAULTS = {
     thursday: '08:00-17:00', friday: '08:00-17:00', saturday: '09:00-13:00', sunday: 'Closed',
     emergency247: true,
   },
+  // Calendar & Scheduling policy (Phase C). Defaults are no-ops: existing
+  // tenants keep today's behaviour until they opt in to stricter rules.
+  scheduling: {
+    conflictPolicy: 'warn', // warn | block — technician double-booking / time off / lead time / booking window
+    minLeadHours: 0, // 0 = no minimum lead time
+    maxBookingDays: 0, // 0 = no maximum booking window
+    strictWorkingHours: false, // true = working-hours / break / closed-day violations block the booking
+  },
   social: { facebook: '', instagram: '', twitter: '', linkedin: '', youtube: '', tiktok: '' },
   email: { fromName: 'N&D\'S Air Conditioning & Refrigeration Services', fromEmail: 'no-reply@ndsairconditioning.com', replyTo: 'info@ndsairconditioning.com', notifyBookings: true, notifyMessages: true },
   payment: {
@@ -57,6 +65,12 @@ const SCHEMAS = {
     monday: z.string().max(40), tuesday: z.string().max(40), wednesday: z.string().max(40),
     thursday: z.string().max(40), friday: z.string().max(40), saturday: z.string().max(40),
     sunday: z.string().max(40), emergency247: z.coerce.boolean().default(false),
+  }),
+  scheduling: z.object({
+    conflictPolicy: z.enum(['warn', 'block']).default('warn'),
+    minLeadHours: z.coerce.number().int().min(0).max(720).default(0),
+    maxBookingDays: z.coerce.number().int().min(0).max(730).default(0),
+    strictWorkingHours: z.coerce.boolean().default(false),
   }),
   social: z.object({
     facebook: z.string().trim().max(300).default(''), instagram: z.string().trim().max(300).default(''),
@@ -102,7 +116,14 @@ router.put('/:section', protect, adminOnly, asyncHandler(async (req, res) => {
   const section = req.params.section;
   const schema = SCHEMAS[section];
   if (!schema) throw badRequest(`Unknown settings section '${section}'`);
-  const parsed = schema.safeParse({ ...DEFAULTS[section], ...req.body });
+  // Merge over the previously stored value so partial updates (e.g. a single
+  // scheduling flag) do not reset sibling fields to their defaults.
+  let existingValue = {};
+  try {
+    const existing = await prisma.setting.findUnique({ where: { businessId_key: { businessId: req.tenantId, key: section } } });
+    if (existing) existingValue = JSON.parse(existing.value) || {};
+  } catch (_) { existingValue = {}; }
+  const parsed = schema.safeParse({ ...DEFAULTS[section], ...existingValue, ...req.body });
   if (!parsed.success) {
     throw badRequest('Validation failed', parsed.error.issues.map((i) => ({ field: i.path.join('.'), message: i.message })));
   }

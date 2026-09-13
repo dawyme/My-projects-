@@ -5,7 +5,7 @@ const asyncHandler = require('../lib/async');
 const { validate } = require('../middleware/validate');
 const { protect, authorize } = require('../middleware/auth');
 const { tenantWhere } = require('../lib/tenant');
-const { badRequest, notFound } = require('../lib/errors');
+const { badRequest, notFound, conflict } = require('../lib/errors');
 const { requireFeature } = require('../lib/features');
 const { audit, activity } = require('../lib/audit');
 const {
@@ -261,6 +261,47 @@ router.post('/:id/resume', protect, authorize('ADMIN', 'STAFF'), requireFeature(
   res.json({ success: true, data: await getSeries(req, updated.id) });
 }));
 router.post('/:id/cancel', protect, authorize('ADMIN', 'STAFF'), requireFeature('recurring-maintenance'), asyncHandler((req, res) => setLifecycle(req, res, 'CANCELLED')));
+
+router.delete('/:id', protect, authorize('ADMIN', 'STAFF'), requireFeature('recurring-maintenance'), asyncHandler(async (req, res) => {
+  const existing = await getSeries(req, req.params.id);
+  const completedCount = await prisma.recurringMaintenanceOccurrence.count({ where: { seriesId: existing.id, status: 'COMPLETED' } });
+  if (completedCount > 0) {
+    throw badRequest('A recurring maintenance series with completed history cannot be deleted');
+  }
+  // Generated Bookings can be converted into a WorkOrder once a technician starts the
+  // job. That WorkOrder is real operational history (labour, parts, completion notes)
+  // and must never be silently destroyed by deleting the parent recurring schedule.
+  // Check for any such linkage up front so we can return a clear, actionable conflict
+  // instead of letting the delete fail deep inside the transaction on a bare FK error.
+  const seriesBookingIds = (await prisma.recurringMaintenanceOccurrence.findMany({
+    where: { seriesId: existing.id },
+    select: { bookingId: true },
+  })).map((occurrence) => occurrence.bookingId);
+  if (seriesBookingIds.length) {
+    const linkedWorkOrder = await prisma.workOrder.findFirst({
+      where: { bookingId: { in: seriesBookingIds } },
+      select: { id: true },
+    });
+    if (linkedWorkOrder) {
+      throw conflict('This recurring schedule has a generated appointment with a linked work order and cannot be deleted. Cancel the schedule instead to preserve that operational history.');
+    }
+  }
+  await prisma.$transaction(async (tx) => {
+    const occurrenceIds = existing.occurrences.map((occurrence) => occurrence.id);
+    const bookingIds = existing.occurrences.map((occurrence) => occurrence.bookingId);
+    if (occurrenceIds.length) {
+      await tx.recurringMaintenanceReminder.deleteMany({ where: { occurrenceId: { in: occurrenceIds } } });
+      await tx.recurringMaintenanceOccurrence.deleteMany({ where: { id: { in: occurrenceIds } } });
+    }
+    if (bookingIds.length) {
+      await tx.booking.deleteMany({ where: { id: { in: bookingIds } } });
+    }
+    await tx.recurringMaintenanceSeries.delete({ where: { id: existing.id } });
+  });
+  await audit(req, 'DELETE', 'RecurringMaintenanceSeries', existing.id, { removedGeneratedAppointments: existing.occurrences.length });
+  await activity(req.user.id, 'recurring-maintenance', `${req.user.name} deleted a recurring maintenance schedule`, undefined, req);
+  res.json({ success: true, data: { id: existing.id, deleted: true } });
+}));
 
 router.post('/:id/generate-next', protect, authorize('ADMIN', 'STAFF'), requireFeature('recurring-maintenance'), asyncHandler(async (req, res) => {
   const existing = await getSeries(req, req.params.id);

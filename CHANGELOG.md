@@ -59,7 +59,61 @@ All notable changes to this project will be documented in this file.
   HTTP stub supplier, covering connectors, credentials, imports, pricing,
   inventory, sync, shipping, fulfilment, permissions and tenant isolation.
 
+- **Calendar & Scheduling foundation (Phase C)** — the dispatch calendar at
+  `#/calendar` now offers **Day / 3-Day / Week / Month / Agenda** views with
+  per-view navigation, date jump, and filtering by technician (incl.
+  unassigned), status, service, customer and text search, plus a second
+  **Technician schedules** tab (per-day working hours, time off / holidays,
+  business breaks, closed days) for admins. Booking events show start→end,
+  duration, technician, recurring-maintenance flag and work-order linkage; the
+  appointment modal supports status changes, technician assignment,
+  reschedule (with a live availability check), notes, cancel and delete.
+  See [`docs/PHASE_C_CALENDAR_SCHEDULING.md`](docs/PHASE_C_CALENDAR_SCHEDULING.md).
+- **Server-side appointment conflict detection** (`src/lib/scheduling-rules.js`)
+  on booking create / reschedule / assign: technician double-booking and
+  overlaps (using effective duration `Booking.durationMin ?? Service.durationMin ?? 60`
+  plus an optional travel buffer), approved time-off, working hours (technician
+  overrides → business hours), breaks, closed days, minimum lead time and max
+  booking window. Tenant policy lives in the Settings `scheduling` section:
+  `conflictPolicy: "warn" | "block"` (default **warn** — no behaviour change for
+  existing flows; block returns 400 with the conflict list), `minLeadHours`,
+  `maxBookingDays`, `strictWorkingHours` (promotes working-hours / break /
+  closed-day warnings to blocking conflicts).
+- **New scheduling APIs** at `/api/scheduling` (feature-gated on the existing
+  `calendar` feature, tenant-scoped server-side): working hours
+  (`GET/PUT/DELETE`), time off (`GET/POST`, `PATCH` status, `DELETE`), breaks
+  (`GET/PUT/DELETE`), closed days (`GET/POST/DELETE`) and a technician roster
+  (`GET /technicians`) for the staff/technician views. `Booking` gains
+  nullable `durationMin` / `bufferMin`; new models `WorkingHours`, `TimeOff`,
+  `BreakPeriod`, `ClosedDay` (additive migration
+  `20260912000000_calendar_scheduling`; not applied to production by this change).
+- **Calendar / availability endpoints** — `GET /api/bookings/calendar` extends
+  the month-only endpoint with `view=day|3day|week|month|agenda`, `date`,
+  `serviceId`, `customerId`, `search` and richer events (`end`, `durationMin`,
+  `bufferMin`, `customerId`, `serviceId`, `technicianId`, `workOrder`,
+  `recurring`); `GET /api/bookings/availability` pre-flight checks a slot
+  (`{ available, start, end, conflicts, warnings }`). Recurring maintenance
+  occurrences (real bookings) appear on the calendar flagged `recurring`;
+  Phase B behaviour is untouched.
+- **Scheduling notification event bus** (`src/lib/scheduling-events.js`) —
+  in-process `booking.created / updated / rescheduled / assigned / cancelled`
+  events for future email/SMS/WhatsApp channels (Phases G/H); existing Resend
+  calls are unchanged.
+- **Tests** — `backend/tests/scheduling-rules.test.js` (pure unit contracts)
+  and `backend/tests/calendar-scheduling-contract.test.js` (28-check API
+  contract: views, filters, availability, warn/block conflicts, time-off,
+  working hours + strict, breaks/closed days, lead time/window, duration,
+  recurring, cancellation, event bus, SUPER_ADMIN, tenant isolation, feature
+  entitlement). Registered in `run-all.js` (22 → 24 suites); `ui.test.js`
+  calendar needles extended.
+- **Settings → Scheduling tab** — admin UI for the booking rules
+  (conflict policy, lead time, booking window, strict working hours).
+
 ### Changed
+- `PUT /api/settings/:section` now merges the submitted body over the
+  previously stored value (defaults → stored → body) so partial updates no
+  longer reset sibling fields to their defaults. Full-form saves from the
+  admin UI behave identically.
 - `Order` gained `shippingCountry` / `shippingPostalCode` and `OrderItem` gained
   `localQuantity` so an order records how much of each line came from N&D-owned
   stock; `Product` gained `fulfillmentType` / `supplierStock` /
