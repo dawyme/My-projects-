@@ -7,7 +7,7 @@ const prisma = require('../src/lib/prisma');
 const RECURRING_UI_SOURCE = fs.readFileSync(path.join(__dirname, '..', '..', 'admin', 'js', 'pages', 'recurring-maintenance.js'), 'utf8');
 assert.match(RECURRING_UI_SOURCE, /data-action=\"delete\"/, 'recurring maintenance UI must provide a delete action');
 assert.match(RECURRING_UI_SOURCE, /confirm\(/, 'recurring maintenance delete must require confirmation');
-assert.match(RECURRING_UI_SOURCE, /api\.delete\(/, 'recurring maintenance UI must call the DELETE endpoint');
+assert.match(RECURRING_UI_SOURCE, /api\.del\(/, 'recurring maintenance UI must call the DELETE endpoint');
 
 function makeClient(base) {
   const cookies = new Map(); let csrf = null; let token = null;
