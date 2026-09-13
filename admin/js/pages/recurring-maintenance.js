@@ -44,10 +44,10 @@ function createSelector(root, { searchId, optionsId, hiddenName, placeholder, on
     const q = input.value.trim();
     if (!q) return render(items);
     render(filterLocal(q));
-    if (!root.dataset.remote) return;
+    if (!remoteSearch) return;
     const token = ++requestToken;
     setLoading();
-    try { const result = await root.dataset.remote(q); if (token === requestToken) setItems(result); }
+    try { const result = await remoteSearch(q); if (token === requestToken) setItems(result); }
     catch (error) { if (token === requestToken) { options.innerHTML = `<div class=\"rm-selector__empty\">${esc(error.message)}</div>`; options.hidden = false; } }
   });
   input.addEventListener('keydown', (event) => { if (event.key === 'Escape') close(); });
@@ -106,15 +106,22 @@ export async function render(view) {
   const technicianInput = technicianRoot.querySelector('#rm-technician-search');
 
   async function searchCustomers(query) { const { data } = await api.get('/customers', { search: query, page: 1, limit: 100 }); return data || []; }
+  let selectedCustomerId = null;
+  async function searchEquipment(query = '') {
+    if (!selectedCustomerId) return [];
+    const { data } = await api.get('/equipment', { customerId: selectedCustomerId, search: query, page: 1, limit: 100 });
+    return data || [];
+  }
   const customerSelector = createSelector(customerRoot, { searchId: 'rm-customer-search', optionsId: 'rm-customer-options', hiddenName: 'customerId', placeholder: 'Search customer…', remoteSearch: searchCustomers, onSelect: async (customer) => {
+    selectedCustomerId = customer?.id || null;
     equipmentSelector.clear();
     equipmentInput.disabled = !customer;
     equipmentInput.placeholder = customer ? 'Search equipment…' : 'Select a customer first';
     if (!customer) return;
-    const { data } = await api.get('/equipment', { customerId: customer.id, page: 1, limit: 100 });
-    equipmentSelector.setItems(data || []);
+    const data = await searchEquipment();
+    equipmentSelector.setItems(data);
   } });
-  const equipmentSelector = createSelector(equipmentRoot, { searchId: 'rm-equipment-search', optionsId: 'rm-equipment-options', hiddenName: 'equipmentId', placeholder: 'Select a customer first' });
+  const equipmentSelector = createSelector(equipmentRoot, { searchId: 'rm-equipment-search', optionsId: 'rm-equipment-options', hiddenName: 'equipmentId', placeholder: 'Select a customer first', remoteSearch: searchEquipment });
   const serviceSelector = createSelector(serviceRoot, { searchId: 'rm-service-search', optionsId: 'rm-service-options', hiddenName: 'serviceId', placeholder: 'Search service…' });
   const technicianSelector = createSelector(technicianRoot, { searchId: 'rm-technician-search', optionsId: 'rm-technician-options', hiddenName: 'technicianId', placeholder: 'Search technician…' });
 
