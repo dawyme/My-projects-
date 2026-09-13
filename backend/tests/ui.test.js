@@ -72,7 +72,7 @@ const ROUTES = [
   ['#/categories', 'Categories', ['Air Conditioners', 'Refrigerants', 'Compressors']],
   ['#/inventory', 'Inventory', ['Total SKUs', 'Low stock', 'Stock value']],
   ['#/bookings', 'Service Bookings', ['Reference', 'Technician', 'Status']],
-  ['#/calendar', 'Calendar', ['Mon', 'Pending', 'Completed']],
+  ['#/calendar', 'Calendar', ['Mon', 'Pending', 'Completed', 'Appointments', 'Technician schedules', 'Day', 'Week', 'Agenda', 'Today']],
   ['#/services', 'Services', ['AC Installation', 'Base price']],
   ['#/dispatch', 'Dispatch Board', ['Dispatch Board']],
   ['#/equipment', 'Equipment', ['Equipment']],

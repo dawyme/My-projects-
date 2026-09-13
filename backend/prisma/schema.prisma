@@ -61,6 +61,10 @@ model Business {
   recurringMaintenanceSeries      RecurringMaintenanceSeries[]
   recurringMaintenanceOccurrences RecurringMaintenanceOccurrence[]
   recurringMaintenanceReminders   RecurringMaintenanceReminder[]
+  workingHours    WorkingHours[]
+  timeOffs        TimeOff[]
+  breakPeriods    BreakPeriod[]
+  closedDays      ClosedDay[]
   estimates            Estimate[]
   invoices             Invoice[]
   jobStatuses          JobStatus[]
@@ -98,6 +102,8 @@ model User {
   bookings       Booking[]             @relation("TechnicianBookings")
   bookingNotes   BookingNote[]
   messageReplies MessageReply[]
+  workingHours   WorkingHours[]
+  timeOffs       TimeOff[]
   adjustments    InventoryAdjustment[]
   workOrders     WorkOrder[]           @relation("WorkOrderTechnician")
   recurringMaintenanceSeries RecurringMaintenanceSeries[] @relation("RecurringMaintenanceTechnician")
@@ -408,6 +414,8 @@ model Booking {
   technicianId String?
   technician   User?     @relation("TechnicianBookings", fields: [technicianId], references: [id])
   scheduledAt  DateTime
+  durationMin  Int? // explicit appointment duration; effective value falls back to service.durationMin, then 60
+  bufferMin    Int? // optional travel/changeover buffer before the start (occupied window = start - buffer .. start + duration)
   completedAt  DateTime?
   status       String    @default("PENDING") // PENDING CONFIRMED IN_PROGRESS COMPLETED CANCELLED
   priority     String    @default("NORMAL") // LOW NORMAL HIGH URGENT
@@ -1469,4 +1477,71 @@ model RecurringMaintenanceReminder {
 
   @@unique([occurrenceId, offsetDays, channel])
   @@index([businessId, scheduledFor, status])
+}
+// ---------------------------------------------------------------------------
+// Calendar & Scheduling foundation (Phase C).
+// Technician availability data: weekly working hours, time off/holidays,
+// daily breaks and specific closed dates. All tenant-scoped via businessId.
+// Day convention: ISO weekday, 1 = Monday … 7 = Sunday. Times are "HH:mm".
+// ---------------------------------------------------------------------------
+
+model WorkingHours {
+  id         String   @id @default(uuid())
+  businessId String   @default("default")
+  business   Business @relation(fields: [businessId], references: [id])
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  day        Int // 1 = Monday … 7 = Sunday
+  start      String // "HH:mm"
+  end        String // "HH:mm"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([businessId, userId, day])
+  @@index([businessId, userId])
+}
+
+model TimeOff {
+  id         String   @id @default(uuid())
+  businessId String   @default("default")
+  business   Business @relation(fields: [businessId], references: [id])
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  startsAt   DateTime
+  endsAt     DateTime
+  reason     String?
+  status     String   @default("APPROVED") // PENDING APPROVED REJECTED CANCELLED
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([businessId, userId])
+  @@index([businessId, startsAt])
+}
+
+model BreakPeriod {
+  id         String   @id @default(uuid())
+  businessId String   @default("default")
+  business   Business @relation(fields: [businessId], references: [id])
+  userId     String? // null = business-wide break
+  day        Int // 1 = Monday … 7 = Sunday
+  start      String // "HH:mm"
+  end        String // "HH:mm"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([businessId, day])
+  @@index([businessId, userId])
+}
+
+model ClosedDay {
+  id         String   @id @default(uuid())
+  businessId String   @default("default")
+  business   Business @relation(fields: [businessId], references: [id])
+  date       DateTime // stored at UTC midnight
+  reason     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([businessId, date])
+  @@index([businessId, date])
 }

@@ -248,15 +248,16 @@ The platform is a mature multi-tenant field-service SaaS with solid foundations:
 - Add missing feature keys from target list without duplicates: online-booking, appointments (alias service-bookings?), recurring-appointments, booking-confirmations, email-reminders, sms-reminders, whatsapp-reminders, telegram-notifications, notification-center, notification-templates, customers, services, staff, technicians, dispatch, service-requests, work-orders, equipment, service-history, recurring-maintenance, estimates, invoices, payments, point-of-sale, products, inventory, reviews, discounts, expenses, analytics, calendar-integrations, customer-portal, technician-mobile, supplier-marketplace, etc — check existing before adding
 - Tests: platform-feature-access-contract, admin-dashboard-reliability, auth-plan-regression, rbac
 
-### Phase C: Complete Calendar and Appointment Foundation
-- Build day, 3-day, week, month, agenda, staff, technician calendars
-- Appointment filtering by staff/tech/status/service/customer/search
-- Appointment creation/edit/reschedule/cancel/delete/status/notes/activity log/history/conflict detection/availability checking/time-off blocking/working hours/breaks/closed days/staff-specific schedules
-- API: GET /api/bookings/calendar?view=day|week|month&date=...&technicianId=&status=&serviceId=&customerId=
-- UI: admin/js/pages/calendar.js expansion, responsive, mobile-friendly
-- Database: consider WorkingHours, TimeOff, BreakPeriod, ClosedDay models, indexes
-- Feature key: calendar
-- Tests: calendar.test.js expansion, API tests, conflict detection unit tests
+### Phase C: Complete Calendar and Appointment Foundation — ✅ DELIVERED (see `docs/PHASE_C_CALENDAR_SCHEDULING.md`)
+- [x] Day, 3-day, week, month, agenda views + technician/staff filtering and schedules tab (single-technician architecture; multi-tech per appointment stays a Phase E decision)
+- [x] Appointment filtering by tech/status/service/customer/search
+- [x] Appointment creation (bookings form), edit/reschedule/cancel/delete/status/notes from the calendar; server-side conflict detection, availability checking, time-off blocking, working hours, breaks, closed days, per-technician schedules
+- [x] API: GET /api/bookings/calendar?view=day|3day|week|month|agenda&date=...&technicianId=&status=&serviceId=&customerId=&search= + GET /api/bookings/availability
+- [x] UI: admin/js/pages/calendar.js expansion, responsive/mobile
+- [x] Database: WorkingHours, TimeOff, BreakPeriod, ClosedDay models (+indexes); Booking.durationMin/bufferMin — additive migration `20260912000000_calendar_scheduling`
+- [x] Feature key: calendar (already registered; API gated, entitlement tested, SUPER_ADMIN unrestricted)
+- [x] Tests: scheduling-rules.test.js (units) + calendar-scheduling-contract.test.js (28-check API contract) in run-all.js; ui.test.js calendar needles extended
+- Note: recurring-occurrence and work-order linkage surface on the calendar (`recurring` flag, `workOrder` link); notification event bus added as the Phases G/H foundation
 
 ### Phase D: Complete Online Booking
 - Public booking experience: service/category/tech/staff/date/time/customer details/custom fields/review/pay/deposit/confirm/receive confirmation

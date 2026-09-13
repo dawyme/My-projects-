@@ -169,6 +169,7 @@ app.use('/api/products', ...featureProtectedRoute('products'), require('./routes
 app.use('/api/categories', ...featureProtectedRoute('categories'), require('./routes/categories'));
 app.use('/api/customers', ...featureProtectedRoute('customers'), require('./routes/customers'));
 app.use('/api/bookings', ...featureProtectedRoute('service-bookings'), require('./routes/bookings'));
+app.use('/api/scheduling', ...featureProtectedRoute('calendar'), require('./routes/scheduling'));
 app.use('/api/services', ...featureProtectedRoute('services'), require('./routes/services'));
 app.use('/api/messages', ...featureProtectedRoute('messages'), require('./routes/messages'));
 app.use('/api/inventory', ...featureProtectedRoute('inventory'), require('./routes/inventory'));
