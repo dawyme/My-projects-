@@ -274,7 +274,7 @@ router.delete('/:id', protect, authorize('ADMIN', 'STAFF'), requireFeature('recu
   // Check for any such linkage up front so we can return a clear, actionable conflict
   // instead of letting the delete fail deep inside the transaction on a bare FK error.
   const seriesBookingIds = (await prisma.recurringMaintenanceOccurrence.findMany({
-    where: { seriesId: existing.id, bookingId: { not: null } },
+    where: { seriesId: existing.id },
     select: { bookingId: true },
   })).map((occurrence) => occurrence.bookingId);
   if (seriesBookingIds.length) {
