@@ -269,6 +269,15 @@ router.delete('/:id', protect, authorize('ADMIN', 'STAFF'), requireFeature('recu
     throw badRequest('A recurring maintenance series with completed history cannot be deleted');
   }
   await prisma.$transaction(async (tx) => {
+    const occurrenceIds = existing.occurrences.map((occurrence) => occurrence.id);
+    const bookingIds = existing.occurrences.map((occurrence) => occurrence.bookingId);
+    if (occurrenceIds.length) {
+      await tx.recurringMaintenanceReminder.deleteMany({ where: { occurrenceId: { in: occurrenceIds } } });
+      await tx.recurringMaintenanceOccurrence.deleteMany({ where: { id: { in: occurrenceIds } } });
+    }
+    if (bookingIds.length) {
+      await tx.booking.deleteMany({ where: { id: { in: bookingIds } } });
+    }
     await tx.recurringMaintenanceSeries.delete({ where: { id: existing.id } });
   });
   await audit(req, 'DELETE', 'RecurringMaintenanceSeries', existing.id, { removedGeneratedAppointments: existing.occurrences.length });
