@@ -54,6 +54,10 @@
     {
       "path": "/api/reminders/run",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/reminders/recurring/run",
+      "schedule": "0 13 * * *"
     }
   ]
 }

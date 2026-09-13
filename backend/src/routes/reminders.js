@@ -71,6 +71,8 @@ router.get('/run', asyncHandler(async (req, res) => {
 }));
 
 module.exports = router;
+const STALE_REMINDER_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
+
 async function processRecurringReminders() {
   const now = new Date();
   const due = await prisma.recurringMaintenanceReminder.findMany({
@@ -83,6 +85,11 @@ async function processRecurringReminders() {
   });
   const results = [];
   for (const reminder of due) {
+    if (now.getTime() - new Date(reminder.scheduledFor).getTime() > STALE_REMINDER_THRESHOLD_MS) {
+      await prisma.recurringMaintenanceReminder.update({ where: { id: reminder.id }, data: { status: 'FAILED', error: 'Reminder is stale (more than 3 days overdue) and was skipped' } });
+      results.push({ id: reminder.id, sent: false, skipped: 'stale' });
+      continue;
+    }
     if (reminder.occurrence.status !== 'SCHEDULED' || reminder.occurrence.booking.status === 'CANCELLED') {
       await prisma.recurringMaintenanceReminder.update({ where: { id: reminder.id }, data: { status: 'FAILED', error: 'Occurrence is no longer scheduled' } });
       continue;
