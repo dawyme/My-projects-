@@ -57,8 +57,32 @@ async function main() {
     const paused = await client.post(`/api/recurring-maintenance/${seriesId}/pause`); assert.strictEqual(paused.status, 200); assert.strictEqual(paused.body.data.status, 'PAUSED');
     const resumed = await client.post(`/api/recurring-maintenance/${seriesId}/resume`); assert.strictEqual(resumed.status, 200); assert.strictEqual(resumed.body.data.status, 'ACTIVE');
     const cancelled = await client.post(`/api/recurring-maintenance/${seriesId}/cancel`); assert.strictEqual(cancelled.status, 200); assert.strictEqual(cancelled.body.data.status, 'CANCELLED');
+
+    // Regression: a generated Booking that has been converted into a WorkOrder is real
+    // operational history and must block series deletion with a clear conflict, not a
+    // bare FK failure, and must not be destroyed.
+    const workOrderRequest = await prisma.serviceRequest.create({ data: {
+      customerId: customer.id,
+      serviceType: service?.name || 'AC Maintenance',
+      problem: 'Regression test service request for work order linkage',
+      address: '123 Regression Test St',
+    } });
+    const linkedWorkOrder = await prisma.workOrder.create({ data: {
+      requestId: workOrderRequest.id,
+      customerId: customer.id,
+      bookingId: createdBookingId,
+    } });
+    const blockedDelete = await client.delete(`/api/recurring-maintenance/${seriesId}`);
+    assert.strictEqual(blockedDelete.status, 409, 'deleting a series with a work-order-linked booking must be rejected as a conflict');
+    assert.match(String(blockedDelete.body?.error || ''), /work order/i, 'conflict response should explain the work order linkage');
+    assert.strictEqual(await prisma.recurringMaintenanceSeries.count({ where: { id: seriesId } }), 1, 'series must survive a blocked delete');
+    assert.strictEqual(await prisma.booking.count({ where: { id: createdBookingId } }), 1, 'booking with a linked work order must survive a blocked delete');
+    assert.strictEqual(await prisma.workOrder.count({ where: { id: linkedWorkOrder.id } }), 1, 'linked work order must survive a blocked delete');
+    await prisma.workOrder.delete({ where: { id: linkedWorkOrder.id } });
+    await prisma.serviceRequest.delete({ where: { id: workOrderRequest.id } });
+
     const deleted = await client.delete(`/api/recurring-maintenance/${seriesId}`);
-    assert.strictEqual(deleted.status, 200, 'recurring maintenance series should be permanently deletable');
+    assert.strictEqual(deleted.status, 200, 'recurring maintenance series should be permanently deletable once no booking is linked to a work order');
     const afterDelete = await client.get(`/api/recurring-maintenance/${seriesId}`);
     assert.strictEqual(afterDelete.status, 404, 'deleted recurring maintenance series should no longer be retrievable');
     assert.strictEqual(await prisma.recurringMaintenanceOccurrence.count({ where: { id: occurrenceId } }), 0, 'delete should remove generated test occurrence');
