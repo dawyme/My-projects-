@@ -10,7 +10,7 @@ function selectorLabel(item, fallback = 'Unnamed') {
 function createSelector(root, { searchId, optionsId, hiddenName, placeholder, onSelect, remoteSearch, emptyText = 'No matches found' }) {
   const input = root.querySelector(`#${searchId}`);
   const options = root.querySelector(`#${optionsId}`);
-  const hidden = root.querySelector(`[name=\"${hiddenName}\"]`);
+  const hidden = root.querySelector(`[name="${hiddenName}"]`);
   let items = [];
   let requestToken = 0;
 
@@ -23,8 +23,8 @@ function createSelector(root, { searchId, optionsId, hiddenName, placeholder, on
   };
   const render = (matches) => {
     options.innerHTML = matches.length
-      ? matches.map((item) => `<button type=\"button\" class=\"rm-selector__option\" role=\"option\" data-id=\"${esc(item.id)}\">${esc(selectorLabel(item))}${item.email ? ` <span>${esc(item.email)}</span>` : ''}</button>`).join('')
-      : `<div class=\"rm-selector__empty\">${esc(emptyText)}</div>`;
+      ? matches.map((item) => `<button type="button" class="rm-selector__option" role="option" data-id="${esc(item.id)}">${esc(selectorLabel(item))}${item.email ? ` <span>${esc(item.email)}</span>` : ''}</button>`).join('')
+      : `<div class="rm-selector__empty">${esc(emptyText)}</div>`;
     options.hidden = false;
     input.setAttribute('aria-expanded', 'true');
     options.querySelectorAll('[data-id]').forEach((button) => {
@@ -32,7 +32,7 @@ function createSelector(root, { searchId, optionsId, hiddenName, placeholder, on
     });
   };
   const setItems = (next) => { items = Array.isArray(next) ? next : []; if (!options.hidden && document.activeElement === input) render(items); };
-  const setLoading = () => { options.innerHTML = '<div class=\"rm-selector__empty\">Searching…</div>'; options.hidden = false; input.setAttribute('aria-expanded', 'true'); };
+  const setLoading = () => { options.innerHTML = '<div class="rm-selector__empty">Searching…</div>'; options.hidden = false; input.setAttribute('aria-expanded', 'true'); };
   const filterLocal = (query) => {
     const q = query.trim().toLowerCase();
     return q ? items.filter((item) => selectorLabel(item).toLowerCase().includes(q) || String(item.email || '').toLowerCase().includes(q)) : items;
@@ -48,7 +48,7 @@ function createSelector(root, { searchId, optionsId, hiddenName, placeholder, on
     const token = ++requestToken;
     setLoading();
     try { const result = await remoteSearch(q); if (token === requestToken) setItems(result); }
-    catch (error) { if (token === requestToken) { options.innerHTML = `<div class=\"rm-selector__empty\">${esc(error.message)}</div>`; options.hidden = false; } }
+    catch (error) { if (token === requestToken) { options.innerHTML = `<div class="rm-selector__empty">${esc(error.message)}</div>`; options.hidden = false; } }
   });
   input.addEventListener('keydown', (event) => { if (event.key === 'Escape') close(); });
   document.addEventListener('click', (event) => { if (!root.contains(event.target)) close(); });
@@ -94,7 +94,7 @@ export async function render(view) {
         if (button.dataset.action === 'delete' && !window.confirm('Delete this recurring maintenance schedule permanently? Generated appointments for this schedule will also be removed. Completed historical records are protected.')) return;
         button.disabled = true;
         try {
-          if (button.dataset.action === 'delete') await api.delete(`/recurring-maintenance/${button.dataset.id}`);
+          if (button.dataset.action === 'delete') await api.del(`/recurring-maintenance/${button.dataset.id}`);
           else await api.post(`/recurring-maintenance/${button.dataset.id}/${button.dataset.action}`, {});
           await load();
         }
