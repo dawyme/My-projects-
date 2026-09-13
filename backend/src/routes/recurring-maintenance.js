@@ -264,7 +264,8 @@ router.post('/:id/cancel', protect, authorize('ADMIN', 'STAFF'), requireFeature(
 
 router.delete('/:id', protect, authorize('ADMIN', 'STAFF'), requireFeature('recurring-maintenance'), asyncHandler(async (req, res) => {
   const existing = await getSeries(req, req.params.id);
-  if (existing.occurrences.some((occurrence) => occurrence.status === 'COMPLETED')) {
+  const completedCount = await prisma.recurringMaintenanceOccurrence.count({ where: { seriesId: existing.id, status: 'COMPLETED' } });
+  if (completedCount > 0) {
     throw badRequest('A recurring maintenance series with completed history cannot be deleted');
   }
   await prisma.$transaction(async (tx) => {
