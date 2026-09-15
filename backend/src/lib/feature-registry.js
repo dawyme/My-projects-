@@ -25,6 +25,7 @@ const TENANT_FEATURE_REGISTRY = [
   { key: 'notifications', name: 'Notifications & Reminders', description: 'Tenant reminders and notifications', category: 'People', defaultEnabled: true, routes: [], apiPrefixes: ['/api/reminders'] },
   { key: 'team', name: 'Team', description: 'Tenant staff management', category: 'Administration', defaultEnabled: true, routes: ['/users'], apiPrefixes: ['/api/users'] },
   { key: 'settings', name: 'Settings', description: 'Tenant business settings', category: 'Administration', defaultEnabled: true, routes: ['/settings'], apiPrefixes: ['/api/settings'] },
+  { key: 'universal-integrations', name: 'Universal Integrations', description: 'Tenant bank / PSP / POS / accounting connections via the Integration Gateway', category: 'Administration', defaultEnabled: true, routes: ['/integrations'], apiPrefixes: ['/api/integrations'] },
   { key: 'service-requests', name: 'Service Requests', description: 'Service request intake and conversion', category: 'Operations', defaultEnabled: true, routes: [], apiPrefixes: ['/api/service-requests'] },
   { key: 'work-orders', name: 'Work Orders', description: 'Work order lifecycle management', category: 'Operations', defaultEnabled: true, routes: [], apiPrefixes: ['/api/work-orders'] },
   { key: 'supplier-marketplace', name: 'Marketplace Dashboard', description: 'Supplier marketplace dashboard', category: 'Supplier Marketplace', defaultEnabled: true, routes: ['/supplier-marketplace'], apiPrefixes: [] },

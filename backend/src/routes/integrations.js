@@ -42,7 +42,7 @@ const asyncHandler = require('../lib/async');
 const { validate } = require('../middleware/validate');
 const { protect, adminOnly } = require('../middleware/auth');
 const { writeLimiter } = require('../middleware/rateLimit');
-const { tenantOf } = require('../lib/tenant');
+const { tenantOf, platformAdminOnly } = require('../lib/tenant');
 const { paginationSchema, meta } = require('../lib/pagination');
 const { badRequest, notFound, conflict } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
@@ -184,6 +184,217 @@ router.get('/providers', asyncHandler(async (req, res) => {
       connectionMethods: registry.connectionMethods(),
     },
   });
+}));
+
+/* =====================================================================
+ * Platform Owner (SUPER_ADMIN) — read-only, cross-tenant visibility for
+ * "Platform → Universal Integrations".
+ *
+ * These three GET endpoints are the ONLY cross-tenant surface of the
+ * Integration Gateway API. They are strictly read-only (no POST/PUT/PATCH/
+ * DELETE), guarded by `platformAdminOnly`, and return an explicit safe-field
+ * allowlist: tenant/business name, provider, connection name, category,
+ * status, capabilities and timestamps. They NEVER return `credentialsCipher`,
+ * plaintext secrets, credential descriptors, connection config or webhook
+ * tokens — a platform owner manages tenants, never their secrets.
+ *
+ * They MUST stay registered above the `/:id` routes so `/platform/*` can
+ * never be mistaken for a connection id.
+ * ===================================================================== */
+
+/** Cross-tenant connection shape: safe fields only (see block comment above). */
+function platformConnection(row) {
+  const Provider = registry.get(row.providerId);
+  return {
+    id: row.id,
+    businessId: row.businessId,
+    businessName: row.business?.name || row.businessId,
+    providerId: row.providerId,
+    providerLabel: Provider ? Provider.label : row.providerId,
+    providerCategory: row.providerCategory,
+    name: row.name,
+    authType: row.authType,
+    connectionMethod: row.connectionMethod,
+    capabilities: gateway.parseJson(row.capabilities, []),
+    status: row.status,
+    lastTestedAt: row.lastTestedAt,
+    lastConnectedAt: row.lastConnectedAt,
+    lastSyncAt: row.lastSyncAt,
+    lastSyncStatus: row.lastSyncStatus,
+    lastError: row.lastError,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+/** Cross-tenant event shape: the scrubbed event plus tenant/connection names. */
+function platformEvent(row) {
+  const { business, connection, ...rest } = row;
+  return {
+    ...presentEvent(rest),
+    businessName: business?.name || row.businessId,
+    connectionName: connection?.name || null,
+  };
+}
+
+const businessInclude = {
+  business: { select: { id: true, name: true } },
+  connection: { select: { id: true, name: true } },
+};
+
+// GET /api/integrations/platform/overview — platform-wide integration stats.
+router.get('/platform/overview', platformAdminOnly, asyncHandler(async (req, res) => {
+  const providers = registry.list();
+  const [
+    totalConnections,
+    byStatus,
+    byProviderStatus,
+    tenantsWithConnections,
+    connectedTenants,
+    totalEvents,
+    failedEvents,
+    webhookEvents,
+    recentEvents,
+    failedConnections,
+    recentWebhooks,
+  ] = await Promise.all([
+    prisma.integrationConnection.count(),
+    prisma.integrationConnection.groupBy({ by: ['status'], _count: { _all: true } }),
+    prisma.integrationConnection.groupBy({ by: ['providerId', 'status'], _count: { _all: true } }),
+    prisma.integrationConnection.groupBy({ by: ['businessId'] }),
+    prisma.integrationConnection.groupBy({ by: ['businessId'], where: { status: 'CONNECTED' } }),
+    prisma.integrationEvent.count(),
+    prisma.integrationEvent.count({ where: { success: false } }),
+    prisma.integrationEvent.count({ where: { operation: 'receiveWebhook' } }),
+    prisma.integrationEvent.findMany({
+      orderBy: { createdAt: 'desc' }, take: 10, include: businessInclude,
+    }),
+    prisma.integrationConnection.findMany({
+      where: { status: 'ERROR' }, orderBy: { updatedAt: 'desc' }, take: 10,
+      include: { business: { select: { id: true, name: true } } },
+    }),
+    prisma.integrationEvent.findMany({
+      where: { operation: 'receiveWebhook' }, orderBy: { createdAt: 'desc' }, take: 10,
+      include: businessInclude,
+    }),
+  ]);
+
+  const byCategory = new Map();
+  for (const p of providers) byCategory.set(p.category, (byCategory.get(p.category) || 0) + 1);
+
+  const providerStats = new Map();
+  for (const row of byProviderStatus) {
+    const entry = providerStats.get(row.providerId) || { total: 0, connected: 0, error: 0 };
+    entry.total += row._count._all;
+    if (row.status === 'CONNECTED') entry.connected += row._count._all;
+    if (row.status === 'ERROR') entry.error += row._count._all;
+    providerStats.set(row.providerId, entry);
+  }
+
+  res.json({
+    success: true,
+    data: {
+      providers: {
+        // Every registered provider is connectable — PR #68 defines no
+        // provider-level disable flag, so available === total by design.
+        total: providers.length,
+        available: providers.length,
+        byCategory: [...byCategory.entries()].map(([id, count]) => ({ id, count })),
+      },
+      connections: {
+        total: totalConnections,
+        byStatus: byStatus.map((r) => ({ status: r.status, count: r._count._all })),
+        byProvider: [...providerStats.entries()].map(([providerId, stats]) => {
+          const Provider = registry.get(providerId);
+          return {
+            providerId,
+            label: Provider ? Provider.label : providerId,
+            category: Provider ? Provider.category : null,
+            ...stats,
+          };
+        }),
+      },
+      tenants: {
+        withConnections: tenantsWithConnections.length,
+        connected: connectedTenants.length,
+      },
+      events: { total: totalEvents, failed: failedEvents, webhooks: webhookEvents },
+      recentEvents: recentEvents.map(platformEvent),
+      failedConnections: failedConnections.map(platformConnection),
+      recentWebhooks: recentWebhooks.map(platformEvent),
+    },
+  });
+}));
+
+// GET /api/integrations/platform/connections — every tenant's connections, safe fields only.
+router.get('/platform/connections', platformAdminOnly, validate(paginationSchema.extend({
+  providerId: z.string().optional(),
+  status: z.string().optional(),
+  category: z.string().optional(),
+  businessId: z.string().optional(),
+}), 'query'), asyncHandler(async (req, res) => {
+  const q = req.validatedQuery;
+  const where = {};
+  if (q.providerId) where.providerId = q.providerId.toUpperCase();
+  if (q.status) where.status = q.status.toUpperCase();
+  if (q.category) where.providerCategory = q.category.toUpperCase();
+  if (q.businessId) where.businessId = q.businessId;
+  if (q.search) {
+    where.OR = [
+      { name: { contains: q.search } },
+      { providerId: { contains: q.search.toUpperCase() } },
+      { business: { name: { contains: q.search } } },
+    ];
+  }
+
+  const [items, total] = await Promise.all([
+    prisma.integrationConnection.findMany({
+      where,
+      orderBy: { createdAt: q.order },
+      skip: (q.page - 1) * q.limit,
+      take: q.limit,
+      include: { business: { select: { id: true, name: true } } },
+    }),
+    prisma.integrationConnection.count({ where }),
+  ]);
+  res.json({ success: true, data: items.map(platformConnection), meta: meta(total, q.page, q.limit) });
+}));
+
+// GET /api/integrations/platform/events — every tenant's integration activity.
+router.get('/platform/events', platformAdminOnly, validate(paginationSchema.extend({
+  providerId: z.string().optional(),
+  operation: z.string().max(60).optional(),
+  success: z.string().max(10).optional(),
+  businessId: z.string().optional(),
+  connectionId: z.string().optional(),
+}), 'query'), asyncHandler(async (req, res) => {
+  const q = req.validatedQuery;
+  const where = {};
+  if (q.providerId) where.providerId = q.providerId.toUpperCase();
+  if (q.operation) where.operation = q.operation;
+  if (q.success === 'true') where.success = true;
+  else if (q.success === 'false') where.success = false;
+  if (q.businessId) where.businessId = q.businessId;
+  if (q.connectionId) where.connectionId = q.connectionId;
+  if (q.search) {
+    where.OR = [
+      { externalReference: { contains: q.search } },
+      { providerId: { contains: q.search.toUpperCase() } },
+      { operation: { contains: q.search } },
+    ];
+  }
+
+  const [items, total] = await Promise.all([
+    prisma.integrationEvent.findMany({
+      where,
+      orderBy: { createdAt: q.order },
+      skip: (q.page - 1) * q.limit,
+      take: q.limit,
+      include: businessInclude,
+    }),
+    prisma.integrationEvent.count({ where }),
+  ]);
+  res.json({ success: true, data: items.map(platformEvent), meta: meta(total, q.page, q.limit) });
 }));
 
 // GET /api/integrations — connected integrations for this tenant.

@@ -179,7 +179,7 @@ app.use('/api/messages', ...featureProtectedRoute('messages'), require('./routes
 app.use('/api/inventory', ...featureProtectedRoute('inventory'), require('./routes/inventory'));
 app.use('/api/orders', ...featureProtectedRoute('orders'), require('./routes/orders'));
 app.use('/api/payments', require('./routes/payments'));
-app.use('/api/integrations', require('./routes/integrations'));
+app.use('/api/integrations', ...featureProtectedRoute('universal-integrations'), require('./routes/integrations'));
 app.use('/api/pos', ...featureProtectedRoute('point-of-sale'), require('./routes/pos'));
 app.use('/api/analytics', ...featureProtectedRoute('reports'), require('./routes/analytics'));
 app.use('/api/settings', ...featureProtectedRoute('settings'), require('./routes/settings'));

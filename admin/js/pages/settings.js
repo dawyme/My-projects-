@@ -21,6 +21,7 @@ export async function render(view) {
       <button class="tab" role="tab" data-tab="email" aria-selected="false">Email</button>
       <button class="tab" role="tab" data-tab="payment" aria-selected="false">Payments</button>
       <button class="tab" role="tab" data-tab="seo" aria-selected="false">SEO</button>
+      <a class="tab" href="#/integrations">Integrations</a>
     </div>
     <section class="card" style="margin-top:14px" id="panel">
       <div class="card__body" style="display:grid;place-items:center;min-height:220px"><div class="spinner"></div></div>

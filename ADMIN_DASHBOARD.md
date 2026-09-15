@@ -20,7 +20,9 @@ cd backend && npm install && cp .env.example .env && npm run setup && npm start
 | Messages | Inbox with read/unread/archived, reply by email, bulk actions, search, filters |
 | Inventory | Stock levels, low stock alerts, adjustments, restock history, valuation report (JSON + CSV) |
 | Analytics | Monthly bookings, sales, product performance, customer growth, revenue trends, technician performance |
-| Settings | Company info, logo upload, business hours, social links, email, payments, SEO |
+| Settings | Company info, logo upload, business hours, social links, email, payments, SEO, link to Integrations |
+| Integrations (tenant) | `Settings → Integrations` — provider catalogue, connect wizard (dynamic per-provider forms), connection cards with test/manage/enable/remove, capability matrix, credential fingerprints with rotation, webhook URLs, activity log. Tenant-scoped. See [`docs/UNIVERSAL_INTEGRATIONS.md`](docs/UNIVERSAL_INTEGRATIONS.md) §16 |
+| Universal Integrations (platform) | `Platform → Universal Integrations` — SUPER_ADMIN-only read-only overview with Providers, Connections, Events and Webhooks tabs. Safe fields only, never secrets |
 | Supplier Marketplace | Dedicated section with its own dashboard and ten pages — suppliers, integrations/plugins, catalogue import, supplier products, fulfilment, shipping, sync & automation, sync logs and settings. See [`SUPPLIER_MARKETPLACE.md`](SUPPLIER_MARKETPLACE.md) |
 | Security | CSRF, validation, rate limiting, secure cookies, XSS/SQLi protection, audit log, AES-256-GCM encrypted supplier credentials |
 

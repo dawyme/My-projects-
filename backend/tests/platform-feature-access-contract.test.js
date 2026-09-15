@@ -13,7 +13,9 @@ function run() {
   for(const f of TENANT_FEATURE_REGISTRY){ for(const route of f.routes||[]){ if(route==='/' || !layout.includes(`path: '${route}'`)) continue; assert(layout.includes(`feature: '${f.key}'`), `${route} missing feature key`); } }
   const app=fs.readFileSync(path.join(__dirname,'../src/app.js'),'utf8');
   for(const f of TENANT_FEATURE_REGISTRY){ for(const prefix of f.apiPrefixes||[]){ if(prefix==='/api/tenant') continue; if(app.includes(`app.use('${prefix}'`)) assert(app.includes(`featureProtectedRoute('${f.key}')`), `${prefix} missing feature guard`); } }
-  const exempt = new Set(['/api/payments/webhook','/api/payments','/api/auth','/api/saas','/api/saas/features','/api/features','/api/audit-logs','/api/public','/api/site-content','/api/business','/api/businesses','/api/tenant','/api/technician-portal','/api/customer-portal']);
+  // Unauthenticated provider receivers (/api/payments/webhook, /api/integrations/webhooks)
+  // can never sit behind tenant auth/feature gates — providers cannot log in.
+  const exempt = new Set(['/api/payments/webhook','/api/integrations/webhooks','/api/payments','/api/auth','/api/saas','/api/saas/features','/api/features','/api/audit-logs','/api/public','/api/site-content','/api/business','/api/businesses','/api/tenant','/api/technician-portal','/api/customer-portal']);
   const apiMountLines = app.split('\n').filter((line) => line.includes("app.use('/api/"));
   for (const line of apiMountLines) {
     const m = line.match(/app\.use\('(\/api\/[^']+)'/);

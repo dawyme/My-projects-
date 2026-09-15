@@ -128,6 +128,8 @@ const ROUTES = [
   ['#/supplier-sync', 'Sync & Automation', ['Automation', 'Per-supplier schedule', 'Running now']],
   ['#/supplier-logs', 'Sync Logs', ['Trigger', 'Processed', 'Status']],
   ['#/supplier-settings', 'Marketplace Settings', ['Pricing defaults', 'Permissions', 'Markup rules']],
+  ['#/integrations', 'Integrations', ['Available integrations', 'Your connections', 'Connect integration', 'Manual Bank Transfer']],
+  ['#/platform-integrations', 'Universal Integrations', ['Universal Integrations', 'Total providers', 'Active connections', 'Connection health', 'Recent integration events']],
   ['#/saas', 'Tenants & Plans', ['Tenants', 'Platform plans', 'SaaS tenants', 'Create plan', 'Add tenant']],
   ['#/no-such-page', 'Not found', ['Page not found']],
 ];
