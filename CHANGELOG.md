@@ -108,6 +108,24 @@ All notable changes to this project will be documented in this file.
   calendar needles extended.
 - **Settings → Scheduling tab** — admin UI for the booking rules
   (conflict policy, lead time, booking window, strict working hours).
+- **Universal Banking & Payment Integration Framework (Phase 1)** — a
+  provider-agnostic Integration Gateway
+  (`N&D'S App → Gateway → Provider Adapter → Bank/PSP/POS/Accounting`) with a
+  standard provider interface (13 opt-in capabilities, 5 provider categories,
+  11 connection methods spanning API, OAuth, hosted gateways, open banking,
+  webhooks, SFTP, file import, payment links and manual reconciliation), a
+  provider registry with plugin loading, tenant-scoped connections
+  (`IntegrationConnection`) with AES-256-GCM encrypted secrets (reusing the
+  reviewed supplier envelope — no new crypto), a secret-scrubbed event log
+  (`IntegrationEvent`), a stable `{ code, category, retryable }` error
+  taxonomy, and a tenant-admin management API plus hardened webhook receiver
+  (`/api/integrations/*`, `/api/integrations/webhooks/:provider/:token`).
+  Ships with two safe proof-of-design adapters — `MANUAL_BANK_TRANSFER` (BANK,
+  no API required) and `SANDBOX_DEMO` (sandbox-only PSP that refuses to run in
+  production) — and a 41-check suite (`backend/tests/integrations.test.js`,
+  registered in `run-all.js`). No existing payment behaviour changed; webhooks
+  are logged, not yet wired into orders. See
+  [`docs/UNIVERSAL_INTEGRATIONS.md`](docs/UNIVERSAL_INTEGRATIONS.md).
 
 ### Changed
 - `PUT /api/settings/:section` now merges the submitted body over the
