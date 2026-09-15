@@ -142,7 +142,7 @@ export const api = {
 
 export const auth = {
   get user() { return store.get().user || null; },
-  get isAdmin() { return this.user?.role === 'ADMIN'; },
+  get isAdmin() { return this.user?.role === 'SUPER_ADMIN' || this.user?.role === 'TENANT_ADMIN'; },
   async login(email, password) {
     const json = await request('POST', '/auth/login', { body: { email, password }, retry: false });
     store.set({ accessToken: json.data.accessToken, refreshToken: json.data.refreshToken, user: json.data.user });
