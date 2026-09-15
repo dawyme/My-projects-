@@ -77,6 +77,8 @@ sales             Sale[]
   saleRefunds       SaleRefund[]
   saleRefundLines   SaleRefundLineItem[]
   saleLineItems     SaleLineItem[]
+  integrationConnections IntegrationConnection[]
+  integrationEvents      IntegrationEvent[]
 
 }
 
@@ -1309,6 +1311,76 @@ model SupplierMarkupRule {
   @@index([tenantId])
   @@index([scope])
   @@index([categoryId])
+}
+
+// ---------------------------------------------------------------------------
+// Universal Banking & Payment Integration Framework (Phase 1).
+//
+// A tenant-scoped, provider-agnostic connection registry plus a secret-scrubbed
+// event log, fronted by the Integration Gateway (backend/src/lib/integrations/).
+// Every row carries `businessId` and every query is scoped server-side to the
+// caller's tenant — Tenant A can never see Tenant B's connections, secrets or
+// events. Secrets live ONLY in `credentialsCipher` (AES-256-GCM envelope,
+// shared with the supplier credential store) and are never returned to the
+// browser. JSON payloads are TEXT, matching the existing Product.gallery /
+// SupplierIntegration.config convention for the local SQLite dev database.
+// ---------------------------------------------------------------------------
+
+/// One tenant's connection to a bank / PSP / POS / accounting provider.
+/// `providerId` references a registered IntegrationProvider adapter — never a
+/// hardcoded vendor branch in application code.
+model IntegrationConnection {
+  id                String    @id @default(uuid())
+  businessId        String    @default("default")
+  business          Business  @relation(fields: [businessId], references: [id])
+  providerId        String // e.g. MANUAL_BANK_TRANSFER | SANDBOX_DEMO | future bank/PSP ids
+  providerCategory  String // BANK | PSP | POS | ACCOUNTING | OTHER (snapshot for filtering)
+  name              String
+  authType          String    @default("NONE") // NONE | API_KEY | BASIC | BEARER | OAUTH2 | SFTP
+  connectionMethod  String? // primary CONNECTION_METHOD id (MANUAL, HOSTED_GATEWAY, …)
+  config            String? // JSON — non-secret adapter settings (bank details, endpoints…)
+  credentialsCipher String? // AES-256-GCM envelope: v1.<iv>.<tag>.<ct> (base64url)
+  credentialFields  String? // JSON [{name, set, fingerprint, updatedAt}] — safe for the browser
+  capabilities      String? // JSON array of capability ids detected for this connection
+  status            String    @default("NOT_CONNECTED") // NOT_CONNECTED | CONFIGURED | CONNECTED | DISCONNECTED | DISABLED | ERROR
+  webhookToken      String    @unique @default(uuid()) // unguessable per-connection webhook path token
+  lastTestedAt      DateTime?
+  lastConnectedAt   DateTime?
+  lastSyncAt        DateTime?
+  lastSyncStatus    String?
+  lastError         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  events IntegrationEvent[]
+
+  @@unique([businessId, name])
+  @@index([businessId])
+  @@index([providerId])
+  @@index([status])
+}
+
+/// Secret-scrubbed audit trail of Gateway operations per tenant connection.
+model IntegrationEvent {
+  id                String                @id @default(uuid())
+  businessId        String                @default("default")
+  business          Business              @relation(fields: [businessId], references: [id])
+  connectionId      String?
+  connection        IntegrationConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  providerId        String?
+  operation         String // testConnection | createPayment | receiveWebhook | …
+  success           Boolean               @default(false)
+  externalReference String?
+  errorCategory     String? // CONFIG | AUTH | NETWORK | PROVIDER | VALIDATION | UNSUPPORTED | INTERNAL
+  errorMessage      String? // truncated + secret-scrubbed
+  retryable         Boolean               @default(false)
+  metadata          String? // JSON — structurally redacted before insert
+  createdAt         DateTime              @default(now())
+
+  @@index([businessId])
+  @@index([connectionId])
+  @@index([operation])
+  @@index([createdAt])
 }
 
 enum SaleStatus {
