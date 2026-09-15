@@ -584,6 +584,60 @@ async function main() {
   record(doc.querySelectorAll('#view .chart-box svg').length >= 4, 'Analytics renders multiple charts',
     `${doc.querySelectorAll('#view .chart-box svg').length} charts, ${svgCount} shapes`);
 
+  // ---------- customers: manual create intact + contacts import enhancement
+  w.location.hash = '#/customers';
+  await until(() => doc.querySelector('#rows tr[data-id]'), 12000);
+  const newCustomerBtn = doc.getElementById('newBtn');
+  if (newCustomerBtn) newCustomerBtn.click();
+  const customerModalOpen = newCustomerBtn ? await until(() => doc.querySelector('.modal-backdrop #customerForm'), 8000) : false;
+  record(customerModalOpen, 'Customer create modal opens with the manual form');
+  if (customerModalOpen) {
+    const cForm = doc.querySelector('#customerForm');
+    record(['name', 'email', 'phone', 'company', 'city', 'state', 'postalCode', 'address', 'notes'].every((f) => cForm.elements[f]),
+      'Customer form exposes all manual fields');
+    // jsdom has no Contact Picker API: the entry point must be absent entirely.
+    record(!doc.querySelector('.modal-backdrop #pickContactBtn'),
+      'Contacts entry point is hidden when the Contact Picker API is unsupported');
+    doc.querySelector('.modal-backdrop [data-close]').click();
+    await wait(80);
+  }
+
+  // Same modal in a picker-capable environment (navigator.contacts injected):
+  // the entry point renders, and tapping it populates the form for review.
+  Object.defineProperty(w.navigator, 'contacts', {
+    configurable: true,
+    value: {
+      select: (props, opts) => {
+        w.__pickerArgs = [props, opts];
+        return Promise.resolve([{ name: ['  Jane   Doe '], tel: ['+1 555 0100', '+1 555 0101'], email: ['Jane@Example.com'] }]);
+      },
+    },
+  });
+  if (newCustomerBtn) newCustomerBtn.click();
+  const contactsBtnReady = newCustomerBtn ? await until(() => doc.querySelector('.modal-backdrop #pickContactBtn'), 8000) : false;
+  const contactsBtn = contactsBtnReady ? doc.querySelector('.modal-backdrop #pickContactBtn') : null;
+  record(!!contactsBtn, 'Add from Contacts entry point renders when the picker is supported');
+  if (contactsBtn) {
+    record(!!doc.querySelector('.modal-backdrop #customerForm'),
+      'Manual form is still present next to the contacts entry point');
+    contactsBtn.click();
+    const populated = await until(() => doc.querySelector('.modal-backdrop #cf-name')?.value === 'Jane Doe', 4000);
+    record(populated, 'Selected phone contact populates the customer form for review');
+    record(Array.isArray(w.__pickerArgs) && w.__pickerArgs[1] && w.__pickerArgs[1].multiple === false,
+      'Picker is requested single-select with a minimal property list');
+    record(doc.querySelector('.modal-backdrop #cf-email')?.value === 'jane@example.com'
+      && doc.querySelector('.modal-backdrop #cf-phone')?.value === '+1 555 0100',
+      'Contact email/phone map into the existing fields (first value wins)');
+    const note = doc.querySelector('.modal-backdrop .contact-import-note');
+    record(!!note && !note.hidden && /Imported from a phone contact/.test(note.textContent),
+      'Form indicates the data came from an imported contact');
+    record(!doc.querySelector('.modal-backdrop .toast--error'), 'Contact import completes without error toasts');
+    doc.querySelector('.modal-backdrop [data-close]').click();
+    await wait(80);
+    record(!doc.querySelector('.modal-backdrop'), 'Customer modal closes cleanly after contact import');
+  }
+  delete w.navigator.contacts;
+
   // Website Content Manager is tenant-scoped. The platform owner intentionally has
   // no businessId, so switch the SPA session to the seeded tenant admin for this
   // tenant-content verification, then restore the platform-owner session below.
