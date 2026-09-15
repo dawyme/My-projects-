@@ -763,6 +763,20 @@ async function main() {
     });
     await prisma.integrationConnection.deleteMany({ where: { id: { in: trackedConnectionIds } } });
     assert.strictEqual(await prisma.integrationConnection.count({ where: { id: { in: trackedConnectionIds } } }), 0);
+    // Tenant B's API activity left audit/activity rows behind; PostgreSQL
+    // enforces the Business/User FKs (RESTRICT), so they must go before the
+    // tenant and its users. (SQLite skips FK constraints, which is why this
+    // only bites on Postgres.) Match by tenant AND by user id so no
+    // referencing row can survive to block the deletes below.
+    const tenantBUserIds = (await prisma.user.findMany({
+      where: { businessId: tenantB.id }, select: { id: true },
+    })).map((u) => u.id);
+    await prisma.auditLog.deleteMany({
+      where: { OR: [{ businessId: tenantB.id }, { userId: { in: tenantBUserIds } }] },
+    });
+    await prisma.activity.deleteMany({
+      where: { OR: [{ businessId: tenantB.id }, { userId: { in: tenantBUserIds } }] },
+    });
     await prisma.user.deleteMany({ where: { businessId: tenantB.id } });
     await prisma.business.delete({ where: { id: tenantB.id } });
   });
