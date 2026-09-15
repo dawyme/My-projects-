@@ -1,6 +1,9 @@
 import { api, auth } from '../api.js';
 import { setTitle } from '../layout.js';
 import {
+  contactsSupported, pickContact, mapContactToCustomer, applyContactToForm, contactImportHints,
+} from '../contacts.js';
+import {
   qs, qsa, icon, esc, money, num, date, dateTime, statusBadge, initials, debounce,
   skeletonRows, emptyState, pagination, modal, confirmDialog, formData, showFieldErrors,
   toast, toastError,
@@ -170,9 +173,15 @@ export async function render(view, query) {
 
   function openForm(customer) {
     const isEdit = !!customer;
+    const contactsAvailable = !isEdit && contactsSupported();
     modal({
       title: isEdit ? `Edit ${customer.name}` : 'New customer',
-      body: `<form id="customerForm" novalidate><div class="grid grid--form">
+      body: `<form id="customerForm" novalidate>
+          ${contactsAvailable ? `
+          <button type="button" class="btn btn--ghost btn--block" id="pickContactBtn">${icon('users')} Add from Contacts</button>
+          <p class="contacts-divider">or fill in manually</p>
+          <div id="contactImportNote" class="contact-import-note" hidden></div>` : ''}
+          <div class="grid grid--form">
           <div class="field"><label for="cf-name">Full name *</label><input id="cf-name" name="name" required value="${esc(customer?.name || '')}"></div>
           <div class="field"><label for="cf-email">Email *</label><input id="cf-email" name="email" type="email" required value="${esc(customer?.email || '')}"></div>
           <div class="field"><label for="cf-phone">Phone</label><input id="cf-phone" name="phone" type="tel" value="${esc(customer?.phone || '')}"></div>
@@ -190,6 +199,35 @@ export async function render(view, query) {
         const form = qs('#customerForm', root);
         const btn = qs('#saveCustomer', root);
         form.addEventListener('submit', (e) => { e.preventDefault(); btn.click(); });
+        const pickBtn = qs('#pickContactBtn', root);
+        const importNote = qs('#contactImportNote', root);
+        if (pickBtn) {
+          const pickLabel = pickBtn.innerHTML;
+          pickBtn.onclick = async () => {
+            pickBtn.disabled = true;
+            pickBtn.innerHTML = '<span class="spinner"></span> Opening contacts…';
+            try {
+              // Only now (explicit user tap) is the device picker invoked.
+              const result = await pickContact();
+              if (!result.ok) {
+                if (!result.cancelled) toast(result.message, 'error');
+                return;
+              }
+              const { draft, missing } = mapContactToCustomer(result.contact);
+              applyContactToForm(form, draft);
+              if (importNote) {
+                const hints = contactImportHints(missing);
+                importNote.innerHTML = `<strong>Imported from a phone contact</strong> — please review and edit below before saving.${
+                  hints.length ? `<ul>${hints.map((h) => `<li>${esc(h)}</li>`).join('')}</ul>` : ''}`;
+                importNote.hidden = false;
+              }
+              qs('#cf-name', root)?.focus();
+            } finally {
+              pickBtn.disabled = false;
+              pickBtn.innerHTML = pickLabel;
+            }
+          };
+        }
         btn.onclick = async () => {
           btn.disabled = true;
           btn.innerHTML = '<span class="spinner"></span> Saving…';
