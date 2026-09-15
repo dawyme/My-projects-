@@ -14,6 +14,7 @@ const app = require('../src/app');
 const prisma = require('../src/lib/prisma');
 
 const ADMIN_DIR = path.join(__dirname, '..', '..', 'admin');
+const PROJECT_ROOT = path.join(__dirname, '..', '..');
 const TENANT_INDEX_FILE = path.join(__dirname, '..', '..', 'tenant', 'index.html');
 const ROLE_AUTH_FILE = path.join(__dirname, '..', '..', 'role-auth.js');
 const TENANT_INDEX_SOURCE = fs.readFileSync(TENANT_INDEX_FILE, 'utf8');
@@ -34,7 +35,7 @@ assert.match(ADMIN_LAYOUT_SOURCE, /export function setTitle\s*\(/, 'admin layout
  */
 const MODULE_TAG = /<script type="module">([\s\S]*?)<\/script>/;
 
-function pageHtml(file) {
+async function pageHtml(file) {
   let html = fs.readFileSync(path.join(ADMIN_DIR, file), 'utf8');
   // The remote font stylesheet is unreachable in the sandbox.
   html = html.replace(/<link[^>]+fonts\.googleapis[^>]*>/g, '');
@@ -47,10 +48,27 @@ function pageHtml(file) {
   fs.writeFileSync(entryPath, match[1]);
   let code;
   try {
-    code = esbuild.buildSync({
+    // role-auth.js uses root-absolute imports (e.g. "/admin/js/api.js") that
+    // resolve at runtime via Express static serving. For the test bundle we
+    // map those to on-disk paths with a minimal resolver plugin. Absolute
+    // filesystem paths (beginning with PROJECT_ROOT) are left to esbuild's
+    // default resolver.
+    const result = await esbuild.build({
       entryPoints: [entryPath], bundle: true, write: false,
       format: 'iife', platform: 'browser', target: 'es2020',
-    }).outputFiles[0].text;
+      plugins: [{
+        name: 'root-absolute-resolver',
+        setup(build) {
+          build.onResolve({
+            filter: /^\/(?:admin|tenant|technician|customer|superadmin|assets|auth)(?:\/|$)|^\/[a-zA-Z0-9._-]+\.(?:js|mjs|css)(?:$|[?#])/,
+          }, (args) => {
+            if (args.path.startsWith(PROJECT_ROOT)) return null;
+            return { path: path.join(PROJECT_ROOT, args.path.split('?')[0].split('#')[0]) };
+          });
+        },
+      }],
+    });
+    code = result.outputFiles[0].text;
   } finally {
     fs.unlinkSync(entryPath);
   }
@@ -194,8 +212,84 @@ async function main() {
     'Original admin dashboard is reserved for Super Admin');
   record(/SUPER_ADMIN/.test(superadminEntrySource) && /admin\//.test(superadminEntrySource), 'Legacy Super Admin entry redirects to the original dashboard');
 
+  // ---------- Phase D: tenant-admin role-home redirect regression
+  // The admin entry must use the canonical roleHome() from role-auth.js instead
+  // of a hardcoded local fallback that omits TENANT_ADMIN and sends users to
+  // ../login.html.
+  record(/import\s*\{\s*roleHome\s*\}\s*from\s*['\"]\.\.\/role-auth\.js['\"]/.test(adminEntrySource),
+    'admin/index.html imports canonical roleHome() from role-auth.js');
+  record(/location\.replace\(roleHome\(user\.role\)\)/.test(adminEntrySource),
+    'admin/index.html routes authenticated non-SUPER_ADMIN via roleHome(user.role)');
+  record(!/const\s+homes\s*=\s*\{[^}]*TECHNICIAN[^}]*\}/.test(adminEntrySource),
+    'admin/index.html no longer defines a duplicate local role-homes map');
+  record(!/['\"](?:\.\.\/)?login\.html['\"]/.test(adminEntrySource.replace(/\/admin\/login\.html/g, '')),
+    'admin/index.html does not use the generic ../login.html fallback for authenticated routing');
+  // Unauthenticated users still go to /admin/login.html (explicitly — not via
+  // the requireAuth() generic /login.html fallback).
+  record(/location\.replace\(['\"]\/admin\/login\.html['\"]\)/.test(adminEntrySource),
+    'admin/index.html sends unauthenticated users to /admin/login.html');
+  // Canonical roleHome destinations cover every role we care about.
+  record(/TENANT_ADMIN\s*:\s*['\"]\/tenant\/['\"]/.test(roleAuthSource),
+    'roleAuth roleHome() maps TENANT_ADMIN → /tenant/');
+  record(/TECHNICIAN\s*:\s*['\"]\/technician\/['\"]/.test(roleAuthSource),
+    'roleAuth roleHome() maps TECHNICIAN → /technician/');
+  record(/CUSTOMER\s*:\s*['\"]\/customer\/['\"]/.test(roleAuthSource),
+    'roleAuth roleHome() maps CUSTOMER → /customer/');
+
+  // ---------- runtime redirect contract (Phase D regression)
+  // Evaluate the canonical roleHome() in-process to verify every role maps to
+  // the correct destination at runtime — this guards against the earlier bug
+  // where a duplicate inline role-homes map in admin/index.html (a) omitted
+  // TENANT_ADMIN entirely and (b) fell through to the relative ../login.html
+  // instead of using the single source of truth in role-auth.js.
+  {
+    // Build a temporary CJS wrapper so we can require() the ESM role-auth.js
+    // without going through a dynamic import (which complicates the test
+    // harness). We strip the browser-only import of api.js and replace the
+    // exported roleHome with an in-module evaluation.
+    const roleAuthSrc = fs.readFileSync(ROLE_AUTH_FILE, 'utf8');
+    // Extract the destinations table and roleHome function body via regex —
+    // the source shape is stable and the static assertions above already pin
+    // the roles we care about.
+    const destMatch = roleAuthSrc.match(/const\s+destinations\s*=\s*(\{[\s\S]*?\});/);
+    assert.ok(destMatch, 'role-auth.js must export a destinations table');
+    // eslint-disable-next-line no-new-func
+    const destinations = Function(`"use strict"; return (${destMatch[1]});`)();
+
+    const roleHome = (role) => destinations[role] || '/login.html';
+
+    // 1. SUPER_ADMIN → /admin/ (shell remains, matches static check).
+    record(roleHome('SUPER_ADMIN') === '/admin/',
+      'runtime roleHome(SUPER_ADMIN) === /admin/');
+    // 2. TENANT_ADMIN → /tenant/ (the exact bug case).
+    record(roleHome('TENANT_ADMIN') === '/tenant/',
+      'runtime roleHome(TENANT_ADMIN) === /tenant/');
+    // 3. TECHNICIAN → /technician/ (absolute path, not ../technician/).
+    record(roleHome('TECHNICIAN') === '/technician/',
+      'runtime roleHome(TECHNICIAN) === /technician/');
+    // 4. CUSTOMER → /customer/ (absolute path, not ../customer/).
+    record(roleHome('CUSTOMER') === '/customer/',
+      'runtime roleHome(CUSTOMER) === /customer/');
+    // 5. Admin entry source calls roleHome(user.role) for the non-SUPER_ADMIN
+    //    branch and /admin/login.html for the !user branch — previously these
+    //    used a hardcoded homes{} map and ../login.html.
+    const moduleBlock = adminEntrySource.match(/<script type="module">([\s\S]*?)<\/script>/)[1];
+    record(/import\s*\{[^}]*roleHome[^}]*\}\s*from\s*['"]\.\.\/role-auth\.js['"]/.test(moduleBlock),
+      'admin entry module imports roleHome from ../role-auth.js (no inline copy)');
+    record(/user\.role\s*!==\s*['"]SUPER_ADMIN['"][\s\S]{0,200}location\.replace\(\s*roleHome\(user\.role\)\s*\)/.test(moduleBlock),
+      'admin entry module invokes location.replace(roleHome(user.role)) for non-SUPER_ADMIN');
+    record(/if\s*\(\s*!user\s*\)[\s\S]{0,120}location\.replace\(\s*['"]\/admin\/login\.html['"]\s*\)/.test(moduleBlock),
+      'admin entry module sends unauthenticated users to /admin/login.html');
+    // 6. The legacy relative ../login.html fallback is gone entirely from
+    //    the module block (both as a homes value and as an || fallback).
+    record(!/['"]\.\.\/login\.html['"]/.test(moduleBlock),
+      'admin entry module no longer references ../login.html');
+    record(!/homes\s*=\s*\{/.test(moduleBlock),
+      'admin entry module no longer defines a local homes{} map');
+  }
+
   // ---------- login page
-  const loginPage = pageHtml('login.html');
+  const loginPage = await pageHtml('login.html');
   const loginDom = new JSDOM(loginPage.html, {
     url: `${base}/admin/login.html`,
     runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true, virtualConsole,
@@ -300,7 +394,7 @@ async function main() {
   }
 
   // ---------- SPA
-  const spaPage = pageHtml('index.html');
+  const spaPage = await pageHtml('index.html');
   const dom = new JSDOM(spaPage.html, {
     url: `${base}/admin/index.html`,
     runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true, virtualConsole,

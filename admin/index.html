@@ -34,17 +34,17 @@
 <script type="module">
   import { requireAuth } from './js/api.js';
   import { boot } from './js/layout.js';
+  import { roleHome } from '../role-auth.js';
 
   (async () => {
     const user = await requireAuth();
 
-  if (!user) {
-    location.replace('/admin/login.html');
-    return;
-  }
+    if (!user) {
+      location.replace('/admin/login.html');
+      return;
+    }
     if (user.role !== 'SUPER_ADMIN') {
-      const homes = { TECHNICIAN: '../technician/', CUSTOMER: '../customer/' };
-      location.replace(homes[user.role] || '../login.html');
+      location.replace(roleHome(user.role));
       return;
     }
     boot();
