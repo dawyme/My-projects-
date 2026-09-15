@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Universal Integrations Admin UI** — platform-owner and tenant-admin
+  surfaces for the Integration Gateway inside the existing dashboard shell.
+  `Platform → Universal Integrations` (`#/platform-integrations`,
+  SUPER_ADMIN-only, read-only) with Overview, Providers, Connections, Events
+  and Webhooks tabs served by three new `platformAdminOnly` endpoints
+  (`GET /api/integrations/platform/overview|connections|events`) that return
+  safe fields only — never ciphers, secrets, configs or webhook tokens.
+  `Settings → Integrations` (`#/integrations`, TENANT_ADMIN) with a dynamic,
+  provider-agnostic connect wizard (forms generated from provider metadata),
+  connection cards (test / manage / enable / remove), capability matrix,
+  credential fingerprint status with rotation, webhook URLs and the
+  secret-scrubbed activity log. Tenant access is controlled by the new
+  `universal-integrations` feature entitlement (default on); the PR #68
+  backend is consumed as-is. See
+  [`docs/UNIVERSAL_INTEGRATIONS.md`](docs/UNIVERSAL_INTEGRATIONS.md) §16.
+- **Universal Integrations Admin UI suite**
+  (`backend/tests/integration-admin-ui.test.js`, wired into `npm test`) — 24
+  checks covering UI/API contracts, the platform safe-field allowlist,
+  tenant isolation in both directions, RBAC, rotation semantics, webhook
+  visibility and feature-entitlement behaviour. The tenant feature-registry
+  contract suite (previously failing on `main` and unwired) is fixed — the
+  unauthenticated integration webhook receiver is exempt like the payment
+  webhooks — and wired into `npm test`.
 - **Global Supplier Marketplace** — a dedicated top-level Admin Dashboard
   section (`#/supplier-marketplace`) with ten pages: Dashboard, Suppliers,
   Integrations / Plugins, Import Products, Supplier Products, Fulfillment,

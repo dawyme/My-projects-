@@ -264,8 +264,93 @@ POST   /api/integrations/webhooks/:providerId/:webhookToken
   phase-1 providers yet. The interface defines all four and Gateway dispatch
   exists for `reconcile`; `voidPayment` / `createPaymentLink` /
   `importStatement` dispatch arrives with the first provider that needs it.
-- No Admin UI page yet — the API is the foundation `Settings → Integrations`
-  will be built on.
 - Credential envelope shares the supplier key derivation; a dedicated
   `INTEGRATION_CREDENTIALS_KEY` with re-encryption migration is deferred to a
   later phase if key separation is required.
+
+## 16. Admin UI (PR #69)
+
+PR #68 provided the backend foundation above; PR #69 adds the two admin
+surfaces on top of it, inside the existing dashboard shell and navigation (no
+second dashboard). Both pages are provider-agnostic: catalogues, connection
+forms, credential inputs and capability displays are generated from the
+provider metadata returned by `GET /api/integrations/providers`, so a future
+bank / PSP / POS / accounting adapter works in the UI with no changes.
+
+### 16.1 Settings → Integrations (TENANT_ADMIN)
+
+Route `#/integrations`, in the Administration nav group (tenant-only) and
+linked from the Settings tab bar. A tenant admin sees only their own tenant:
+
+- **Your connections** — responsive cards with provider, category, status,
+  capabilities, last test / connect / sync, and last error. Actions: Test
+  Connection, Manage (detail), Enable/Disable, Remove.
+- **Available integrations** — the provider catalogue with per-provider
+  connection status and a Connect entry point.
+- **Connect workflow** — one dynamic wizard for every connection method
+  (`API_KEY`, `BASIC`/`BEARER`, `OAUTH2`, hosted gateway, open banking,
+  webhook, SFTP, file import, payment links, manual): provider, auth type and
+  method selects come from the provider metadata, and only the config /
+  credential fields that provider actually declares are rendered.
+- **Manage (detail)** — capability matrix, non-secret configuration summary,
+  stored-credential fingerprints, webhook URL (for webhook-capable providers),
+  Test / Connect / Disconnect actions, and the secret-scrubbed activity log.
+
+Credential handling mirrors the supplier UI: stored secrets are shown as
+name + fingerprint only, inputs are write-only (blank = keep the server
+value), rotation is supported per field, and an explicit per-field control
+clears a secret (`null` semantics). Nothing secret is ever written to
+localStorage, URLs or logs. Success is only ever reported when the backend
+confirms it.
+
+### 16.2 Platform → Universal Integrations (SUPER_ADMIN)
+
+Route `#/platform-integrations`, in the Platform nav group between Feature
+Management and Platform Analytics (platform-only). Read-only: the platform
+owner gets visibility, while connection lifecycle stays with each tenant's
+own admin. Five tabs, all served by three read-only endpoints:
+
+```
+GET /api/integrations/platform/overview      stats + recent activity + failures
+GET /api/integrations/platform/connections   every tenant's connections (paginated, filterable)
+GET /api/integrations/platform/events        every tenant's integration events (paginated, filterable)
+```
+
+- **Overview** — total / available providers, active connections, connected
+  tenants, event totals, connection health by status, failing connections,
+  recent events and webhook activity. Every figure comes from live API data.
+- **Providers** — the dynamic provider catalogue with platform-wide
+  connection counts per provider.
+- **Connections** — filterable (search, provider, status, category) tenant
+  connection cards: tenant/business, provider, name, category, status,
+  capabilities, last tested / connected / sync, last error.
+- **Events** — filterable (search, provider, operation, result) activity log
+  with tenant, provider, operation, success/failure, error category,
+  retryable flag, external reference and timestamp; row click shows detail.
+- **Webhooks** — the Gateway receiver explained plus received-webhook
+  activity. There is deliberately no second webhook system.
+
+The platform endpoints are guarded by `platformAdminOnly`, registered above
+the `/:id` routes, and return an explicit safe-field allowlist — no
+`credentialsCipher`, no secret values or descriptors, no connection config,
+no webhook tokens.
+
+### 16.3 Tenancy, RBAC and feature entitlement
+
+- The tenant API and UI never accept a client-supplied `businessId`; scope
+  always comes from the session, and cross-tenant reads return 404.
+- `SUPER_ADMIN` (platform owner, `businessId = NULL`) uses the platform
+  surface; `TENANT_ADMIN` uses the tenant surface for their own business.
+  The architecture from PR #68 is unchanged: the platform owner is not a
+  customer tenant and no second platform account exists.
+- Tenant access is controlled by the existing feature-entitlement system via
+  the `universal-integrations` feature (`defaultEnabled: true`,
+  `routes: ['/integrations']`, `apiPrefixes: ['/api/integrations']`),
+  manageable per tenant from Feature Management. `SUPER_ADMIN` bypasses the
+  gate, so platform controls always stay available. The unauthenticated
+  webhook receiver stays outside the gate (providers cannot log in), exactly
+  like the payment webhooks.
+- Both pages are responsive (card/list layouts, no wide fixed tables) and
+  honour the shell conventions: active-menu highlighting, direct-URL and
+  refresh support, and back/forward navigation (tab and filter state lives in
+  the hash query).
