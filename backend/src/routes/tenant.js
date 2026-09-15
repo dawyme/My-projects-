@@ -49,7 +49,7 @@ router.get('/payment-methods', asyncHandler(async (req, res) => {
   const labels = { STRIPE: 'Credit / Debit Card (Stripe)', PAYPAL: 'PayPal', WIPAY: 'WiPay', TILOPAY: 'Tilopay' };
   res.json({ success: true, data: payments.GATEWAY_METHODS.map((method) => ({
     id: method, label: labels[method], enabled: settings.payment?.[flags[method]] !== false, configured: payments.gatewayConfig(method).configured,
-  })).filter((method) => method.enabled && (method.configured || process.env.NODE_ENV !== 'production')) });
+  })).filter((method) => method.enabled && (method.configured || process.env.VERCEL_ENV !== 'production')) });
 }));
 
 router.post('/subscription/checkout', validate(checkoutSchema), asyncHandler(async (req, res) => {
