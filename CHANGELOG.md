@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Provider Integration Framework (PR #71)** — the Universal Integration
+  Gateway becomes a full provider-agnostic adapter framework so future
+  integrations (T&T banks, international banks, PSPs, POS, accounting,
+  open banking, SFTP/file feeds, webhook providers) ship as one adapter file
+  with zero core changes. Adds: extended adapter contract (version /
+  environment / docs identity metadata, 28 grouped capabilities incl. banking,
+  POS and synchronisation operations), metadata-driven configuration schema
+  with server-side validation (consumed by the existing dynamic wizard — no
+  provider-specific forms), normalised results (connection/payment/transfer/
+  transaction/sync) and a refined error taxonomy (adds `AUTHZ`, `TIMEOUT`,
+  `RATE_LIMIT`, `UNKNOWN`), Stripe-style idempotency keys for payment/refund/
+  link/transfer/sync operations (with durable replay over the existing event
+  log — no schema change), bounded operation-class-aware retries recorded as
+  `retryAttempt` events (writes only retry when the provider itself dedupes),
+  webhook normalisation (canonical events, redelivery dedupe, tenant-safe
+  pipeline dispatch, single receiver preserved), confirmed-only connection
+  lifecycle (`CONNECTED` requires adapter evidence; new reconnect / enable /
+  disable / atomic-rotation operations), and a hardened provider registry
+  (duplicate-safe registration, metadata/capability/schema discovery APIs).
+  PR #68 gateway behaviour, PR #69 UI, both proof providers
+  (`MANUAL_BANK_TRANSFER`, `SANDBOX_DEMO`) and the existing
+  Stripe/PayPal/WiPay/Tilopay/COD/bank-transfer checkout all keep working
+  unchanged; `universal-integrations` entitlement, tenant isolation and
+  credential protection are inherited, not duplicated.
+  **No Prisma schema changes.** See
+  [`docs/PROVIDER_INTEGRATION_FRAMEWORK.md`](docs/PROVIDER_INTEGRATION_FRAMEWORK.md);
+  new 39-check suite `backend/tests/provider-framework.test.js` wired into
+  `npm test`.
 - **Universal Integrations Admin UI** — platform-owner and tenant-admin
   surfaces for the Integration Gateway inside the existing dashboard shell.
   `Platform → Universal Integrations` (`#/platform-integrations`,

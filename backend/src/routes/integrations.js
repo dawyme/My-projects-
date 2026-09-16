@@ -18,11 +18,24 @@
  *   GET    /api/integrations/:id/events             secret-scrubbed event log
  *   DELETE /api/integrations/:id                    remove (destroys secrets)
  *
+ * Provider framework (PR #71 — additive):
+ *   GET    /api/integrations/providers/:id             provider metadata
+ *   GET    /api/integrations/providers/:id/capabilities capability discovery
+ *   GET    /api/integrations/providers/:id/schema      config/credential schema
+ *   POST   /api/integrations/providers/:id/validate    pre-flight validation (draft only)
+ *   POST   /api/integrations/:id/enable|disable|reconnect
+ *   POST   /api/integrations/:id/credentials           atomic credential rotation
+ *   GET    /api/integrations/:id/capabilities          live capability matrix
+ *   POST   /api/integrations/:id/operations/:operation generic normalised execution
+ *   GET    /api/integrations/:id/events?operation=     event inspection
+ *
  * Webhooks (no session auth by design — provider servers cannot log in):
  *   POST   /api/integrations/webhooks/:providerId/:webhookToken
  * mounted with a raw-body parser before CSRF in app.js, exactly like the
  * existing payment webhooks. Unknown provider → 404, unknown token → 404,
- * bad signature → 401; only verified payloads are ever parsed.
+ * bad signature → 401; only verified payloads are ever parsed. PR #71 adds
+ * normalisation + idempotent dedupe + tenant-safe pipeline dispatch on top
+ * of (not beside) this receiver — there is still exactly one webhook path.
  *
  * Tenant isolation: every query is scoped with the server-resolved tenant
  * (`tenantOf(req)` — never a client-supplied businessId, which zod strips).
@@ -51,6 +64,7 @@ const gateway = require('../lib/integrations/gateway');
 const integrationCredentials = require('../lib/integrations/credentials');
 const { logEvent, presentEvent } = require('../lib/integrations/events');
 const { CONNECTION_METHOD_IDS, IntegrationError } = require('../lib/integrations/base');
+const { validateConfiguration } = require('../lib/integrations/fields');
 const cache = require('../lib/cache');
 
 const router = express.Router();
@@ -111,11 +125,31 @@ const paymentBody = z.object({
     success: z.string().trim().max(500).optional().nullable(),
     cancel: z.string().trim().max(500).optional().nullable(),
   }).optional().nullable(),
+  // PR #71: safe retries/replays for duplicate submissions (Stripe semantics).
+  idempotencyKey: z.string().trim().min(1).max(200).optional(),
 });
 
 const refundBody = z.object({
   reference: z.string().trim().min(1).max(200),
   amount: z.coerce.number().positive().max(1000000000).optional().nullable(),
+  idempotencyKey: z.string().trim().min(1).max(200).optional(),
+});
+
+const operationBody = z.object({
+  payload: z.record(z.any()).optional().nullable(),
+  idempotencyKey: z.string().trim().min(1).max(200).optional(),
+});
+
+const rotationBody = z.object({
+  credentials: z.record(z.union([z.string(), z.null()])),
+});
+
+const validateDraftBody = z.object({
+  name: z.string().trim().min(2).max(120).optional(),
+  authType: z.enum(AUTH_TYPES).optional(),
+  connectionMethod: z.string().trim().max(40).toUpperCase().optional().nullable(),
+  config: z.record(z.any()).optional().nullable(),
+  credentials: z.record(z.union([z.string(), z.null()])).optional().nullable(),
 });
 
 router.use(protect, adminOnly);
@@ -182,6 +216,75 @@ router.get('/providers', asyncHandler(async (req, res) => {
       categories: registry.categories(),
       capabilities: registry.capabilities(),
       connectionMethods: registry.connectionMethods(),
+    },
+  });
+}));
+
+/* ---- PR #71 provider discovery (metadata only — never connection rows) ---- */
+
+function requireProvider(id) {
+  const Provider = registry.get(String(id || '').toUpperCase());
+  if (!Provider) throw notFound(`Unknown provider "${id}"`);
+  return Provider;
+}
+
+// GET /api/integrations/providers/:id — full identity + contract metadata.
+router.get('/providers/:id', asyncHandler(async (req, res) => {
+  res.json({ success: true, data: requireProvider(req.params.id).describe() });
+}));
+
+// GET /api/integrations/providers/:id/capabilities — capability discovery.
+router.get('/providers/:id/capabilities', asyncHandler(async (req, res) => {
+  const Provider = requireProvider(req.params.id);
+  res.json({
+    success: true,
+    data: Provider.getCapabilities().filter((c) => c.supported),
+    meta: { all: Provider.getCapabilities().length },
+  });
+}));
+
+// GET /api/integrations/providers/:id/schema — metadata-driven config schema
+// consumed by the dynamic connection wizard (no provider-specific UI forms).
+router.get('/providers/:id/schema', asyncHandler(async (req, res) => {
+  const Provider = requireProvider(req.params.id);
+  res.json({ success: true, data: Provider.getConfigurationSchema() });
+}));
+
+// POST /api/integrations/providers/:id/validate — pre-flight check of a DRAFT
+// connection (what the wizard's "next" step can call). Nothing is stored, no
+// provider is contacted; it validates field metadata + provider selection only.
+router.post('/providers/:id/validate', writeLimiter, validate(validateDraftBody), asyncHandler(async (req, res) => {
+  const Provider = requireProvider(req.params.id);
+  const body = req.body;
+  const errors = [];
+  // Reuse the same selection rules the create route applies.
+  if (body.authType && !Provider.authTypes.includes(body.authType)) {
+    errors.push({ field: 'authType', message: `${Provider.label} does not support ${body.authType} authentication` });
+  }
+  if (body.connectionMethod) {
+    if (!CONNECTION_METHOD_IDS.includes(body.connectionMethod)) {
+      errors.push({ field: 'connectionMethod', message: `Unknown connection method "${body.connectionMethod}"` });
+    } else if (Provider.connectionMethods.length && !Provider.connectionMethods.includes(body.connectionMethod)) {
+      errors.push({ field: 'connectionMethod', message: `${Provider.label} does not support the ${body.connectionMethod} method` });
+    }
+  }
+  const fieldCheck = validateConfiguration({
+    configFields: Provider.getConfigurationSchema().configFields,
+    credentialFields: Provider.getConfigurationSchema().credentialFields,
+    config: body.config || {},
+    credentials: body.credentials || {},
+  });
+  errors.push(...fieldCheck.errors);
+  res.json({
+    success: true,
+    data: {
+      ok: errors.length === 0,
+      providerId: Provider.id,
+      errors,
+      // Safe hints for the wizard — never values.
+      credentialFieldsProvided: fieldCheck.credentialKeys.provided,
+      capabilities: Provider.getCapabilities().filter((c) => c.supported).map((c) => c.id),
+      requiresCredentials: Boolean(Provider.requiresCredentials),
     },
   });
 }));
@@ -612,10 +715,87 @@ router.post('/:id/disconnect', writeLimiter, gatewayHandler(async (req, res) => 
   res.json({ success: true, data: connection, message: result?.message || 'Disconnected' });
 }));
 
+// POST /api/integrations/:id/reconnect — re-establish the session after a
+// disconnect, credential change or error. Success is only reported when the
+// adapter confirms it (lifecycle.js), never optimistically.
+router.post('/:id/reconnect', writeLimiter, gatewayHandler(async (req, res) => {
+  const result = await gateway.reconnect({ tenantId: tenantOf(req), connectionId: req.params.id });
+  cache.invalidate('integrations');
+  await audit(req, 'CONNECT', 'IntegrationConnection', req.params.id, { reconnect: true });
+  res.json({ success: true, data: result });
+}));
+
+// POST /api/integrations/:id/credentials — atomic credential rotation with
+// optional adapter-side validation. Values are encrypted on arrival, verified
+// against the provider schema, and swapped in ONE row update. Responses carry
+// fingerprints only.
+router.post('/:id/credentials', writeLimiter, validate(rotationBody), gatewayHandler(async (req, res) => {
+  const { connection, rotated, cleared } = await gateway.rotateCredentials({
+    tenantId: tenantOf(req), connectionId: req.params.id, credentials: req.body.credentials,
+  });
+  cache.invalidate('integrations');
+  await audit(req, 'UPDATE', 'IntegrationConnection', req.params.id, {
+    credentialFieldsChanged: rotated, credentialFieldsCleared: cleared, // names only
+  });
+  res.json({
+    success: true,
+    data: gateway.safeConnection(connection),
+    message: rotated.length || cleared.length
+      ? `Credentials updated: ${rotated.length ? 'rotated ' + rotated.join(', ') : ''}${cleared.length ? (rotated.length ? ' · ' : '') + 'cleared ' + cleared.join(', ') : ''}`
+      : 'No credential changes were submitted.',
+  });
+}));
+
+// GET /api/integrations/:id/capabilities — live capability matrix for this
+// connection (provider declaration narrowed by what is actually configured).
+router.get('/:id/capabilities', asyncHandler(async (req, res) => {
+  const tenantId = tenantOf(req);
+  const connection = await gateway.getConnectionForTenant(tenantId, req.params.id);
+  if (!connection) throw notFound('Integration connection not found');
+  const Provider = registry.get(connection.providerId);
+  res.json({
+    success: true,
+    data: gateway.capabilityMatrix(connection),
+    meta: { providerId: connection.providerId, version: Provider ? Provider.version : null },
+  });
+}));
+
+// POST /api/integrations/:id/operations/:operation — generic, normalised
+// provider operation execution (create payments, refunds, transfers, syncs,
+// imports, banking reads…). Capabilities gate it; unsupported operations fail
+// with UNSUPPORTED_CAPABILITY; keyed calls are idempotent; responses are the
+// framework's NORMALISED shapes, never raw provider payloads.
+router.post('/:id/operations/:operation', writeLimiter, validate(operationBody), gatewayHandler(async (req, res) => {
+  const out = await gateway.execute({
+    tenantId: tenantOf(req),
+    connectionId: req.params.id,
+    operation: req.params.operation,
+    payload: req.body.payload || {},
+    idempotencyKey: req.body.idempotencyKey || req.headers['idempotency-key'] || null,
+  });
+  cache.invalidate('integrations');
+  // State-mutating (idempotency-capable) operations report 201 on first
+  // execution; reads and replays report 200.
+  const isWrite = Boolean(gateway.EXECUTABLE_OPERATIONS[req.params.operation]?.idempotent);
+  res.status(out.replayed || !isWrite ? 200 : 201).json({
+    success: true,
+    data: out.normalized,
+    meta: {
+      operation: req.params.operation,
+      providerId: out.providerId,
+      capability: out.capability,
+      replayed: out.replayed,
+      ...(out.durableReplay ? { durableReplay: true } : {}),
+    },
+  });
+}));
+
 // POST /api/integrations/:id/payments — initiate a payment via the provider.
 router.post('/:id/payments', writeLimiter, validate(paymentBody), gatewayHandler(async (req, res) => {
+  const { idempotencyKey, ...payment } = req.body;
   const result = await gateway.createPayment({
-    tenantId: tenantOf(req), connectionId: req.params.id, payment: req.body,
+    tenantId: tenantOf(req), connectionId: req.params.id, payment,
+    idempotencyKey: idempotencyKey || req.headers['idempotency-key'] || null,
   });
   res.status(201).json({ success: true, data: result });
 }));
@@ -630,20 +810,28 @@ router.get('/:id/payments/:reference', gatewayHandler(async (req, res) => {
 
 // POST /api/integrations/:id/refunds — refund a payment via the provider.
 router.post('/:id/refunds', writeLimiter, validate(refundBody), gatewayHandler(async (req, res) => {
+  const { idempotencyKey, ...refund } = req.body;
   const result = await gateway.refundPayment({
     tenantId: tenantOf(req), connectionId: req.params.id,
-    reference: req.body.reference, amount: req.body.amount ?? undefined,
+    reference: refund.reference, amount: refund.amount ?? undefined,
+    idempotencyKey: idempotencyKey || req.headers['idempotency-key'] || null,
   });
   res.json({ success: true, data: result });
 }));
 
 // GET /api/integrations/:id/events — secret-scrubbed event log.
-router.get('/:id/events', validate(paginationSchema, 'query'), asyncHandler(async (req, res) => {
+router.get('/:id/events', validate(paginationSchema.extend({
+  operation: z.string().trim().max(60).optional(),
+  success: z.string().max(10).optional(),
+}), 'query'), asyncHandler(async (req, res) => {
   const q = req.validatedQuery;
   const tenantId = tenantOf(req);
   const connection = await gateway.getConnectionForTenant(tenantId, req.params.id);
   if (!connection) throw notFound('Integration connection not found');
   const where = { businessId: tenantId, connectionId: connection.id };
+  if (q.operation) where.operation = q.operation;
+  if (q.success === 'true') where.success = true;
+  else if (q.success === 'false') where.success = false;
   const [items, total] = await Promise.all([
     prisma.integrationEvent.findMany({
       where, orderBy: { createdAt: q.order }, skip: (q.page - 1) * q.limit, take: q.limit,
@@ -655,24 +843,24 @@ router.get('/:id/events', validate(paginationSchema, 'query'), asyncHandler(asyn
 
 // PATCH /api/integrations/:id/enabled — enable / disable without deleting secrets.
 router.patch('/:id/enabled', writeLimiter, validate(z.object({ enabled: z.coerce.boolean() })), asyncHandler(async (req, res) => {
-  const tenantId = tenantOf(req);
-  const connection = await gateway.getConnectionForTenant(tenantId, req.params.id);
-  if (!connection) throw notFound('Integration connection not found');
-  const updated = await prisma.integrationConnection.update({
-    where: { id: connection.id },
-    data: req.body.enabled
-      ? { status: 'CONFIGURED', lastError: null }
-      : { status: 'DISABLED' },
-  });
-  await logEvent({
-    tenantId, connectionId: updated.id, providerId: updated.providerId,
-    operation: 'connectionUpdated', success: true,
-    metadata: { enabled: req.body.enabled },
+  const updated = await gateway.setEnabled({
+    tenantId: tenantOf(req), connectionId: req.params.id, enabled: req.body.enabled,
   });
   cache.invalidate('integrations');
   await audit(req, req.body.enabled ? 'ENABLE' : 'DISABLE', 'IntegrationConnection', updated.id);
   res.json({ success: true, data: gateway.safeConnection(updated) });
 }));
+
+// POST /api/integrations/:id/enable · /:id/disable — explicit lifecycle
+// aliases for the PATCH above (framework contract: enable/disable operations).
+const enableDisable = (enabled) => [writeLimiter, gatewayHandler(async (req, res) => {
+  const updated = await gateway.setEnabled({ tenantId: tenantOf(req), connectionId: req.params.id, enabled });
+  cache.invalidate('integrations');
+  await audit(req, enabled ? 'ENABLE' : 'DISABLE', 'IntegrationConnection', updated.id);
+  res.json({ success: true, data: gateway.safeConnection(updated), message: enabled ? 'Integration enabled' : 'Integration disabled' });
+})];
+router.post('/:id/enable', ...enableDisable(true));
+router.post('/:id/disable', ...enableDisable(false));
 
 // DELETE /api/integrations/:id — remove and destroy stored secrets.
 router.delete('/:id', writeLimiter, asyncHandler(async (req, res) => {
@@ -710,7 +898,16 @@ webhookRouter.post('/:providerId/:webhookToken', asyncHandler(async (req, res) =
       headers: req.headers,
     });
     if (result.unknown) return res.status(404).json({ received: false, error: 'Unknown integration webhook' });
-    return res.json({ received: result.received, handled: result.handled, ...(result.error ? { error: result.error } : {}) });
+    // Superset of the PR #68 contract: duplicate/dispatched/reference are the
+    // PR #71 idempotency + pipeline outcome for providers that retry.
+    return res.json({
+      received: result.received,
+      handled: result.handled,
+      ...(result.duplicate ? { duplicate: true } : {}),
+      ...(result.dispatched ? { dispatched: result.dispatched } : {}),
+      ...(result.reference ? { reference: result.reference } : {}),
+      ...(result.error ? { error: result.error } : {}),
+    });
   } catch (err) {
     const http = gateway.toHttpError(err);
     return res.status(http.status).json({ received: false, error: http.message, code: http.code });

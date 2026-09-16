@@ -18,6 +18,13 @@
  *     class NewBankAdapter extends IntegrationProvider { ... }
  *     registry.register(NewBankAdapter);
  *
+ * PR #71 extended the contract without breaking any PR #68 caller: capability
+ * groups, banking/POS/synchronisation operations, identity metadata
+ * (version/environments/docs), a metadata-driven configuration schema
+ * (fields.js), normalised results (results.js), bounded retries (retry.js),
+ * idempotency (idempotency.js), webhook normalisation (pipeline.js) and the
+ * confirmed-only connection lifecycle (lifecycle.js).
+ *
  * Capabilities are OPT-IN. An adapter advertises only what its institution
  * actually supports; the Gateway checks `supports()` before every call and
  * fails safely (UnsupportedCapabilityError) instead of pretending success.
@@ -60,6 +67,7 @@ const CAPABILITIES = {
   createPayment: 'Initiate a payment or hosted checkout session',
   getPaymentStatus: 'Poll the provider for the state of a payment',
   verifyPayment: 'Server-side verification that a payment completed',
+  capturePayment: 'Capture an authorised payment',
   refundPayment: 'Refund a captured payment',
   voidPayment: 'Void an uncaptured authorisation',
   createPaymentLink: 'Generate a reusable / stand-alone payment link',
@@ -67,9 +75,45 @@ const CAPABILITIES = {
   reconcile: 'Pull settlement / reconciliation reporting',
   importStatement: 'Import a CSV/statement file for manual matching',
   disconnect: 'Revoke / close the authenticated session',
+  /* ---- PR #71: banking capabilities ---------------------------------- */
+  getAccounts: 'List the accounts visible to this connection',
+  getBalance: 'Retrieve account balance(s)',
+  getTransactions: 'Retrieve transaction history for an account',
+  initiateTransfer: 'Initiate a bank transfer / payment order',
+  getTransferStatus: 'Poll the provider for the state of a transfer',
+  verifyAccount: 'Verify that an account number/name pair exists',
+  /* ---- PR #71: POS capabilities --------------------------------------- */
+  createPosTransaction: 'Create a POS transaction / terminal request',
+  getPosTransaction: 'Look up a POS transaction',
+  /* ---- PR #71: synchronisation capabilities (POS + accounting) -------- */
+  syncCustomers: 'Synchronise customer records',
+  syncProducts: 'Synchronise products / services',
+  syncInventory: 'Synchronise inventory levels',
+  syncInvoices: 'Synchronise invoices',
+  syncPayments: 'Synchronise payments',
+  pollSync: 'Periodic pull-based synchronisation (data that arrives by polling, not webhooks)',
 };
 
 const CAPABILITY_IDS = Object.keys(CAPABILITIES);
+
+/**
+ * Capability groups — presentation/contract grouping only. The core never
+ * branches on these; they let the catalogue UI organise capabilities and
+ * make "which capability families does this provider speak" answerable.
+ * File import / SFTP / manual import map onto the existing `importStatement`
+ * capability plus the SFTP / FILE_IMPORT / MANUAL connection methods, so no
+ * provider-specific category logic ever enters the gateway.
+ */
+const CAPABILITY_GROUPS = {
+  payments: ['createPayment', 'getPaymentStatus', 'verifyPayment', 'capturePayment', 'refundPayment', 'voidPayment', 'createPaymentLink'],
+  banking: ['getAccounts', 'getBalance', 'getTransactions', 'initiateTransfer', 'getTransferStatus', 'verifyAccount', 'reconcile', 'importStatement'],
+  pos: ['createPosTransaction', 'getPosTransaction', 'refundPayment', 'syncProducts', 'syncInventory', 'syncCustomers'],
+  accounting: ['syncCustomers', 'syncInvoices', 'syncPayments', 'syncProducts'],
+  data: ['receiveWebhook', 'pollSync', 'importStatement'],
+  lifecycle: ['configure', 'connect', 'testConnection', 'disconnect'],
+};
+
+const CAPABILITY_GROUP_IDS = Object.keys(CAPABILITY_GROUPS);
 
 /* ---------------------------------------------------------------------------
  * Connection methods.
@@ -105,12 +149,16 @@ const CONNECTION_METHOD_IDS = Object.keys(CONNECTION_METHODS);
  * ------------------------------------------------------------------------- */
 const ERROR_CATEGORIES = {
   CONFIG: 'Merchant configuration problem — fix settings and retry',
-  AUTH: 'Authentication / authorisation failure against the provider',
+  AUTH: 'Authentication failure against the provider (invalid credentials)',
+  AUTHZ: 'Authenticated, but not permitted to perform this operation',
   NETWORK: 'Transport failure reaching the provider',
+  TIMEOUT: 'Provider did not respond in time — the request may still have executed',
+  RATE_LIMIT: 'Provider is throttling this connection — back off and retry',
   PROVIDER: 'Provider rejected the request (validation, limits, decline)',
   VALIDATION: 'Caller-supplied input failed validation',
   UNSUPPORTED: 'Capability not supported by this provider',
   INTERNAL: 'Unexpected framework / adapter failure',
+  UNKNOWN: 'Unclassified provider failure',
 };
 
 const ERROR_CATEGORY_IDS = Object.keys(ERROR_CATEGORIES);
@@ -175,6 +223,19 @@ class IntegrationProvider {
   static description = 'Abstract base — never registered directly.';
   /** One of PROVIDER_CATEGORY_IDS. */
   static category = 'OTHER';
+  /** Adapter semver — bump when the field/capability contract changes. */
+  static version = '1.0.0';
+  /** Environments this provider can operate in (PR #71 identity metadata). */
+  static environments = ['SANDBOX', 'PRODUCTION'];
+  /** Optional documentation pointers surfaced in the catalogue ({ url, guide }). */
+  static docs = null;
+  /**
+   * True when the PROVIDER itself deduplicates writes by our reference
+   * (idempotency-key headers, unique merchant references…). The retry
+   * executor only auto-retries write operations on adapters that declare it —
+   * otherwise a timeout after "money moved" could become a double charge.
+   */
+  static providerIdempotency = false;
   /** Connection mechanisms this adapter uses (subset of CONNECTION_METHOD_IDS). */
   static connectionMethods = [];
   /** Auth schemes the adapter accepts, e.g. ['API_KEY', 'OAUTH2', 'NONE']. */
@@ -305,6 +366,106 @@ class IntegrationProvider {
     throw new UnsupportedCapabilityError(this.constructor.id, 'createPaymentLink');
   }
 
+  // eslint-disable-next-line no-unused-vars
+  async capturePayment(reference, amount) {
+    throw new UnsupportedCapabilityError(this.constructor.id, 'capturePayment');
+  }
+
+  /* ---- banking operations (getAccounts/getBalance/… per the framework contract) ---- */
+
+  /** @returns {Promise<Array<{ externalId, name?, currency?, maskedIdentifier?, type? }>>} */
+  async getAccounts() {
+    throw new UnsupportedCapabilityError(this.constructor.id, 'getAccounts');
+  }
+
+  /** @param {object} params - { accountId?, currency?, asOf? } */
+  // eslint-disable-next-line no-unused-vars
+  async getBalance(params) {
+    throw new UnsupportedCapabilityError(this.constructor.id, 'getBalance');
+  }
+
+  /** @param {object} params - { accountId?, from?, to?, limit?, cursor? } */
+  // eslint-disable-next-line no-unused-vars
+  async getTransactions(params) {
+    throw new UnsupportedCapabilityError(this.constructor.id, 'getTransactions');
+  }
+
+  /** @param {object} transfer - { amount, currency, reference, destination, description? } */
+  // eslint-disable-next-line no-unused-vars
+  async initiateTransfer(transfer) {
+    throw new UnsupportedCapabilityError(this.constructor.id, 'initiateTransfer');
+  }
+
+  // eslint-disable-next-line no-unused-vars
+  async getTransferStatus(reference) {
+    throw new UnsupportedCapabilityError(this.constructor.id, 'getTransferStatus');
+  }
+
+  /** @param {object} account - { number?, name?, branch? } — verify a payee account. */
+  // eslint-disable-next-line no-unused-vars
+  async verifyAccount(account) {
+    throw new UnsupportedCapabilityError(this.constructor.id, 'verifyAccount');
+  }
+
+  /* ---- POS operations ---- */
+
+  // eslint-disable-next-line no-unused-vars
+  async createPosTransaction(transaction) {
+    throw new UnsupportedCapabilityError(this.constructor.id, 'createPosTransaction');
+  }
+
+  // eslint-disable-next-line no-unused-vars
+  async getPosTransaction(reference) {
+    throw new UnsupportedCapabilityError(this.constructor.id, 'getPosTransaction');
+  }
+
+  /* ---- synchronisation operations (POS + accounting adapters) ---- */
+
+  /** Sync methods receive { changedSince?, cursor?, records?, limit? } and MUST
+   *  return the normalised sync shape { created, updated, unchanged, failed,
+   *  total, truncated?, nextCursor? } (see results.js). */
+  // eslint-disable-next-line no-unused-vars
+  async syncCustomers(params) {
+    throw new UnsupportedCapabilityError(this.constructor.id, 'syncCustomers');
+  }
+
+  // eslint-disable-next-line no-unused-vars
+  async syncProducts(params) {
+    throw new UnsupportedCapabilityError(this.constructor.id, 'syncProducts');
+  }
+
+  // eslint-disable-next-line no-unused-vars
+  async syncInventory(params) {
+    throw new UnsupportedCapabilityError(this.constructor.id, 'syncInventory');
+  }
+
+  // eslint-disable-next-line no-unused-vars
+  async syncInvoices(params) {
+    throw new UnsupportedCapabilityError(this.constructor.id, 'syncInvoices');
+  }
+
+  // eslint-disable-next-line no-unused-vars
+  async syncPayments(params) {
+    throw new UnsupportedCapabilityError(this.constructor.id, 'syncPayments');
+  }
+
+  // eslint-disable-next-line no-unused-vars
+  async pollSync(params) {
+    throw new UnsupportedCapabilityError(this.constructor.id, 'pollSync');
+  }
+
+  /**
+   * Optional credential-shape validation used by credential rotation
+   * (validate-then-persist). Adapters that can sanity-check a new secret
+   * offline (format, key prefix) override this; anything network-bound
+   * belongs in testConnection instead. MUST NOT return secret values.
+   * @returns {Promise<{ ok: boolean, message? }>}
+   */
+  // eslint-disable-next-line no-unused-vars
+  async validateCredentials(credentials) {
+    return { ok: true };
+  }
+
   /**
    * Verifies an inbound webhook's authenticity. MUST be timing-safe and MUST
    * NOT throw on hostile input — return false instead.
@@ -356,24 +517,62 @@ class IntegrationProvider {
     }
   }
 
+  /**
+   * Canonical webhook entry point: verify → parse → return the normalised
+   * event. The Gateway drives these steps individually (verify BEFORE parse)
+   * and this helper exists for adapters/clients that want one call. It never
+   * throws on hostile input and never parses an unverified payload.
+   * @returns {Promise<{ verified: boolean, event: object|null }>}
+   */
+  async handleWebhook(rawBody, headers = {}, body = null) {
+    const verified = await this.verifyWebhook(rawBody, headers);
+    if (!verified) return { verified: false, event: null };
+    const parsed = await this.parseWebhook(rawBody, headers, body);
+    return { verified: true, event: parsed || null };
+  }
+
+  /** Capability descriptors with declared/group flags — catalogue-friendly shape. */
+  static getCapabilities() {
+    const declared = new Set(this.capabilities || []);
+    return CAPABILITY_IDS.map((id) => ({
+      id,
+      label: id,
+      description: CAPABILITIES[id],
+      supported: declared.has(id),
+      groups: CAPABILITY_GROUP_IDS.filter((g) => (CAPABILITY_GROUPS[g] || []).includes(id)),
+    }));
+  }
+
+  /** Full metadata-driven configuration schema (see fields.js). */
+  static getConfigurationSchema() {
+    // eslint-disable-next-line global-require
+    const { configurationSchema } = require('./fields');
+    return configurationSchema(this);
+  }
+
   /** Browser-safe provider description used by the catalogue endpoint. */
   static describe() {
+    // eslint-disable-next-line global-require
+    const { normalizeFields } = require('./fields');
+    const environments = (this.environments && this.environments.length ? this.environments : ['SANDBOX', 'PRODUCTION']);
     return {
       id: this.id,
       label: this.label,
       description: this.description,
       category: this.category,
       categoryLabel: PROVIDER_CATEGORIES[this.category] || this.category,
+      version: this.version || '1.0.0',
+      environments,
+      docs: this.docs || null,
+      providerIdempotency: Boolean(this.providerIdempotency),
       connectionMethods: (this.connectionMethods || []).map((id) => ({
         id, label: id, description: CONNECTION_METHODS[id] || id,
       })),
       authTypes: this.authTypes || [],
       regions: this.regions || [],
-      capabilities: CAPABILITY_IDS.map((id) => ({
-        id, label: id, description: CAPABILITIES[id], supported: (this.capabilities || []).includes(id),
-      })),
-      credentialFields: this.credentialFields || [],
-      configFields: this.configFields || [],
+      capabilities: this.getCapabilities(),
+      credentialFields: normalizeFields(this.credentialFields, 'credential'),
+      configFields: normalizeFields(this.configFields, 'config'),
       requiresCredentials: Boolean(this.requiresCredentials),
     };
   }
@@ -390,6 +589,8 @@ module.exports = {
   PROVIDER_CATEGORY_IDS,
   CAPABILITIES,
   CAPABILITY_IDS,
+  CAPABILITY_GROUPS,
+  CAPABILITY_GROUP_IDS,
   CONNECTION_METHODS,
   CONNECTION_METHOD_IDS,
   ERROR_CATEGORIES,

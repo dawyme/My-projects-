@@ -41,17 +41,30 @@ detection + encrypted credentials + tenant scoping.
 
 | Path | Purpose |
 |---|---|
-| `backend/src/lib/integrations/base.js` | Standard Provider Interface: `IntegrationProvider`, capability catalogue (13), provider categories, connection methods, error taxonomy |
-| `backend/src/lib/integrations/registry.js` | Provider registry: `register/get/create/list`, plugin directory loading |
-| `backend/src/lib/integrations/gateway.js` | Runtime facade: tenant-scoped dispatch, capability gating, webhook handling, bookkeeping |
+| `backend/src/lib/integrations/base.js` | Standard Provider Interface: `IntegrationProvider`, capability catalogue (28 — extended by PR #71), provider categories, connection methods, error taxonomy, identity metadata (version/environments/docs) |
+| `backend/src/lib/integrations/registry.js` | Provider registry: `register/get/create/list`, duplicate handling, per-provider discovery APIs, plugin directory loading |
+| `backend/src/lib/integrations/gateway.js` | Runtime facade: tenant-scoped dispatch, capability gating, idempotency, bounded retries, confirmed lifecycle, normalised results, webhook handling + pipeline handoff, bookkeeping |
+| `backend/src/lib/integrations/fields.js` | Metadata-driven configuration schema + server-side validation (PR #71) |
+| `backend/src/lib/integrations/results.js` | Normalised connection/payment/transfer/transaction/sync results + error classification (PR #71) |
+| `backend/src/lib/integrations/lifecycle.js` | Connection state machine; success only after adapter confirmation (PR #71) |
+| `backend/src/lib/integrations/idempotency.js` | Replay protection + webhook dedupe on the existing event log (PR #71) |
+| `backend/src/lib/integrations/retry.js` | Bounded, operation-class-aware retries with event telemetry (PR #71) |
+| `backend/src/lib/integrations/pipeline.js` | Normalised-event dispatch seam to application flows (PR #71) |
 | `backend/src/lib/integrations/events.js` | Tenant-safe event log writer (`logEvent`, `presentEvent`) |
 | `backend/src/lib/integrations/credentials.js` | Credential protection — reuses the reviewed AES-256-GCM supplier envelope, no second crypto implementation |
 | `backend/src/lib/integrations/adapters/manual-bank-transfer.js` | BANK adapter with **no API** (manual reconciliation) |
 | `backend/src/lib/integrations/adapters/sandbox-psp.js` | Sandbox-only demo PSP (hosted checkout + webhooks, zero network) |
-| `backend/src/routes/integrations.js` | Management API + hardened webhook receiver |
-| `backend/prisma/schema.prisma` | `IntegrationConnection` + `IntegrationEvent` models (tenant-scoped) |
+| `backend/src/routes/integrations.js` | Management API + hardened webhook receiver + PR #71 framework endpoints |
+| `backend/prisma/schema.prisma` | `IntegrationConnection` + `IntegrationEvent` models (tenant-scoped) — PR #71 requires **no schema change** |
 | `backend/prisma/migrations/20260915120000_universal_integrations/` | Additive migration (no existing table altered) |
 | `backend/tests/integrations.test.js` | 41-check verification suite (wired into `run-all.js`) |
+| `backend/tests/provider-framework.test.js` | 39-check Provider Integration Framework suite — PR #71 (wired into `run-all.js`) |
+
+**PR #71 (Provider Integration Framework)** builds on everything above
+without altering it — the framework contract (capabilities, configuration
+schemas, normalised results, error categories, idempotency, retries, webhook
+normalisation and how to add a future provider) is specified in
+[`docs/PROVIDER_INTEGRATION_FRAMEWORK.md`](PROVIDER_INTEGRATION_FRAMEWORK.md).
 
 ## 3. Provider categories
 
@@ -68,7 +81,13 @@ QuickBooks, Xero and future systems.
 `configure` · `connect` · `testConnection` · `createPayment` ·
 `getPaymentStatus` · `verifyPayment` · `refundPayment` · `voidPayment` ·
 `createPaymentLink` · `receiveWebhook` · `reconcile` · `importStatement` ·
-`disconnect`
+`disconnect` — plus the PR #71 additions: `capturePayment`, banking
+(`getAccounts` · `getBalance` · `getTransactions` · `initiateTransfer` ·
+`getTransferStatus` · `verifyAccount`), POS (`createPosTransaction` ·
+`getPosTransaction`) and synchronisation (`syncCustomers` · `syncProducts` ·
+`syncInventory` · `syncInvoices` · `syncPayments` · `pollSync`) — 28 in
+total, grouped as payments / banking / pos / accounting / data / lifecycle.
+See [`PROVIDER_INTEGRATION_FRAMEWORK.md`](PROVIDER_INTEGRATION_FRAMEWORK.md) §2.
 
 Each adapter declares only what its institution supports. The Gateway checks
 `supports()` before every call; anything unadvertised fails safely with
@@ -259,11 +278,13 @@ POST   /api/integrations/webhooks/:providerId/:webhookToken
 
 - No real bank/PSP/POS/accounting adapters yet — later phases add them behind
   this interface (each with its own review, tests and credentials story).
-- Webhooks are logged, not yet wired into orders/invoices/payments.
+- Webhooks are logged and dispatched to the normalised-event pipeline, but no
+  production pipeline handler mutates orders/invoices/payments yet — the
+  lifecycle wiring remains a separately reviewed phase.
 - `reconcile` / `importStatement` / `voidPayment` / `createPaymentLink` have no
-  phase-1 providers yet. The interface defines all four and Gateway dispatch
-  exists for `reconcile`; `voidPayment` / `createPaymentLink` /
-  `importStatement` dispatch arrives with the first provider that needs it.
+  phase-1 providers; since PR #71 the Gateway dispatches them (typed and via
+  the generic normalised operation endpoint), so the first provider that
+  declares them works with no further core work.
 - Credential envelope shares the supplier key derivation; a dedicated
   `INTEGRATION_CREDENTIALS_KEY` with re-encryption migration is deferred to a
   later phase if key separation is required.

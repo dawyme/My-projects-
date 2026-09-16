@@ -25,6 +25,12 @@ class ManualBankTransferProvider extends IntegrationProvider {
   static label = 'Manual Bank Transfer';
   static description = 'Accept bank transfers with published instructions and manual reconciliation. No API required — works with any bank worldwide.';
   static category = 'BANK';
+  static version = '1.1.0';
+  static environments = ['SANDBOX', 'PRODUCTION'];
+  static docs = {
+    guide: 'docs/UNIVERSAL_INTEGRATIONS.md#11-phase-1-adapters',
+    note: 'Framework-level adapter: the existing BANK_TRANSFER checkout path in lib/payments is untouched.',
+  };
   static connectionMethods = ['MANUAL'];
   static authTypes = ['NONE'];
   static capabilities = ['configure', 'connect', 'testConnection', 'createPayment', 'disconnect'];
@@ -36,7 +42,7 @@ class ManualBankTransferProvider extends IntegrationProvider {
     { name: 'accountName', label: 'Account name', type: 'text', required: true, maxLength: 120 },
     { name: 'accountNumber', label: 'Account number', type: 'text', required: true, maxLength: 60 },
     { name: 'branchOrRouting', label: 'Branch / routing info', type: 'text', required: false, maxLength: 120 },
-    { name: 'currency', label: 'Settlement currency (ISO)', type: 'text', required: false, maxLength: 3 },
+    { name: 'currency', label: 'Settlement currency (ISO)', type: 'text', required: false, maxLength: 3, pattern: '^[A-Za-z]{3}$', patternMessage: 'Must be a 3-letter ISO code' },
     { name: 'instructions', label: 'Payer instructions', type: 'textarea', required: false, maxLength: 2000 },
   ];
 
