@@ -143,6 +143,33 @@ export const api = {
 export const auth = {
   get user() { return store.get().user || null; },
   get isAdmin() { return this.user?.role === 'SUPER_ADMIN' || this.user?.role === 'TENANT_ADMIN'; },
+  /* ---------------------------------------------------------------------
+   * Feature access — in-memory ONLY, never persisted to localStorage.
+   *
+   * One central set of enabled feature keys, computed by the server at
+   * GET /api/features/access via `resolveFeatureAccess`:
+   *   • SUPER_ADMIN → every feature (tenant switches must NEVER restrict
+   *     the platform owner — the bypass lives in the central authorization
+   *     boundary, not in per-page workarounds);
+   *   • tenant users → only the features Feature Management enables for
+   *     their business.
+   * The shell uses this for nav visibility and direct-route gating, and
+   * pages may use it for optional links. Server-side enforcement remains
+   * the security boundary; this mirrors the same central source so the UI
+   * hides exactly what the API denies.
+   * ------------------------------------------------------------------- */
+  features: null,
+  async refreshFeatures(force = false) {
+    if (this.features && !force) return this.features;
+    const json = await api.get('/features/access');
+    this.features = new Set((json.data || []).map((f) => f.key));
+    return this.features;
+  },
+  hasFeature(key) {
+    if (!key) return true;
+    if (!this.features) return true; // not loaded → fail open; server still enforces
+    return this.features.has(key);
+  },
   async login(email, password) {
     const json = await request('POST', '/auth/login', { body: { email, password }, retry: false });
     store.set({ accessToken: json.data.accessToken, refreshToken: json.data.refreshToken, user: json.data.user });
@@ -164,6 +191,8 @@ export const auth = {
     // Clear browser state first so a failed network/server logout can never
     // restore the previous session on the login page. The refresh token is
     // retained locally only in this closure for the server revocation call.
+    // The in-memory feature cache is session-scoped too (never persisted).
+    this.features = null;
     store.clear();
     try {
       await api.post('/auth/logout', { refreshToken });

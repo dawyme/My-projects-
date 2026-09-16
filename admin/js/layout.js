@@ -83,11 +83,31 @@ applyTheme();
 /* ------------------------------------------------------------ shell */
 export const badges = { pending: 0, unread: 0, lowStock: 0 };
 
+/** Tenant-admin users are feature-gated in the shell; platform admins are
+ *  NEVER restricted by tenant feature entitlements (central server bypass). */
+function isTenantAdminUser(user) {
+  return Boolean(user) && (user.role === 'TENANT_ADMIN' || (user.role === 'ADMIN' && !!user.businessId));
+}
+
+/** The feature key (if any) guarding a shell route — from the NAV metadata. */
+export function featureForPath(path) {
+  for (const group of NAV) {
+    const item = group.items.find((i) => i.path === path && i.feature);
+    if (item) return item.feature;
+  }
+  return null;
+}
+
 function navMarkup(user) {
+  const tenantAdmin = isTenantAdminUser(user);
   return NAV.map((group) => {
     const isPlatform = user.role === 'SUPER_ADMIN' || (user.role === 'ADMIN' && !user.businessId);
     const isTenant = user.role === 'TENANT_ADMIN' || (user.role === 'ADMIN' && !!user.businessId);
-    const items = group.items.filter((i) => (!i.adminOnly || user.role === 'ADMIN' || isPlatform) && (!i.platformOnly || isPlatform) && (!i.tenantOnly || isTenant));
+    // Tenant feature entitlement hides disabled features (server-computed at
+    // /api/features/access); platform admins and staff keep the existing
+    // role-based behaviour.
+    const items = group.items.filter((i) => (!i.adminOnly || user.role === 'ADMIN' || isPlatform) && (!i.platformOnly || isPlatform) && (!i.tenantOnly || isTenant)
+      && !(tenantAdmin && i.feature && !auth.hasFeature(i.feature)));
     if (!items.length) return '';
     const groupId = `nav-group-${NAV.indexOf(group)}`;
     return `<section class="nav-group">
@@ -312,6 +332,23 @@ async function renderRoute() {
     return;
   }
 
+  // Central tenant feature gate (mirrors the server-side entitlement check —
+  // Feature Management, not a per-feature workaround): a disabled feature
+  // disappears from the tenant nav AND its direct route is blocked here.
+  // Platform admins are never gated; the API layer remains the security
+  // boundary for data access.
+  if (isTenantAdminUser(auth.user)) {
+    const needed = featureForPath(path);
+    if (needed && !auth.hasFeature(needed)) {
+      setTitle('Not available');
+      view.innerHTML = `<div class="card"><div class="card__body">
+        <div class="empty">${icon('shield')}<h3>This feature is not enabled for your business</h3>
+        <p><code>${esc(path)}</code> is controlled centrally by the platform owner through Feature Management. Contact support to request access.</p>
+        <div style="margin-top:14px"><a class="btn btn--primary" href="#/">Back to dashboard</a></div></div></div></div>`;
+      return;
+    }
+  }
+
   highlightNav(path);
   view.innerHTML = `<div class="card"><div class="card__body" style="display:grid;place-items:center;min-height:300px">
     <div class="spinner" role="status" aria-label="Loading"></div></div></div>`;
@@ -336,6 +373,10 @@ async function renderRoute() {
 export async function boot() {
   const user = await requireAuth();
   if (!user) return;
+  // Load the central feature entitlement once per session before the shell
+  // renders (server-computed; SUPER_ADMIN receives everything). Best effort:
+  // if it cannot load, navigation stays as-is and the API gate still enforces.
+  try { await auth.refreshFeatures(); } catch { /* fail open client-side */ }
   renderShell(user);
   try {
     const { data } = await api.get('/settings');

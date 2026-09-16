@@ -18,14 +18,34 @@
  *   GET    /api/integrations/:id/events             secret-scrubbed event log
  *   DELETE /api/integrations/:id                    remove (destroys secrets)
  *
+ * Provider framework (PR #71 — additive):
+ *   GET    /api/integrations/providers/:id             provider metadata
+ *   GET    /api/integrations/providers/:id/capabilities capability discovery
+ *   GET    /api/integrations/providers/:id/schema      config/credential schema
+ *   POST   /api/integrations/providers/:id/validate    pre-flight validation (draft only)
+ *   POST   /api/integrations/:id/enable|disable|reconnect
+ *   POST   /api/integrations/:id/credentials           atomic credential rotation
+ *   GET    /api/integrations/:id/capabilities          live capability matrix
+ *   POST   /api/integrations/:id/operations/:operation generic normalised execution
+ *   GET    /api/integrations/:id/events?operation=     event inspection
+ *
+ * Platform owner (PR #71 — N&D'S is the operator, SUPER_ADMIN only):
+ *   the FULL management surface above is also served under
+ *   /api/integrations/platform/owner/connections… with the scope pinned
+ *   server-side to N&D'S's own business (same handlers — see the owner-ops
+ *   section); cross-tenant data stays read-only via
+ *   GET /api/integrations/platform/overview|connections|events.
+ *
  * Webhooks (no session auth by design — provider servers cannot log in):
  *   POST   /api/integrations/webhooks/:providerId/:webhookToken
  * mounted with a raw-body parser before CSRF in app.js, exactly like the
  * existing payment webhooks. Unknown provider → 404, unknown token → 404,
- * bad signature → 401; only verified payloads are ever parsed.
+ * bad signature → 401; only verified payloads are ever parsed. PR #71 adds
+ * normalisation + idempotent dedupe + tenant-safe pipeline dispatch on top
+ * of (not beside) this receiver — there is still exactly one webhook path.
  *
  * Tenant isolation: every query is scoped with the server-resolved tenant
- * (`tenantOf(req)` — never a client-supplied businessId, which zod strips).
+ * (`scopeOf(req)` → `tenantOf(req)` for tenants — never a client-supplied businessId, which zod strips).
  * Misses return 404 so Tenant A can never discover Tenant B's connections.
  *
  * Credential handling (mirrors supplier-integrations.js):
@@ -42,7 +62,7 @@ const asyncHandler = require('../lib/async');
 const { validate } = require('../middleware/validate');
 const { protect, adminOnly } = require('../middleware/auth');
 const { writeLimiter } = require('../middleware/rateLimit');
-const { tenantOf, platformAdminOnly } = require('../lib/tenant');
+const { tenantOf, platformAdminOnly, DEFAULT_TENANT } = require('../lib/tenant');
 const { paginationSchema, meta } = require('../lib/pagination');
 const { badRequest, notFound, conflict } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
@@ -51,10 +71,29 @@ const gateway = require('../lib/integrations/gateway');
 const integrationCredentials = require('../lib/integrations/credentials');
 const { logEvent, presentEvent } = require('../lib/integrations/events');
 const { CONNECTION_METHOD_IDS, IntegrationError } = require('../lib/integrations/base');
+const { validateConfiguration } = require('../lib/integrations/fields');
 const cache = require('../lib/cache');
 
 const router = express.Router();
 const webhookRouter = express.Router();
+
+/**
+ * Operational scope for connection management.
+ *
+ *   • TENANT_ADMIN → the session's tenant (`tenantOf`).
+ *   • SUPER_ADMIN  → via the /platform/owner alias below → the OWNER scope:
+ *     N&D'S's own business operations (the platform's primary business,
+ *     server-pinned to DEFAULT_TENANT — the owner's user record keeps
+ *     businessId = NULL; this is NOT a fake tenant grant, it is where N&D'S's
+ *     own connections legitimately live, mirroring how every other owner-
+ *     operated surface resolves its scope).
+ *
+ * Customer-tenant entitlement (Feature Management) gates tenant access to
+ * this router (app.js featureProtectedRoute), but `resolveFeatureAccess`
+ * exempts SUPER_ADMIN at the central boundary — a tenant switch can never
+ * restrict the platform owner.
+ */
+const scopeOf = (req) => req.ownerScope || tenantOf(req);
 
 /** Translates Gateway IntegrationErrors into stable HTTP responses. */
 const gatewayHandler = (fn) => asyncHandler(async (req, res, next) => {
@@ -111,11 +150,31 @@ const paymentBody = z.object({
     success: z.string().trim().max(500).optional().nullable(),
     cancel: z.string().trim().max(500).optional().nullable(),
   }).optional().nullable(),
+  // PR #71: safe retries/replays for duplicate submissions (Stripe semantics).
+  idempotencyKey: z.string().trim().min(1).max(200).optional(),
 });
 
 const refundBody = z.object({
   reference: z.string().trim().min(1).max(200),
   amount: z.coerce.number().positive().max(1000000000).optional().nullable(),
+  idempotencyKey: z.string().trim().min(1).max(200).optional(),
+});
+
+const operationBody = z.object({
+  payload: z.record(z.any()).optional().nullable(),
+  idempotencyKey: z.string().trim().min(1).max(200).optional(),
+});
+
+const rotationBody = z.object({
+  credentials: z.record(z.union([z.string(), z.null()])),
+});
+
+const validateDraftBody = z.object({
+  name: z.string().trim().min(2).max(120).optional(),
+  authType: z.enum(AUTH_TYPES).optional(),
+  connectionMethod: z.string().trim().max(40).toUpperCase().optional().nullable(),
+  config: z.record(z.any()).optional().nullable(),
+  credentials: z.record(z.union([z.string(), z.null()])).optional().nullable(),
 });
 
 router.use(protect, adminOnly);
@@ -186,19 +245,100 @@ router.get('/providers', asyncHandler(async (req, res) => {
   });
 }));
 
+/* ---- PR #71 provider discovery (metadata only — never connection rows) ---- */
+
+function requireProvider(id) {
+  const Provider = registry.get(String(id || '').toUpperCase());
+  if (!Provider) throw notFound(`Unknown provider "${id}"`);
+  return Provider;
+}
+
+// GET /api/integrations/providers/:id — full identity + contract metadata.
+router.get('/providers/:id', asyncHandler(async (req, res) => {
+  res.json({ success: true, data: requireProvider(req.params.id).describe() });
+}));
+
+// GET /api/integrations/providers/:id/capabilities — capability discovery.
+router.get('/providers/:id/capabilities', asyncHandler(async (req, res) => {
+  const Provider = requireProvider(req.params.id);
+  res.json({
+    success: true,
+    data: Provider.getCapabilities().filter((c) => c.supported),
+    meta: { all: Provider.getCapabilities().length },
+  });
+}));
+
+// GET /api/integrations/providers/:id/schema — metadata-driven config schema
+// consumed by the dynamic connection wizard (no provider-specific UI forms).
+router.get('/providers/:id/schema', asyncHandler(async (req, res) => {
+  const Provider = requireProvider(req.params.id);
+  res.json({ success: true, data: Provider.getConfigurationSchema() });
+}));
+
+// POST /api/integrations/providers/:id/validate — pre-flight check of a DRAFT
+// connection (what the wizard's "next" step can call). Nothing is stored, no
+// provider is contacted; it validates field metadata + provider selection only.
+router.post('/providers/:id/validate', writeLimiter, validate(validateDraftBody), asyncHandler(async (req, res) => {
+  const Provider = requireProvider(req.params.id);
+  const body = req.body;
+  const errors = [];
+  // Reuse the same selection rules the create route applies.
+  if (body.authType && !Provider.authTypes.includes(body.authType)) {
+    errors.push({ field: 'authType', message: `${Provider.label} does not support ${body.authType} authentication` });
+  }
+  if (body.connectionMethod) {
+    if (!CONNECTION_METHOD_IDS.includes(body.connectionMethod)) {
+      errors.push({ field: 'connectionMethod', message: `Unknown connection method "${body.connectionMethod}"` });
+    } else if (Provider.connectionMethods.length && !Provider.connectionMethods.includes(body.connectionMethod)) {
+      errors.push({ field: 'connectionMethod', message: `${Provider.label} does not support the ${body.connectionMethod} method` });
+    }
+  }
+  const fieldCheck = validateConfiguration({
+    configFields: Provider.getConfigurationSchema().configFields,
+    credentialFields: Provider.getConfigurationSchema().credentialFields,
+    config: body.config || {},
+    credentials: body.credentials || {},
+  });
+  errors.push(...fieldCheck.errors);
+  res.json({
+    success: true,
+    data: {
+      ok: errors.length === 0,
+      providerId: Provider.id,
+      errors,
+      // Safe hints for the wizard — never values.
+      credentialFieldsProvided: fieldCheck.credentialKeys.provided,
+      capabilities: Provider.getCapabilities().filter((c) => c.supported).map((c) => c.id),
+      requiresCredentials: Boolean(Provider.requiresCredentials),
+    },
+  });
+}));
+
 /* =====================================================================
- * Platform Owner (SUPER_ADMIN) — read-only, cross-tenant visibility for
- * "Platform → Universal Integrations".
+ * Platform Owner (SUPER_ADMIN) — "Platform → Universal Integrations".
  *
- * These three GET endpoints are the ONLY cross-tenant surface of the
- * Integration Gateway API. They are strictly read-only (no POST/PUT/PATCH/
- * DELETE), guarded by `platformAdminOnly`, and return an explicit safe-field
- * allowlist: tenant/business name, provider, connection name, category,
- * status, capabilities and timestamps. They NEVER return `credentialsCipher`,
- * plaintext secrets, credential descriptors, connection config or webhook
- * tokens — a platform owner manages tenants, never their secrets.
+ * Two distinct owner surfaces, on purpose:
  *
- * They MUST stay registered above the `/:id` routes so `/platform/*` can
+ *  1. CROSS-TENANT VISIBILITY (read-only, the three GETs below). Safe-field
+ *     allowlist only: tenant/business name, provider, connection name,
+ *     category, status, capabilities and timestamps. They NEVER return
+ *     `credentialsCipher`, plaintext secrets, credential descriptors,
+ *     connection config or webhook tokens — the platform owner oversees
+ *     customer tenants, but never operates or holds their secrets; each
+ *     tenant operates its own connections.
+ *
+ *  2. OWNER OPERATIONS (`/platform/owner/*`, registered after these GETs).
+ *     N&D'S is the platform owner/operator, so Universal Integrations is a
+ *     full operational surface for the owner: connect, configure, test,
+ *     enable/disable, disconnect/reconnect, rotate/clear credentials,
+ *     inspect events, execute provider operations and manage webhooks for
+ *     N&D'S's own connections — never a read-only toy. These routes delegate
+ *     to the SAME tenant handlers (same validation, gateway, audit, event
+ *     log, credential envelope) with the scope pinned server-side to the
+ *     owner's business; the owner's user record keeps businessId = NULL and
+ *     no feature entitlement can restrict them.
+ *
+ * Everything stays registered above the `/:id` routes so `/platform/*` can
  * never be mistaken for a connection id.
  * ===================================================================== */
 
@@ -357,8 +497,15 @@ router.get('/platform/connections', platformAdminOnly, validate(paginationSchema
     }),
     prisma.integrationConnection.count({ where }),
   ]);
-  res.json({ success: true, data: items.map(platformConnection), meta: meta(total, q.page, q.limit) });
+  // ownerBusinessId tells the platform UI which rows are N&D'S's own
+  // (operable through /platform/owner/*) versus view-only tenant rows.
+  res.json({
+    success: true,
+    data: items.map(platformConnection),
+    meta: { ...meta(total, q.page, q.limit), ownerBusinessId: DEFAULT_TENANT },
+  });
 }));
+
 
 // GET /api/integrations/platform/events — every tenant's integration activity.
 router.get('/platform/events', platformAdminOnly, validate(paginationSchema.extend({
@@ -397,14 +544,46 @@ router.get('/platform/events', platformAdminOnly, validate(paginationSchema.exte
   res.json({ success: true, data: items.map(platformEvent), meta: meta(total, q.page, q.limit) });
 }));
 
-// GET /api/integrations — connected integrations for this tenant.
-router.get('/', validate(paginationSchema.extend({
+/* =====================================================================
+ * Connection management — ONE set of handlers, mounted on TWO surfaces:
+ *
+ *   • /api/integrations…                    tenant scope (session-resolved;
+ *                                           the `universal-integrations`
+ *                                           feature entitlement is enforced
+ *                                           at app.js for customer tenants)
+ *   • /api/integrations/platform/owner/connections…
+ *       SUPER_ADMIN only (platformAdminOnly), operating N&D'S's OWN
+ *       integrations with the scope pinned server-side to the owner business
+ *       (DEFAULT_TENANT). The owner is this platform's operator — full
+ *       lifecycle, credentials, operations, events and webhook management,
+ *       never a read-only viewer. Feature Management NEVER gates the owner
+ *       (central SUPER_ADMIN exemption in lib/features.js). Other tenants'
+ *       connection ids 404 through this surface: the owner operates N&D'S's
+ *       connections and oversees every other tenant read-only through the
+ *       platform GETs above.
+ *
+ * Same handler instances on both surfaces — validation, gateway pipeline,
+ * encrypted credential envelope, audit and event bookkeeping are literally
+ * shared, never reimplemented (no second integration architecture, and no
+ * fake businessId grant: the owner's user record keeps businessId = NULL;
+ * DEFAULT_TENANT here is N&D'S's own business where owner connections
+ * legitimately live, exactly like every other owner-operated surface).
+ * ===================================================================== */
+
+/** Pins the owner operational scope — server-side, never client-supplied. */
+function ownerScoped(req, res, next) {
+  req.ownerScope = DEFAULT_TENANT;
+  next();
+}
+
+// GET /api/integrations — connected integrations for the resolved scope.
+const listHandler = [validate(paginationSchema.extend({
   providerId: z.string().optional(),
   status: z.string().optional(),
   category: z.string().optional(),
 }), 'query'), asyncHandler(async (req, res) => {
   const q = req.validatedQuery;
-  const where = { businessId: tenantOf(req) };
+  const where = { businessId: scopeOf(req) };
   if (q.providerId) where.providerId = q.providerId.toUpperCase();
   if (q.status) where.status = q.status.toUpperCase();
   if (q.category) where.providerCategory = q.category.toUpperCase();
@@ -427,11 +606,11 @@ router.get('/', validate(paginationSchema.extend({
     }),
     meta: meta(total, q.page, q.limit),
   });
-}));
+})];
 
-// POST /api/integrations — connect a provider for this tenant.
-router.post('/', writeLimiter, validate(connectionBody), asyncHandler(async (req, res) => {
-  const tenantId = tenantOf(req);
+// POST /api/integrations — connect a provider for the resolved scope.
+const createHandler = [writeLimiter, validate(connectionBody), asyncHandler(async (req, res) => {
+  const tenantId = scopeOf(req);
   const body = req.body;
 
   const Provider = validateProviderSelection(body.providerId, body.authType, body.connectionMethod || null);
@@ -481,11 +660,11 @@ router.post('/', writeLimiter, validate(connectionBody), asyncHandler(async (req
   });
   await activity(req.user.id, 'integration', `${req.user.name} connected ${Provider.label} (${connection.name})`, null, req);
   res.status(201).json({ success: true, data: gateway.safeConnection(connection) });
-}));
+})];
 
 // GET /api/integrations/:id — detail with capability matrix + recent events.
-router.get('/:id', asyncHandler(async (req, res) => {
-  const tenantId = tenantOf(req);
+const detailHandler = [asyncHandler(async (req, res) => {
+  const tenantId = scopeOf(req);
   const connection = await gateway.getConnectionForTenant(tenantId, req.params.id);
   if (!connection) throw notFound('Integration connection not found');
   const Provider = registry.get(connection.providerId);
@@ -504,11 +683,11 @@ router.get('/:id', asyncHandler(async (req, res) => {
       dedicatedCredentialKey: integrationCredentials.dedicatedKeyConfigured(),
     },
   });
-}));
+})];
 
 // PUT /api/integrations/:id — update connection / rotate secrets.
-router.put('/:id', writeLimiter, validate(updateBody), asyncHandler(async (req, res) => {
-  const tenantId = tenantOf(req);
+const updateHandler = [writeLimiter, validate(updateBody), asyncHandler(async (req, res) => {
+  const tenantId = scopeOf(req);
   const connection = await gateway.getConnectionForTenant(tenantId, req.params.id);
   if (!connection) throw notFound('Integration connection not found');
   const body = req.body;
@@ -586,64 +765,146 @@ router.put('/:id', writeLimiter, validate(updateBody), asyncHandler(async (req, 
     credentialFieldsChanged: secretNames, // names only
   });
   res.json({ success: true, data: gateway.safeConnection(updated) });
-}));
+})];
 
 // POST /api/integrations/:id/test — real connection test.
-router.post('/:id/test', writeLimiter, gatewayHandler(async (req, res) => {
-  const result = await gateway.testConnection({ tenantId: tenantOf(req), connectionId: req.params.id });
+const testHandler = [writeLimiter, gatewayHandler(async (req, res) => {
+  const result = await gateway.testConnection({ tenantId: scopeOf(req), connectionId: req.params.id });
   cache.invalidate('integrations');
   await audit(req, 'TEST', 'IntegrationConnection', req.params.id);
   res.json({ success: true, data: result });
-}));
+})];
 
 // POST /api/integrations/:id/connect — establish the session.
-router.post('/:id/connect', writeLimiter, gatewayHandler(async (req, res) => {
-  const result = await gateway.connect({ tenantId: tenantOf(req), connectionId: req.params.id });
+const connectHandler = [writeLimiter, gatewayHandler(async (req, res) => {
+  const result = await gateway.connect({ tenantId: scopeOf(req), connectionId: req.params.id });
   cache.invalidate('integrations');
   await audit(req, 'CONNECT', 'IntegrationConnection', req.params.id);
   res.json({ success: true, data: result });
-}));
+})];
 
 // POST /api/integrations/:id/disconnect — close the session (secrets kept for reconnect).
-router.post('/:id/disconnect', writeLimiter, gatewayHandler(async (req, res) => {
-  const { connection, result } = await gateway.disconnect({ tenantId: tenantOf(req), connectionId: req.params.id });
+const disconnectHandler = [writeLimiter, gatewayHandler(async (req, res) => {
+  const { connection, result } = await gateway.disconnect({ tenantId: scopeOf(req), connectionId: req.params.id });
   cache.invalidate('integrations');
   await audit(req, 'DISCONNECT', 'IntegrationConnection', req.params.id);
   res.json({ success: true, data: connection, message: result?.message || 'Disconnected' });
-}));
+})];
+
+// POST /api/integrations/:id/reconnect — re-establish the session after a
+// disconnect, credential change or error. Success only ever follows adapter
+// confirmation (lifecycle.js) — never optimistic.
+const reconnectHandler = [writeLimiter, gatewayHandler(async (req, res) => {
+  const result = await gateway.reconnect({ tenantId: scopeOf(req), connectionId: req.params.id });
+  cache.invalidate('integrations');
+  await audit(req, 'CONNECT', 'IntegrationConnection', req.params.id, { reconnect: true });
+  res.json({ success: true, data: result });
+})];
+
+// POST /api/integrations/:id/credentials — atomic credential rotation with
+// optional adapter-side validation. Responses carry fingerprints only.
+const credentialsHandler = [writeLimiter, validate(rotationBody), gatewayHandler(async (req, res) => {
+  const { connection, rotated, cleared } = await gateway.rotateCredentials({
+    tenantId: scopeOf(req), connectionId: req.params.id, credentials: req.body.credentials,
+  });
+  cache.invalidate('integrations');
+  await audit(req, 'UPDATE', 'IntegrationConnection', req.params.id, {
+    credentialFieldsChanged: rotated, credentialFieldsCleared: cleared, // names only
+  });
+  res.json({
+    success: true,
+    data: gateway.safeConnection(connection),
+    message: rotated.length || cleared.length
+      ? `Credentials updated: ${rotated.length ? 'rotated ' + rotated.join(', ') : ''}${cleared.length ? (rotated.length ? ' · ' : '') + 'cleared ' + cleared.join(', ') : ''}`
+      : 'No credential changes were submitted.',
+  });
+})];
+
+// GET /api/integrations/:id/capabilities — live capability matrix for the
+// connection (provider declaration narrowed by actual configuration).
+const capabilitiesHandler = [asyncHandler(async (req, res) => {
+  const tenantId = scopeOf(req);
+  const connection = await gateway.getConnectionForTenant(tenantId, req.params.id);
+  if (!connection) throw notFound('Integration connection not found');
+  const Provider = registry.get(connection.providerId);
+  res.json({
+    success: true,
+    data: gateway.capabilityMatrix(connection),
+    meta: { providerId: connection.providerId, version: Provider ? Provider.version : null },
+  });
+})];
+
+// POST /api/integrations/:id/operations/:operation — generic, normalised
+// provider operation execution. Capabilities gate it; unsupported operations
+// fail with UNSUPPORTED_CAPABILITY; keyed calls are idempotent; responses
+// are the framework's NORMALISED shapes, never raw provider payloads.
+const operationsHandler = [writeLimiter, validate(operationBody), gatewayHandler(async (req, res) => {
+  const out = await gateway.execute({
+    tenantId: scopeOf(req),
+    connectionId: req.params.id,
+    operation: req.params.operation,
+    payload: req.body.payload || {},
+    idempotencyKey: req.body.idempotencyKey || req.headers['idempotency-key'] || null,
+  });
+  cache.invalidate('integrations');
+  // State-mutating (idempotency-capable) operations report 201 on first
+  // execution; reads and replays report 200.
+  const isWrite = Boolean(gateway.EXECUTABLE_OPERATIONS[req.params.operation]?.idempotent);
+  res.status(out.replayed || !isWrite ? 200 : 201).json({
+    success: true,
+    data: out.normalized,
+    meta: {
+      operation: req.params.operation,
+      providerId: out.providerId,
+      capability: out.capability,
+      replayed: out.replayed,
+      ...(out.durableReplay ? { durableReplay: true } : {}),
+    },
+  });
+})];
 
 // POST /api/integrations/:id/payments — initiate a payment via the provider.
-router.post('/:id/payments', writeLimiter, validate(paymentBody), gatewayHandler(async (req, res) => {
+const paymentsHandler = [writeLimiter, validate(paymentBody), gatewayHandler(async (req, res) => {
+  const { idempotencyKey, ...payment } = req.body;
   const result = await gateway.createPayment({
-    tenantId: tenantOf(req), connectionId: req.params.id, payment: req.body,
+    tenantId: scopeOf(req), connectionId: req.params.id, payment,
+    idempotencyKey: idempotencyKey || req.headers['idempotency-key'] || null,
   });
   res.status(201).json({ success: true, data: result });
-}));
+})];
 
 // GET /api/integrations/:id/payments/:reference — poll a payment's status.
-router.get('/:id/payments/:reference', gatewayHandler(async (req, res) => {
+const payStatusHandler = [gatewayHandler(async (req, res) => {
   const result = await gateway.getPaymentStatus({
-    tenantId: tenantOf(req), connectionId: req.params.id, reference: req.params.reference,
+    tenantId: scopeOf(req), connectionId: req.params.id, reference: req.params.reference,
   });
   res.json({ success: true, data: result });
-}));
+})];
 
 // POST /api/integrations/:id/refunds — refund a payment via the provider.
-router.post('/:id/refunds', writeLimiter, validate(refundBody), gatewayHandler(async (req, res) => {
+const refundsHandler = [writeLimiter, validate(refundBody), gatewayHandler(async (req, res) => {
+  const { idempotencyKey, ...refund } = req.body;
   const result = await gateway.refundPayment({
-    tenantId: tenantOf(req), connectionId: req.params.id,
-    reference: req.body.reference, amount: req.body.amount ?? undefined,
+    tenantId: scopeOf(req), connectionId: req.params.id,
+    reference: refund.reference, amount: refund.amount ?? undefined,
+    idempotencyKey: idempotencyKey || req.headers['idempotency-key'] || null,
   });
   res.json({ success: true, data: result });
-}));
+})];
 
 // GET /api/integrations/:id/events — secret-scrubbed event log.
-router.get('/:id/events', validate(paginationSchema, 'query'), asyncHandler(async (req, res) => {
+const eventsHandler = [validate(paginationSchema.extend({
+  operation: z.string().trim().max(60).optional(),
+  success: z.string().max(10).optional(),
+}), 'query'), asyncHandler(async (req, res) => {
   const q = req.validatedQuery;
-  const tenantId = tenantOf(req);
+  const tenantId = scopeOf(req);
   const connection = await gateway.getConnectionForTenant(tenantId, req.params.id);
   if (!connection) throw notFound('Integration connection not found');
   const where = { businessId: tenantId, connectionId: connection.id };
+  if (q.operation) where.operation = q.operation;
+  if (q.success === 'true') where.success = true;
+  else if (q.success === 'false') where.success = false;
   const [items, total] = await Promise.all([
     prisma.integrationEvent.findMany({
       where, orderBy: { createdAt: q.order }, skip: (q.page - 1) * q.limit, take: q.limit,
@@ -651,32 +912,21 @@ router.get('/:id/events', validate(paginationSchema, 'query'), asyncHandler(asyn
     prisma.integrationEvent.count({ where }),
   ]);
   res.json({ success: true, data: items.map(presentEvent), meta: meta(total, q.page, q.limit) });
-}));
+})];
 
 // PATCH /api/integrations/:id/enabled — enable / disable without deleting secrets.
-router.patch('/:id/enabled', writeLimiter, validate(z.object({ enabled: z.coerce.boolean() })), asyncHandler(async (req, res) => {
-  const tenantId = tenantOf(req);
-  const connection = await gateway.getConnectionForTenant(tenantId, req.params.id);
-  if (!connection) throw notFound('Integration connection not found');
-  const updated = await prisma.integrationConnection.update({
-    where: { id: connection.id },
-    data: req.body.enabled
-      ? { status: 'CONFIGURED', lastError: null }
-      : { status: 'DISABLED' },
-  });
-  await logEvent({
-    tenantId, connectionId: updated.id, providerId: updated.providerId,
-    operation: 'connectionUpdated', success: true,
-    metadata: { enabled: req.body.enabled },
+const enabledHandler = [writeLimiter, validate(z.object({ enabled: z.coerce.boolean() })), asyncHandler(async (req, res) => {
+  const updated = await gateway.setEnabled({
+    tenantId: scopeOf(req), connectionId: req.params.id, enabled: req.body.enabled,
   });
   cache.invalidate('integrations');
   await audit(req, req.body.enabled ? 'ENABLE' : 'DISABLE', 'IntegrationConnection', updated.id);
   res.json({ success: true, data: gateway.safeConnection(updated) });
-}));
+})];
 
 // DELETE /api/integrations/:id — remove and destroy stored secrets.
-router.delete('/:id', writeLimiter, asyncHandler(async (req, res) => {
-  const tenantId = tenantOf(req);
+const removeHandler = [writeLimiter, asyncHandler(async (req, res) => {
+  const tenantId = scopeOf(req);
   const connection = await gateway.getConnectionForTenant(tenantId, req.params.id);
   if (!connection) throw notFound('Integration connection not found');
   await logEvent({
@@ -694,7 +944,52 @@ router.delete('/:id', writeLimiter, asyncHandler(async (req, res) => {
   });
   await activity(req.user.id, 'integration', `${req.user.name} removed the integration ${connection.name}`, null, req);
   res.json({ success: true, message: 'Integration removed. Stored credentials were destroyed with it.' });
-}));
+})];
+
+// POST /:id/enable · /:id/disable — explicit lifecycle aliases of the PATCH
+// (framework contract: enable/disable operations).
+const enableHandler = [writeLimiter, gatewayHandler(async (req, res) => {
+  const updated = await gateway.setEnabled({ tenantId: scopeOf(req), connectionId: req.params.id, enabled: true });
+  cache.invalidate('integrations');
+  await audit(req, 'ENABLE', 'IntegrationConnection', updated.id);
+  res.json({ success: true, data: gateway.safeConnection(updated), message: 'Integration enabled' });
+})];
+const disableHandler = [writeLimiter, gatewayHandler(async (req, res) => {
+  const updated = await gateway.setEnabled({ tenantId: scopeOf(req), connectionId: req.params.id, enabled: false });
+  cache.invalidate('integrations');
+  await audit(req, 'DISABLE', 'IntegrationConnection', updated.id);
+  res.json({ success: true, data: gateway.safeConnection(updated), message: 'Integration disabled' });
+})];
+
+const OWNER_CONNECTION_ROUTES = [
+  ['get',    '',                              '/connections',                        listHandler],
+  ['post',   '',                              '/connections',                        createHandler],
+  ['get',    '/:id',                           '/connections/:id',                    detailHandler],
+  ['put',    '/:id',                           '/connections/:id',                    updateHandler],
+  ['delete', '/:id',                           '/connections/:id',                    removeHandler],
+  ['post',   '/:id/test',                      '/connections/:id/test',               testHandler],
+  ['post',   '/:id/connect',                   '/connections/:id/connect',            connectHandler],
+  ['post',   '/:id/disconnect',                '/connections/:id/disconnect',         disconnectHandler],
+  ['post',   '/:id/reconnect',                 '/connections/:id/reconnect',          reconnectHandler],
+  ['post',   '/:id/credentials',               '/connections/:id/credentials',        credentialsHandler],
+  ['get',    '/:id/capabilities',              '/connections/:id/capabilities',       capabilitiesHandler],
+  ['post',   '/:id/operations/:operation',     '/connections/:id/operations/:operation', operationsHandler],
+  ['post',   '/:id/payments',                  '/connections/:id/payments',           paymentsHandler],
+  ['get',    '/:id/payments/:reference',       '/connections/:id/payments/:reference', payStatusHandler],
+  ['post',   '/:id/refunds',                   '/connections/:id/refunds',            refundsHandler],
+  ['get',    '/:id/events',                    '/connections/:id/events',             eventsHandler],
+  ['patch',  '/:id/enabled',                   '/connections/:id/enabled',            enabledHandler],
+  ['post',   '/:id/enable',                    '/connections/:id/enable',             enableHandler],
+  ['post',   '/:id/disable',                   '/connections/:id/disable',            disableHandler],
+];
+
+const ownerRouter = express.Router();
+ownerRouter.use(platformAdminOnly, ownerScoped);
+for (const [method, tenantPath, ownerPath, handler] of OWNER_CONNECTION_ROUTES) {
+  router[method](tenantPath, handler);
+  ownerRouter[method](ownerPath, handler);
+}
+router.use('/platform/owner', ownerRouter);
 
 /* =====================================================================
  * Webhooks (mounted with a raw-body parser before CSRF in app.js — provider
@@ -710,7 +1005,16 @@ webhookRouter.post('/:providerId/:webhookToken', asyncHandler(async (req, res) =
       headers: req.headers,
     });
     if (result.unknown) return res.status(404).json({ received: false, error: 'Unknown integration webhook' });
-    return res.json({ received: result.received, handled: result.handled, ...(result.error ? { error: result.error } : {}) });
+    // Superset of the PR #68 contract: duplicate/dispatched/reference are the
+    // PR #71 idempotency + pipeline outcome for providers that retry.
+    return res.json({
+      received: result.received,
+      handled: result.handled,
+      ...(result.duplicate ? { duplicate: true } : {}),
+      ...(result.dispatched ? { dispatched: result.dispatched } : {}),
+      ...(result.reference ? { reference: result.reference } : {}),
+      ...(result.error ? { error: result.error } : {}),
+    });
   } catch (err) {
     const http = gateway.toHttpError(err);
     return res.status(http.status).json({ received: false, error: http.message, code: http.code });

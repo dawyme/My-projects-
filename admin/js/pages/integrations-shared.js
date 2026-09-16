@@ -69,11 +69,16 @@ const methodLabel = (m) => (m && typeof m === 'object' ? m.id : m);
 export function providerCard(p, { status = null, counts = null, onConnect = null } = {}) {
   const methods = (p.connectionMethods || []).map(methodLabel);
   const supported = (p.capabilities || []).filter((c) => c.supported);
+  // PR #71 identity metadata — rendered generically from provider metadata,
+  // never from provider-specific UI branches.
+  const envs = p.environments || [];
+  const envLabel = envs.length === 1 ? `${envs[0] === 'SANDBOX' ? 'Sandbox only' : 'Production only'}` : '';
   return `
   <div class="list-card" style="margin-bottom:12px" data-provider="${esc(p.id)}">
     <div class="list-card__head">
-      <span class="cell-main">${icon('plug')} ${esc(p.label)}</span>
+      <span class="cell-main">${icon('plug')} ${esc(p.label)}${p.version ? ` <span class="badge badge--plain badge--muted">v${esc(p.version)}</span>` : ''}</span>
       <span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${categoryBadge(p.category)}
+        ${envLabel ? `<span class="badge badge--plain badge--warning">${esc(envLabel)}</span>` : ''}
         ${status ? statusBadge(status.connected ? 'CONNECTED' : 'NOT_CONNECTED', status.connected ? `Connected · ${status.count}` : 'Not connected') : ''}
         ${counts ? `<span class="cell-sub">${counts.total} connection${counts.total === 1 ? '' : 's'} · ${counts.connected} active${counts.error ? ` · ${counts.error} failing` : ''}</span>` : ''}
       </span>
@@ -81,9 +86,11 @@ export function providerCard(p, { status = null, counts = null, onConnect = null
     <div class="list-card__body">
       <div>
         <div class="cell-sub">${esc(p.description || '')}</div>
+        ${p.docs?.url || p.docs?.guide ? `<a class="cell-sub" href="${esc(p.docs.url || '#')}" ${p.docs.url ? 'target="_blank" rel="noopener"' : ''}>${icon('info')} Provider documentation</a>` : ''}
         <div style="margin:8px 0;display:flex;gap:6px;flex-wrap:wrap">
           ${methods.map((m) => `<span class="badge badge--plain badge--info">${esc(m)}</span>`).join('')}
           ${(p.authTypes || []).map((a) => `<span class="badge badge--plain badge--purple">${esc(a)}</span>`).join('')}
+          ${envs.length > 1 ? envs.map((e) => `<span class="badge badge--plain badge--success">${esc(e)}</span>`).join('') : ''}
           ${(p.regions || []).length ? `<span class="badge badge--plain badge--muted">${esc(p.regions.join(' · '))}</span>` : '<span class="badge badge--plain badge--muted">Worldwide</span>'}
           ${p.requiresCredentials ? `<span class="badge badge--plain badge--warning">${icon('shield')} Credentials required</span>` : ''}
         </div>

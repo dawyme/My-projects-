@@ -13,8 +13,12 @@ function normalizeFeatureKey(value) {
 }
 
 function resolveFeatureAccess({ role, feature, access }) {
-  if (!feature || !feature.isActive) return false;
+  // Platform owners are NEVER restricted by Feature Management. Tenant
+  // switches govern customer tenants only; SUPER_ADMIN permissions gate
+  // owner operation (this is the central authorization boundary that every
+  // featureProtectedRoute and /api/features/access consumer shares).
   if (role === 'SUPER_ADMIN') return true;
+  if (!feature || !feature.isActive) return false;
   if (feature.isCore) return true;
   if (access && typeof access.enabled === 'boolean') return access.enabled;
   return feature.defaultEnabled === true;
@@ -28,8 +32,12 @@ async function featureForKey(key) {
 async function accessibleFeatures(user) {
   await ensurePlatformFeatures();
   const role = roleFor(user);
+  // The platform owner has every feature: tenant switches (and even the
+  // global active flag) must never restrict SUPER_ADMIN. This endpoint is
+  // what the admin shell uses for nav visibility, so owners always see the
+  // full surface — enforced centrally, not per page.
+  if (role === 'SUPER_ADMIN') return prisma.platformFeature.findMany({ orderBy: { name: 'asc' } });
   const features = await prisma.platformFeature.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } });
-  if (role === 'SUPER_ADMIN') return features;
   if (!user?.businessId) return [];
   const access = await prisma.tenantFeatureAccess.findMany({ where: { businessId: user.businessId } });
   const byFeature = new Map(access.map((row) => [row.featureId, row]));

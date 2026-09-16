@@ -17,6 +17,8 @@ const SUITES = [
   ['Payment gateways', 'payments.test.js'],
   ['Tilopay unit tests', 'tilopay-unit.test.js'],
   ['Universal Integration Gateway', 'integrations.test.js'],
+  ['Provider Integration Framework', 'provider-framework.test.js'],
+  ['Integrations owner-first access', 'platform-owner-integrations.test.js'],
   ['Tenant feature registry contracts', 'platform-feature-access-contract.test.js'],
   ['Universal Integrations Admin UI', 'integration-admin-ui.test.js'],
   ['Supplier Marketplace', 'suppliers.test.js'],

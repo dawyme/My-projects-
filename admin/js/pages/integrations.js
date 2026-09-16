@@ -446,8 +446,15 @@ function connectionWizard({ providerId = null, connection = null, onSaved }) {
         credHost.innerHTML = `<div class="field--group span-2"><span class="field--group__label">Credentials</span>
           <div class="field--group__body">${fields.map((f) => {
             const stored = p.id === c.providerId ? existing.get(f.name) : null;
-            return credentialFieldMarkup(f, stored)
-              + (stored ? `<label class="checkline span-2" style="margin-top:-4px"><input type="checkbox" data-credential-clear="${esc(f.name)}"> Remove this stored secret</label>` : '');
+            // Field metadata (PR #71) decides whether a secret can be cleared
+            // or rotated — the UI never branches on the provider itself.
+            const clearRow = stored && f.supportsClearing !== false
+              ? `<label class="checkline span-2" style="margin-top:-4px"><input type="checkbox" data-credential-clear="${esc(f.name)}"> Remove this stored secret</label>`
+              : '';
+            const rotationNote = stored && f.supportsRotation === false
+              ? '<span class="secret-field__hint">This credential cannot be rotated once set — remove it and reconnect if it changes.</span>'
+              : '';
+            return credentialFieldMarkup(f, stored) + clearRow + rotationNote;
           }).join('')}</div></div>`;
       }
 

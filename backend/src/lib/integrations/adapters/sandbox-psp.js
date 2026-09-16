@@ -46,6 +46,13 @@ class SandboxDemoProvider extends IntegrationProvider {
   static label = 'Sandbox Demo PSP (test only)';
   static description = 'Demonstration PSP for integration testing. Simulated payments only — never available in production.';
   static category = 'PSP';
+  static version = '1.1.0';
+  // Sandbox-only by contract; the production refusal below remains the hard gate.
+  static environments = ['SANDBOX'];
+  static docs = {
+    guide: 'docs/UNIVERSAL_INTEGRATIONS.md#11-phase-1-adapters',
+    note: 'Zero-network demo adapter. Real PSP adapters (Stripe, PayPal, WiPay, Tilopay, …) follow the same shape.',
+  };
   static connectionMethods = ['HOSTED_GATEWAY', 'WEBHOOK'];
   static authTypes = ['API_KEY', 'NONE'];
   static capabilities = [
