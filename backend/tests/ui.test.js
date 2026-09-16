@@ -673,16 +673,19 @@ async function main() {
     w.localStorage.setItem('nds.auth', JSON.stringify(tenantSession));
   }
 
-  // website content manager tabs
+  // website content manager tabs — generous waits: this jsdom harness runs
+  // the real SPA against a live server and, on loaded machines, 12s was tight
+  // (the same intermittent failure reproduces on plain `main`). The
+  // predicates are unchanged; only the grace period grows.
   w.location.hash = '#/content';
   const servicesTabClicked = await until(() => {
     const tab = doc.querySelector('#contentTabs [data-tab="services"]');
     if (!tab) return false;
     tab.click();
     return true;
-  }, 12000);
+  }, 30000);
   record(servicesTabClicked, 'Content manager Services tab is available before interaction');
-  const svcRendered = await until(() => doc.querySelector('[data-list] table tbody tr'), 12000);
+  const svcRendered = await until(() => doc.querySelector('[data-list] table tbody tr'), 60000);
   record(svcRendered, 'Content manager Services tab lists services');
 
   // Restore the platform-owner session after tenant-scoped content verification.

@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Integrations owner-first access model (PR #71 correction)** — the
+  platform surface was read-only for the owner while tenants held the
+  controls; that is inverted. `Platform → Universal Integrations` is now a
+  full operational surface for N&D'S (SUPER_ADMIN): connect, configure, test,
+  enable/disable, disconnect/reconnect, atomic credential rotation/clearing,
+  capability inspection, normalised provider operations (idempotency keys)
+  and webhook management via new `/api/integrations/platform/owner/connections…`
+  routes that delegate to the SAME gateway handlers (one framework — no
+  second architecture, no fake business id: the owner keeps `businessId = NULL`
+  and the scope is pinned server-side to N&D'S's own business). Customer
+  tenants keep the feature through centralized Feature Management: disabling
+  `universal-integrations` hides it from tenant navigation, blocks the direct
+  admin route (new central shell gating from `/api/features/access`) and
+  returns 403 from the API; the owner is never gated (central
+  `resolveFeatureAccess` bypass). Cross-tenant platform lists stay read-only
+  with the safe-field allowlist; secrets never surface in any response;
+  tenant isolation holds in both directions through every new path. Fix:
+  `/api/features/access` is now reachable by tenant admins (mount order).
+  New 16-check suite `backend/tests/platform-owner-integrations.test.js`;
+  the PR #69 static contract now asserts owner-scoped platform writes.
 - **Provider Integration Framework (PR #71)** — the Universal Integration
   Gateway becomes a full provider-agnostic adapter framework so future
   integrations (T&T banks, international banks, PSPs, POS, accounting,

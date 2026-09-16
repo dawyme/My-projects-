@@ -6,9 +6,10 @@
  *
  *   • static UI contracts — routes, navigation entries, role guards, and the
  *     hard rule that integration UI sources never touch secret material
- *   • platform endpoints — SUPER_ADMIN-only, read-only, cross-tenant
- *     visibility with an explicit safe-field allowlist (no ciphers, tokens,
- *     configs or secret values anywhere in any response)
+ *   • platform endpoints — SUPER_ADMIN-only cross-tenant visibility is
+ *     read-only with an explicit safe-field allowlist (no ciphers, tokens,
+ *     configs or secret values anywhere in any response), while owner
+ *     operations live exclusively behind /platform/owner/connections…
  *   • tenant boundaries — TENANT_ADMIN is denied the platform surface in both
  *     directions and stays isolated on the tenant surface
  *   • RBAC — staff 403, anonymous 401 on the platform surface
@@ -132,9 +133,25 @@ async function main() {
     assert.match(tenant, /if \(!auth\.isAdmin\)/);
   });
 
-  await test('static: platform UI is read-only (no writes to the integration API)', async () => {
+  await test('static: platform UI writes only through owner-scoped platform endpoints', async () => {
     const platform = read('admin/js/pages/platform-integrations.js');
-    assert.doesNotMatch(platform, /api\.(post|put|patch|del)\s*\(/);
+    // N&D'S is the operator: the platform page has real operational writes,
+    // but they may ONLY target the owner-scoped alias (N&D'S's own
+    // connections). Tenant paths and cross-tenant paths must stay read-only.
+    const baseDecl = platform.match(/const OWNER_BASE = '([^']+)'/);
+    assert.ok(baseDecl, 'platform page must pin its writes to one OWNER_BASE constant');
+    assert.strictEqual(baseDecl[1], '/integrations/platform/owner/connections',
+      'OWNER_BASE must be the SUPER_ADMIN owner-scope alias of the tenant handlers');
+    const writeCalls = [...platform.matchAll(/api\.(post|put|patch|del)\(\s*[`'"]([^`'"]+)/g)].map((m) => m[2]);
+    assert.ok(writeCalls.length >= 5, 'platform page should expose owner operations (connect/test/enable/disable/remove/rotate/operations)');
+    for (const target of writeCalls) {
+      const resolved = target.replace('${OWNER_BASE}', baseDecl[1]).replace(/^\$\{OWNER_BASE\}/, baseDecl[1]);
+      assert.ok(resolved.startsWith(baseDecl[1]),
+        `platform write escaped the owner scope: ${target}`);
+    }
+    // No inline absolute /integrations/ write may bypass the owner alias,
+    // and the cross-tenant oversight endpoints stay GET-only.
+    assert.doesNotMatch(platform, /api\.(post|put|patch|del)\(\s*[`'"]\/integrations\//);
   });
 
   // Comments may NAME the forbidden things (e.g. "never sends a businessId"),

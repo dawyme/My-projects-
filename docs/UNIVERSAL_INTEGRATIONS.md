@@ -106,19 +106,30 @@ connection never asks for OAuth credentials. A future SFTP-settlement bank, an
 open-banking bank and a manual-reconciliation bank all fit the same interface
 with different capability/method subsets.
 
-## 6. Multi-tenancy
+## 6. Multi-tenancy & the owner-first access model
 
 - Every connection and event carries `businessId`, resolved **server-side**
-  from the session (`tenantOf(req)`). Client-supplied `businessId` values are
-  stripped by validation and ignored.
-- All reads use find-first-by-(id, tenant); misses return **404** so Tenant A
-  can never discover Tenant B's connections, credentials, transactions or sync
-  data.
-- Management API is tenant-admin-only (`protect` + `adminOnly`, reusing the
-  existing auth/RBAC — no new roles, no weakened isolation).
-- The platform owner uses the same tenant-scoped API (default tenant scope,
-  exactly like the existing payment capture path); there is no cross-tenant
-  escape parameter anywhere on this API.
+  from the session (`tenantOf(req)` — or pinned for the owner surface below).
+  Client-supplied `businessId` values are stripped by validation and ignored.
+- **TENANT_ADMIN (customer tenants)** — full operations (own tenant only):
+  all `/api/integrations…` routes. Every read uses find-first-by-(id, tenant);
+  misses return **404** so Tenant A can never discover Tenant B's
+  connections, credentials, transactions or sync data.
+- **SUPER_ADMIN (N&D'S — the platform owner/operator)** — Universal
+  Integrations is an OPERATIONAL surface, not a viewer:
+  `/api/integrations/platform/owner/connections…` exposes the complete
+  management + lifecycle + credential-rotation + normalised-operations API
+  for N&D'S's own integrations, delegating to the same handlers, gateway,
+  credential envelope and audit trail (one architecture, no second system).
+  The owner scope is pinned server-side to the owner business
+  (`DEFAULT_TENANT`) — the owner's user record keeps `businessId = NULL`,
+  N&D'S is not modelled as a customer tenant, and no owner session ever
+  carries a fake business id. Customer-tenant connections are visible only
+  through the read-only oversight GETs (`platform/overview|connections|events`,
+  safe fields) — the owner never operates or holds another tenant's secrets.
+- **RBAC** — management API is admin-only (`protect` + `adminOnly`);
+  `/platform/owner/*` additionally requires `platformAdminOnly`; staff never
+  gain integration management on any surface.
 - Webhook URLs are token-scoped (`/webhooks/:providerId/:webhookToken`) with
   an unguessable per-connection token — no tenant id appears in the URL.
 
@@ -242,10 +253,14 @@ capability matrix, test/disconnect, event logging, webhook reception and the
 
 ## 13. Management API summary
 
-All tenant-admin-only. See `backend/src/routes/integrations.js` for schemas.
+Tenant-admin-only on the tenant paths (entitlement-gated); SUPER_ADMIN-only
+on `/platform/owner/*` (N&D'S operations) and the cross-tenant overview GETs
+(read-only oversight). See `backend/src/routes/integrations.js` for schemas.
 
 ```
 GET    /api/integrations/providers
+GET    /api/integrations/providers/:id · /:id/capabilities · /:id/schema
+POST   /api/integrations/providers/:id/validate
 GET    /api/integrations?providerId=&status=&category=&search=
 POST   /api/integrations
 GET    /api/integrations/:id
@@ -253,13 +268,29 @@ PUT    /api/integrations/:id
 POST   /api/integrations/:id/test
 POST   /api/integrations/:id/connect
 POST   /api/integrations/:id/disconnect
+POST   /api/integrations/:id/reconnect
+POST   /api/integrations/:id/enable · /:id/disable
+PATCH  /api/integrations/:id/enabled
+POST   /api/integrations/:id/credentials
+GET    /api/integrations/:id/capabilities
+POST   /api/integrations/:id/operations/:operation
 POST   /api/integrations/:id/payments
 GET    /api/integrations/:id/payments/:reference
 POST   /api/integrations/:id/refunds
-GET    /api/integrations/:id/events
-PATCH  /api/integrations/:id/enabled
+GET    /api/integrations/:id/events?operation=&success=
 DELETE /api/integrations/:id
 POST   /api/integrations/webhooks/:providerId/:webhookToken
+
+# owner-first (PR #71 correction): the SAME management routes above,
+# alias-mounted for SUPER_ADMIN with the scope pinned to N&D'S's business —
+# swap the base to /api/integrations/platform/owner/connections
+# e.g. POST /api/integrations/platform/owner/connections
+#      POST /api/integrations/platform/owner/connections/:id/operations/getBalance
+
+# platform oversight (read-only, cross-tenant, safe fields only)
+GET    /api/integrations/platform/overview
+GET    /api/integrations/platform/connections
+GET    /api/integrations/platform/events
 ```
 
 ## 14. Security considerations
@@ -327,9 +358,18 @@ confirms it.
 ### 16.2 Platform → Universal Integrations (SUPER_ADMIN)
 
 Route `#/platform-integrations`, in the Platform nav group between Feature
-Management and Platform Analytics (platform-only). Read-only: the platform
-owner gets visibility, while connection lifecycle stays with each tenant's
-own admin. Five tabs, all served by three read-only endpoints:
+Management and Platform Analytics (platform-only). Owner-first (PR #71
+correction): N&D'S is the platform operator, so this page is a full
+operational surface for N&D'S's own integrations — connect, configure, test,
+enable/disable, disconnect/reconnect, rotate/clear credentials, execute
+supported provider operations (with idempotency keys) and manage webhook
+URLs/secrets — while every customer-tenant connection stays a read-only
+oversight card. Owner writes exclusively target
+`/api/integrations/platform/owner/connections…` (verified by static test);
+the owner is never gated by tenant feature entitlements.
+
+Five tabs, backed by the owner-alias endpoints plus three read-only
+cross-tenant endpoints:
 
 ```
 GET /api/integrations/platform/overview      stats + recent activity + failures
@@ -341,36 +381,53 @@ GET /api/integrations/platform/events        every tenant's integration events (
   tenants, event totals, connection health by status, failing connections,
   recent events and webhook activity. Every figure comes from live API data.
 - **Providers** — the dynamic provider catalogue with platform-wide
-  connection counts per provider.
-- **Connections** — filterable (search, provider, status, category) tenant
-  connection cards: tenant/business, provider, name, category, status,
-  capabilities, last tested / connected / sync, last error.
+  connection counts per provider and a Connect action (opens the same
+  metadata-driven wizard as the tenant page, saving through the owner alias).
+- **Connections** — two clearly separated zones: *N&D'S integrations*
+  (operable: Test / Manage — lifecycle buttons, credential Configure,
+  capability matrix, webhook URL, Run provider operation with idempotency
+  key, recent activity / Remove) and *Tenant connections* (read-only
+  oversight cards: tenant/business, provider, name, category, status,
+  capabilities, last tested / connected / sync, last error — filterable by
+  search, provider, status, category).
 - **Events** — filterable (search, provider, operation, result) activity log
   with tenant, provider, operation, success/failure, error category,
   retryable flag, external reference and timestamp; row click shows detail.
 - **Webhooks** — the Gateway receiver explained plus received-webhook
-  activity. There is deliberately no second webhook system.
+  activity, with signing secrets configured per connection. There is
+  deliberately no second webhook system.
 
-The platform endpoints are guarded by `platformAdminOnly`, registered above
-the `/:id` routes, and return an explicit safe-field allowlist — no
+Everything on this page is guarded by `platformAdminOnly`. The cross-tenant
+oversight GETs return an explicit safe-field allowlist — no
 `credentialsCipher`, no secret values or descriptors, no connection config,
-no webhook tokens.
+no webhook tokens for OTHER tenants. Owner-scope detail naturally carries the
+same credential-safe rules as the tenant API: fingerprints only, write-only
+secret inputs, blank keeps the stored value.
 
 ### 16.3 Tenancy, RBAC and feature entitlement
 
 - The tenant API and UI never accept a client-supplied `businessId`; scope
   always comes from the session, and cross-tenant reads return 404.
-- `SUPER_ADMIN` (platform owner, `businessId = NULL`) uses the platform
-  surface; `TENANT_ADMIN` uses the tenant surface for their own business.
-  The architecture from PR #68 is unchanged: the platform owner is not a
-  customer tenant and no second platform account exists.
+- `SUPER_ADMIN` (platform owner, `businessId = NULL`) operates Universal
+  Integrations for N&D'S through the operational platform surface
+  (`/platform/owner/*` + the Connections/Providers tabs) and oversees every
+  tenant read-only; `TENANT_ADMIN` operates the tenant surface for their own
+  business only. The owner is never re-modelled as a customer tenant, no
+  second owner account exists, and no fake business id is granted to the
+  owner's session — the owner alias pins the operational scope server-side
+  to N&D'S's own business, the same way every other owner-operated surface
+  resolves it.
 - Tenant access is controlled by the existing feature-entitlement system via
   the `universal-integrations` feature (`defaultEnabled: true`,
   `routes: ['/integrations']`, `apiPrefixes: ['/api/integrations']`),
-  manageable per tenant from Feature Management. `SUPER_ADMIN` bypasses the
-  gate, so platform controls always stay available. The unauthenticated
-  webhook receiver stays outside the gate (providers cannot log in), exactly
-  like the payment webhooks.
+  manageable per tenant from Feature Management. The central
+  `resolveFeatureAccess` exempts `SUPER_ADMIN` first — a tenant switch can
+  NEVER restrict the owner, and integrations implement no private permission
+  system. When a tenant disables the feature, the shell hides it from that
+  tenant's navigation, blocks the direct route and rejects the API — all
+  driven by the same server-computed `/api/features/access` set (PR #71
+  correction). The unauthenticated webhook receiver stays outside the gate
+  (providers cannot log in), exactly like the payment webhooks.
 - Both pages are responsive (card/list layouts, no wide fixed tables) and
   honour the shell conventions: active-menu highlighting, direct-URL and
   refresh support, and back/forward navigation (tab and filter state lives in

@@ -334,10 +334,38 @@ GET  /api/integrations/:id/events?operation=&success=  filtered event inspection
 Every addition inherits the existing rules unchanged: `protect` +
 `adminOnly`, tenant scope from the session (`tenantOf`) with 404-on-miss,
 `universal-integrations` feature entitlement (`featureProtectedRoute` in
-`app.js` — SUPER_ADMIN platform surfaces stay available per existing
-architecture), write rate limiting, CSRF on management routes, and the
-single unauthenticated webhook exception. Cross-tenant access fails
-server-side on every new route (verified in both directions by the suite).
+`app.js`), write rate limiting, CSRF on management routes, and the single
+unauthenticated webhook exception. Cross-tenant access fails server-side on
+every new route (verified in both directions by the suites).
+
+### Owner-first access model (PR #71 correction)
+
+N&D'S (SUPER_ADMIN) is the platform owner-**operator**, so every management
+route above is ALSO served under `/api/integrations/platform/owner/connections…`
+— guarded by `platformAdminOnly` and delegating to the SAME handler
+instances with the scope pinned server-side to N&D'S's own business
+(`DEFAULT_TENANT`). No second implementation, no fake business id on the
+owner (their user record keeps `businessId = NULL`; N&D'S is not re-modelled
+as a customer tenant), and no separate permission system:
+
+- **SUPER_ADMIN**: full operations for N&D'S's connections (connect,
+  configure, test, enable/disable, disconnect/reconnect, credential
+  rotate/clear, capabilities, normalised operations, events, webhook URLs)
+  + read-only cross-tenant oversight (`platform/overview|connections|events`).
+  Tenant feature switches NEVER restrict the owner — the bypass is
+  implemented first inside the central `resolveFeatureAccess`
+  (`lib/features.js`), which every `featureProtectedRoute` and
+  `/api/features/access` consumer shares.
+- **Customer tenants**: normal tenant RBAC (`protect` + `adminOnly`) and
+  strict isolation; when Feature Management disables `universal-integrations`
+  for a tenant, the admin shell (driven by `/api/features/access`) hides it
+  from that tenant's navigation, blocks the direct route, and the API
+  returns 403. Re-enabling restores access exactly as configured.
+- Owner-scope tenant ids 404 through `/platform/owner/*` — the owner alias
+  cannot be used to operate another tenant's connection.
+- The admin UI on `Platform → Universal Integrations` mirrors this: writes
+  only ever target `OWNER_BASE = /integrations/platform/owner/connections`
+  (statically asserted); tenant rows stay read-only cards.
 
 ## 13. Adding a future provider
 

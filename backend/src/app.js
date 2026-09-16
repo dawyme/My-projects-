@@ -191,8 +191,12 @@ app.use('/api/technician-portal', require('./routes/technician-portal'));
 app.use('/api/customer-portal', require('./routes/customer-portal'));
 app.use('/api/saas', require('./routes/saas'));
 app.use('/api/saas/features', require('./routes/features'));
-app.use('/api/features', require('./routes/features'));
+// Tenant-facing access list first: GET /api/features/access must resolve in
+// the auth-scoped access router for tenant admins (the platform router below
+// applies platformAdminOnly globally and would 403 it). CRUD continues to
+// live on /api/features (SUPER_ADMIN) below.
 app.use('/api/features', require('./routes/feature-access'));
+app.use('/api/features', require('./routes/features'));
 app.use('/api/audit-logs', require('./routes/audit'));
 app.use('/api/public', require('./routes/public'));
 app.use('/api/public', require('./routes/public-content'));
