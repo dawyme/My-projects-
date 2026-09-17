@@ -1,5 +1,6 @@
 /** Supplier Marketplace → Fulfillment: dropship orders, submission and tracking. */
 import { api, auth } from '../api.js';
+import { applyEntitlements } from '../entitlements.js';
 import { setTitle } from '../layout.js';
 import {
   qs, qsa, icon, esc, money, num, statusBadge, debounce, skeletonRows, emptyState,
@@ -75,6 +76,7 @@ export async function render(view, query) {
         return;
       }
       rows.innerHTML = data.map(rowMarkup).join('');
+      applyEntitlements(rows);
       pager.innerHTML = '';
       pager.appendChild(pagination(meta, (p) => { state.page = p; load(); }));
     } catch (e) {
@@ -89,7 +91,7 @@ export async function render(view, query) {
         ? '<span class="badge badge--danger">Failed</span>'
         : '<span class="badge badge--muted">Not sent</span>';
     return `<tr data-id="${esc(f.id)}">
-      <td><a href="#/orders"><code>${esc(f.order.reference)}</code></a>
+      <td><a href="#/orders" data-feature="orders"><code>${esc(f.order.reference)}</code></a>
         <div class="cell-sub">${esc(f.order.customer?.name || '')} · ${esc(f.order.shippingCountry || '—')}</div></td>
       <td>${esc(f.supplier?.name || '—')}</td>
       <td class="num">${num(f.items.reduce((a, i) => a + i.quantity, 0))}

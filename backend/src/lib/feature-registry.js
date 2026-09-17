@@ -2,6 +2,21 @@ const prisma = require('./prisma');
 function normalizeRegistryKey(value) { return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80); }
 
 // Authoritative registry for every feature that may be exposed to a tenant.
+//
+// Each entry is the central source of truth for ONE tenant-facing feature:
+//   • routes      → hash routes the shell hides (nav) and blocks (direct URL)
+//                   for customer tenants when the feature is disabled.
+//   • apiPrefixes → API mounts gated server-side by featureProtectedRoute.
+//                   An empty array is deliberate and means the page is a pure
+//                   composite over OTHER features' already-gated APIs (see the
+//                   notes on supplier-marketplace / supplier-logs), or — for
+//                   API-only entries with empty routes — that the feature has
+//                   no dedicated page and is enforced at the API layer only.
+//
+// SUPER_ADMIN / platform-owner access is NEVER derived from this table: the
+// central resolver (lib/features.js resolveFeatureAccess) exempts the owner
+// before consulting any tenant state, so disabling a feature here affects
+// customer tenants only and can never spill over to SUPER_ADMIN or N&D'S.
 const TENANT_FEATURE_REGISTRY = [
   { key: 'dashboard', name: 'Dashboard', description: 'Business overview dashboard', category: 'Overview', defaultEnabled: true, core: true, routes: ['/'], apiPrefixes: ['/api/dashboard'] },
   { key: 'reports', name: 'Reports', description: 'Tenant business reports and analytics', category: 'Overview', defaultEnabled: true, routes: ['/analytics'], apiPrefixes: ['/api/analytics'] },
@@ -9,7 +24,7 @@ const TENANT_FEATURE_REGISTRY = [
   { key: 'categories', name: 'Categories', description: 'Product category management', category: 'Catalogue', defaultEnabled: true, routes: ['/categories'], apiPrefixes: ['/api/categories'] },
   { key: 'inventory', name: 'Inventory', description: 'Stock and inventory management', category: 'Catalogue', defaultEnabled: true, routes: ['/inventory'], apiPrefixes: ['/api/inventory'] },
   { key: 'service-bookings', name: 'Service Bookings', description: 'Customer service bookings', category: 'Operations', defaultEnabled: true, routes: ['/bookings'], apiPrefixes: ['/api/bookings'] },
-  { key: 'calendar', name: 'Calendar', description: 'Scheduling calendar', category: 'Operations', defaultEnabled: true, routes: ['/calendar'], apiPrefixes: [] },
+  { key: 'calendar', name: 'Calendar', description: 'Scheduling calendar', category: 'Operations', defaultEnabled: true, routes: ['/calendar'], apiPrefixes: ['/api/scheduling'] },
   { key: 'dispatch', name: 'Dispatch Board', description: 'Technician dispatch and assignment', category: 'Operations', defaultEnabled: true, routes: ['/dispatch'], apiPrefixes: ['/api/dispatch'] },
   { key: 'services', name: 'Services', description: 'Service catalogue and pricing', category: 'Operations', defaultEnabled: true, routes: ['/services'], apiPrefixes: ['/api/services'] },
   { key: 'equipment', name: 'Equipment', description: 'Customer equipment records', category: 'Operations', defaultEnabled: true, routes: ['/equipment'], apiPrefixes: ['/api/equipment'] },
@@ -28,6 +43,9 @@ const TENANT_FEATURE_REGISTRY = [
   { key: 'universal-integrations', name: 'Universal Integrations', description: 'Tenant bank / PSP / POS / accounting connections via the Integration Gateway', category: 'Administration', defaultEnabled: true, routes: ['/integrations'], apiPrefixes: ['/api/integrations'] },
   { key: 'service-requests', name: 'Service Requests', description: 'Service request intake and conversion', category: 'Operations', defaultEnabled: true, routes: [], apiPrefixes: ['/api/service-requests'] },
   { key: 'work-orders', name: 'Work Orders', description: 'Work order lifecycle management', category: 'Operations', defaultEnabled: true, routes: [], apiPrefixes: ['/api/work-orders'] },
+  // Composite page: reads /api/suppliers/* + /api/supplier-settings, each gated
+  // by its own feature. Disabling supplier-marketplace hides/blocks the page;
+  // the underlying APIs stay governed by their own entitlements.
   { key: 'supplier-marketplace', name: 'Marketplace Dashboard', description: 'Supplier marketplace dashboard', category: 'Supplier Marketplace', defaultEnabled: true, routes: ['/supplier-marketplace'], apiPrefixes: [] },
   { key: 'suppliers', name: 'Suppliers', description: 'Supplier management', category: 'Supplier Marketplace', defaultEnabled: true, routes: ['/suppliers'], apiPrefixes: ['/api/suppliers'] },
   { key: 'supplier-integrations', name: 'Integrations / Plugins', description: 'Supplier integrations and plugins', category: 'Supplier Marketplace', defaultEnabled: true, routes: ['/supplier-integrations'], apiPrefixes: ['/api/supplier-integrations'] },
@@ -36,6 +54,9 @@ const TENANT_FEATURE_REGISTRY = [
   { key: 'supplier-fulfillment', name: 'Fulfillment', description: 'Supplier fulfillment workflows', category: 'Supplier Marketplace', defaultEnabled: true, routes: ['/supplier-fulfillment'], apiPrefixes: ['/api/supplier-fulfillments'] },
   { key: 'supplier-shipping', name: 'Shipping', description: 'Supplier shipping management', category: 'Supplier Marketplace', defaultEnabled: true, routes: ['/supplier-shipping'], apiPrefixes: ['/api/supplier-shipping'] },
   { key: 'supplier-sync', name: 'Sync & Automation', description: 'Supplier synchronization and automation', category: 'Supplier Marketplace', defaultEnabled: true, routes: ['/supplier-sync'], apiPrefixes: ['/api/supplier-syncs'] },
+  // Composite page: reads /api/suppliers + /api/supplier-syncs/*, each gated
+  // by its own feature. Disabling supplier-logs hides/blocks the page; the
+  // underlying APIs stay governed by their own entitlements.
   { key: 'supplier-logs', name: 'Sync Logs', description: 'Supplier synchronization logs', category: 'Supplier Marketplace', defaultEnabled: true, routes: ['/supplier-logs'], apiPrefixes: [] },
   { key: 'supplier-settings', name: 'Marketplace Settings', description: 'Supplier marketplace settings', category: 'Supplier Marketplace', defaultEnabled: true, routes: ['/supplier-settings'], apiPrefixes: ['/api/supplier-settings'] },
   { key: 'content-manager', name: 'Content Manager', description: 'Tenant website content management', category: 'Website', defaultEnabled: true, routes: ['/content'], apiPrefixes: ['/api/content', '/api/site-content'] },

@@ -20,6 +20,7 @@ const SUITES = [
   ['Provider Integration Framework', 'provider-framework.test.js'],
   ['Integrations owner-first access', 'platform-owner-integrations.test.js'],
   ['Tenant feature registry contracts', 'platform-feature-access-contract.test.js'],
+  ['Tenant entitlement enforcement', 'tenant-entitlement-enforcement.test.js'],
   ['Universal Integrations Admin UI', 'integration-admin-ui.test.js'],
   ['Supplier Marketplace', 'suppliers.test.js'],
   ['POS / multi-tenant POS', 'pos.test.js'],

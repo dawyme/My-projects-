@@ -432,8 +432,14 @@ async function main() {
       /app\.use\('\/api\/integrations', \.\.\.featureProtectedRoute\('universal-integrations'\), require\('\.\/routes\/integrations'\)\)/,
       'the tenant gate remains the central featureProtectedRoute boundary'
     );
-    // Owner page writes are owner-scoped (see #69 suite) and N&D'S links gate too:
-    assert.match(read('admin/js/pages/settings.js'), /hasFeature\('universal-integrations'\)/);
+    // Owner page writes are owner-scoped (see #69 suite) and N&D'S links gate
+    // too — through the central data-feature/applyEntitlements mechanism. (The
+    // earlier one-off hasFeature('universal-integrations') branch was migrated
+    // to the shared helper so every current and future feature gates the same
+    // way; the tab still hides for tenants without the entitlement.)
+    assert.match(read('admin/js/pages/settings.js'), /data-feature="universal-integrations"/);
+    assert.match(read('admin/js/pages/settings.js'), /applyEntitlements\(view\)/);
+    assert.doesNotMatch(read('admin/js/pages/settings.js'), /hasFeature\('universal-integrations'\)/);
   });
 
   /* -------------------------------- cleanup */

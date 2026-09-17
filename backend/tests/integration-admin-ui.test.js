@@ -122,7 +122,11 @@ async function main() {
   });
 
   await test('static: Settings links to Integrations (Settings → Integrations)', async () => {
-    assert.match(read('admin/js/pages/settings.js'), /href="#\/integrations">Integrations<\/a>/);
+    // Same destination + label as before; the link now also declares its
+    // entitlement so the central helper (not a one-off branch) hides it for
+    // tenants without universal-integrations.
+    assert.match(read('admin/js/pages/settings.js'), /href="#\/integrations"[^>]*>Integrations<\/a>/);
+    assert.match(read('admin/js/pages/settings.js'), /data-feature="universal-integrations"/);
   });
 
   await test('static: role guards — platform page is SUPER_ADMIN-only, tenant page is admin-only', async () => {

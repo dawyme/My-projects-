@@ -186,7 +186,10 @@ app.use('/api/settings', ...featureProtectedRoute('settings'), require('./routes
 app.use('/api/users', ...featureProtectedRoute('team'), require('./routes/users'));
 app.use('/api/business', require('./routes/business'));
 app.use('/api/businesses', require('./routes/business'));
-app.use('/api/tenant', require('./routes/tenant'));
+// plans-subscription is core (always enabled), so this gate never blocks — it
+// keeps the mount truthful to the registry (every apiPrefix is guarded by
+// its feature) and any future core→non-core change is enforced automatically.
+app.use('/api/tenant', ...featureProtectedRoute('plans-subscription'), require('./routes/tenant'));
 app.use('/api/technician-portal', require('./routes/technician-portal'));
 app.use('/api/customer-portal', require('./routes/customer-portal'));
 app.use('/api/saas', require('./routes/saas'));
