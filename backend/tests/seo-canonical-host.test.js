@@ -30,7 +30,5 @@ for (const file of files) {
   }
 }
 
-assert.deepStrictEqual(failures, [], 'Found www canonical/URL SEO references:
-' + failures.join('
-'));
+assert.deepStrictEqual(failures, [], 'Found www canonical/URL SEO references:\n' + failures.join('\n'));
 console.log('SEO canonical host checks passed for ' + files.length + ' public HTML files.');
