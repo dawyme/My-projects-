@@ -33,6 +33,7 @@ const SUITES = [
   ['Customer contacts picker (Contact Picker API)', 'customer-contacts-picker.test.js'],
   ['Admin health URL regression', 'admin-health.test.js'],
   ['Public login path', 'public-login.test.js'],
+  ['SEO canonical host', 'seo-canonical-host.test.js'],
   ['Public website', 'site.test.js'],
 ];
 let failed = 0;
