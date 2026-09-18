@@ -12,6 +12,25 @@ function normalizeFeatureKey(value) {
     .slice(0, 80);
 }
 
+/**
+ * Central tenant-entitlement resolver — the ONLY place that decides whether
+ * a tenant-facing feature is available in a given access context.
+ *
+ * Evaluation order (identical for every feature, current and future):
+ *   1. Platform-owner context (SUPER_ADMIN, businessId NULL) → ALWAYS true.
+ *      Tenant switches, the global active flag and per-tenant rows govern
+ *      customer tenants ONLY and must NEVER restrict SUPER_ADMIN / N&D'S.
+ *      This first line is the no-spillover guarantee every consumer shares.
+ *   2. Unknown or globally deactivated feature → false for customer tenants.
+ *   3. Core platform features (dashboard, plans-subscription) → true.
+ *   4. Explicit per-tenant row (Feature Management toggle) wins when present.
+ *   5. Otherwise the feature's defaultEnabled decides (new-tenant default).
+ *
+ * Consumers: featureProtectedRoute (API mounts), requireFeature (in-router
+ * endpoint gates such as order payment capture), accessibleFeatures (the
+ * /api/features/access set that drives tenant nav + direct-route + dashboard
+ * visibility). No consumer may reimplement or shortcut this function.
+ */
 function resolveFeatureAccess({ role, feature, access }) {
   // Platform owners are NEVER restricted by Feature Management. Tenant
   // switches govern customer tenants only; SUPER_ADMIN permissions gate

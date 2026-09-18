@@ -1,4 +1,5 @@
 import { api, auth } from '../api.js';
+import { applyEntitlements } from '../entitlements.js';
 import { setTitle } from '../layout.js';
 import { qs, icon, esc, statusBadge, emptyState, modal, date, dateTime, money, toast, toastError, titleCase, confirmDialog } from '../ui.js';
 
@@ -61,7 +62,7 @@ export async function render(view) {
     <div class="page-head">
       <div><h1>Calendar</h1><p>Schedule and dispatch service appointments by date, technician, service and customer.</p></div>
       <div class="page-head__actions">
-        <a class="btn btn--primary" href="#/bookings?new=1">${icon('plus')} New booking</a>
+        <a class="btn btn--primary" href="#/bookings?new=1" data-feature="service-bookings">${icon('plus')} New booking</a>
       </div>
     </div>
     <div class="tabs" role="tablist" id="panelTabs">
@@ -114,6 +115,7 @@ export async function render(view) {
     <section class="card" style="margin-top:12px" id="schedulesPanel" ${panel === 'calendar' ? 'hidden' : ''}>
       <div class="card__body" id="schedulesBody"><div class="cell-sub" style="padding:24px 0;text-align:center">Select a technician to view and manage their schedule.</div></div>
     </section>`;
+  applyEntitlements(view);
 
   qs('#technicianFilter', view).value = technicianId;
   qs('#statusFilter', view).value = status;

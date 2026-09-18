@@ -1,4 +1,5 @@
 import { api, auth } from '../api.js';
+import { applyEntitlements } from '../entitlements.js';
 import { setTitle, refreshBadges } from '../layout.js';
 import {
   qs, qsa, icon, esc, dateTime, relative, statusBadge, initials, debounce,
@@ -108,7 +109,7 @@ export async function render(view, query) {
           </div>
         </div>
         <div style="white-space:pre-wrap;font-size:14px;line-height:1.65;padding:15px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px">${esc(m.body)}</div>
-        ${m.customer ? `<p style="margin-top:12px;font-size:12.5px;color:var(--text-muted)">Linked customer: <a href="#/customers?search=${encodeURIComponent(m.customer.email)}">${esc(m.customer.name)}</a></p>` : ''}
+        ${m.customer ? `<p style="margin-top:12px;font-size:12.5px;color:var(--text-muted)">Linked customer: <a href="#/customers?search=${encodeURIComponent(m.customer.email)}" data-feature="customers">${esc(m.customer.name)}</a></p>` : ''}
         ${m.replies.length ? `<h3 style="margin:20px 0 8px;font-size:14px">Replies</h3>${m.replies.map((r) => `<div class="reply">
             <div style="font-size:12px;color:var(--text-muted);margin-bottom:5px">${esc(r.user?.name || 'Team')} · ${esc(dateTime(r.sentAt))}</div>
             <div style="white-space:pre-wrap;font-size:13.5px">${esc(r.body)}</div></div>`).join('')}` : ''}
@@ -117,6 +118,8 @@ export async function render(view, query) {
             <textarea id="replyBody" rows="4" placeholder="Type your reply — it will be emailed to the customer…"></textarea></div>
           <button class="btn btn--primary" id="sendReply">${icon('reply')} Send reply</button>
         </div></div>`;
+
+      applyEntitlements(detail);
 
       qs('#archiveBtn', detail).onclick = async () => {
         try {

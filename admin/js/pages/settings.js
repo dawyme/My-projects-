@@ -1,4 +1,5 @@
 import { api, auth } from '../api.js';
+import { applyEntitlements } from '../entitlements.js';
 import { setTitle } from '../layout.js';
 import { qs, qsa, icon, esc, emptyState, modal, toast, toastError, setCurrency } from '../ui.js';
 
@@ -21,11 +22,12 @@ export async function render(view) {
       <button class="tab" role="tab" data-tab="email" aria-selected="false">Email</button>
       <button class="tab" role="tab" data-tab="payment" aria-selected="false">Payments</button>
       <button class="tab" role="tab" data-tab="seo" aria-selected="false">SEO</button>
-      ${auth.hasFeature('universal-integrations') ? '<a class="tab" href="#/integrations">Integrations</a>' : ''}
+      <a class="tab" href="#/integrations" data-feature="universal-integrations">Integrations</a>
     </div>
     <section class="card" style="margin-top:14px" id="panel">
       <div class="card__body" style="display:grid;place-items:center;min-height:220px"><div class="spinner"></div></div>
     </section>`;
+  applyEntitlements(view);
 
   let settings;
   try { settings = (await api.get('/settings')).data; }

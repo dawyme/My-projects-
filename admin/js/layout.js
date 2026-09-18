@@ -1,6 +1,7 @@
 /** Renders the sidebar/topbar shell, theme toggle and hash router. */
 import { api, auth, requireAuth } from './api.js';
 import { el, qs, icon, esc, initials, setCurrency, toast, toastError } from './ui.js';
+import { isTenantAdmin } from './entitlements.js';
 
 const NAV = [
   { group: 'Overview', items: [
@@ -84,9 +85,11 @@ applyTheme();
 export const badges = { pending: 0, unread: 0, lowStock: 0 };
 
 /** Tenant-admin users are feature-gated in the shell; platform admins are
- *  NEVER restricted by tenant feature entitlements (central server bypass). */
+ *  NEVER restricted by tenant feature entitlements (central server bypass).
+ *  Shared with every page via entitlements.js so the tenant/owner context
+ *  check has exactly one definition. */
 function isTenantAdminUser(user) {
-  return Boolean(user) && (user.role === 'TENANT_ADMIN' || (user.role === 'ADMIN' && !!user.businessId));
+  return isTenantAdmin(user);
 }
 
 /** The feature key (if any) guarding a shell route — from the NAV metadata. */

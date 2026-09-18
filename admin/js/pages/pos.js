@@ -1,4 +1,5 @@
 import { api } from '../api.js';
+import { applyEntitlements } from '../entitlements.js';
 import { setTitle } from '../layout.js';
 import { esc, money, toast, toastError, modal, confirmDialog } from '../ui.js';
 
@@ -9,7 +10,7 @@ export async function render(view) {
   setTitle('Point of Sale');
   state.cart = [];
   try { const s = await api.get('/settings'); state.taxRate = Number(s.data?.payment?.taxRate ?? 0); } catch {}
-  view.innerHTML = `<div class="page-head"><div><h1>Point of Sale</h1><p>Tenant-scoped counter sales, inventory and receipts.</p></div><a class="btn btn--ghost" href="#/orders">Online orders</a></div>
+  view.innerHTML = `<div class="page-head"><div><h1>Point of Sale</h1><p>Tenant-scoped counter sales, inventory and receipts.</p></div><a class="btn btn--ghost" href="#/orders" data-feature="orders">Online orders</a></div>
   <div class="grid" style="grid-template-columns:minmax(0,1.7fr) minmax(320px,1fr);gap:18px;align-items:start">
     <section class="card"><div class="card__body"><div class="toolbar"><input id="posSearch" class="toolbar__search" type="search" placeholder="Search product or SKU…"><button class="btn btn--subtle" id="clearSearch">Clear</button></div><div id="products" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-top:16px"></div></div></section>
     <section class="card"><div class="card__head"><h2>Current sale</h2><button class="btn btn--ghost btn--sm" id="clearCart">Clear</button></div><div class="card__body"><div id="cart"></div><div id="totals"></div>
@@ -20,6 +21,7 @@ export async function render(view) {
     </div></section>
   </div>
   <section class="card" style="margin-top:18px"><div class="card__head"><h2>Recent POS sales</h2><button class="btn btn--ghost btn--sm" id="refreshSales">Refresh</button></div><div class="table-wrap"><table class="data"><thead><tr><th>Sale</th><th>Customer</th><th>Cashier</th><th>Total</th><th>Status</th><th>Date</th><th></th></tr></thead><tbody id="sales"></tbody></table></div></section>`;
+  applyEntitlements(view);
 
   const productsEl = view.querySelector('#products'), cartEl = view.querySelector('#cart'), totalsEl = view.querySelector('#totals'), salesEl = view.querySelector('#sales');
   async function loadProducts() {

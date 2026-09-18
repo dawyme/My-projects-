@@ -4,6 +4,7 @@ const prisma = require('../lib/prisma');
 const asyncHandler = require('../lib/async');
 const { validate } = require('../middleware/validate');
 const { protect, adminOnly, authorize } = require('../middleware/auth');
+const { requireFeature } = require('../lib/features');
 const { writeLimiter } = require('../middleware/rateLimit');
 const { badRequest, notFound } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
@@ -299,10 +300,14 @@ router.get('/gateways', protect, asyncHandler(async (req, res) => {
 }));
 
 // Staff-permitted (ADMIN or STAFF); a customer must not be able to capture
-// payment merely by knowing an order id. The order must also belong to the
-// caller's own tenant — resolved with tenantWhere(), never a client-supplied
-// businessId — before the shared capture logic ever touches it.
-router.post('/:orderId/capture', protect, authorize('ADMIN', 'STAFF'), validate(z.object({
+// payment merely by knowing an order id. Manual capture is an order operation,
+// so it follows the central `orders` tenant entitlement (entitlement → RBAC →
+// tenant isolation): a tenant with orders disabled gets 403 here instead of a
+// back door around /api/orders, while SUPER_ADMIN bypasses centrally. The
+// order must also belong to the caller's own tenant — resolved with
+// tenantWhere(), never a client-supplied businessId — before the shared
+// capture logic ever touches it.
+router.post('/:orderId/capture', protect, requireFeature('orders'), authorize('ADMIN', 'STAFF'), validate(z.object({
   transactionId: z.string().trim().max(200).optional().nullable(),
   note: z.string().trim().max(500).optional().nullable(),
 })), asyncHandler(async (req, res) => {
@@ -317,7 +322,10 @@ router.post('/:orderId/capture', protect, authorize('ADMIN', 'STAFF'), validate(
   res.json({ success: true, data: order, message: 'Payment captured — order marked as paid' });
 }));
 
-router.post('/:orderId/refund', protect, adminOnly, asyncHandler(async (req, res) => {
+// Refunds are order operations too: same central `orders` entitlement gate as
+// capture (see above). The public storefront checkout and payment webhooks
+// stay outside Feature Management — shoppers cannot hold a tenant session.
+router.post('/:orderId/refund', protect, requireFeature('orders'), adminOnly, asyncHandler(async (req, res) => {
   const existing = await prisma.order.findFirst({ where: tenantWhere(req, { id: req.params.orderId }) });
   if (!existing) throw notFound('Order not found');
   if (existing.paymentStatus !== 'PAID') throw badRequest('Only paid orders can be refunded');
