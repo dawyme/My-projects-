@@ -379,7 +379,7 @@ export async function boot() {
   // Load the central feature entitlement once per session before the shell
   // renders (server-computed; SUPER_ADMIN receives everything). Best effort:
   // if it cannot load, navigation stays as-is and the API gate still enforces.
-  try { await auth.refreshFeatures(); } catch { /* fail open client-side */ }
+  try { await auth.refreshFeatures(true); } catch { /* fail open client-side */ }
   renderShell(user);
   try {
     const { data } = await api.get('/settings');
