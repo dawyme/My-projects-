@@ -94,7 +94,7 @@ const PAGE_DEFAULTS = {
   },
   seo: {
     title: 'SEO',
-    content: { globalTitle: 'N&D\'s Air Conditioning and Refrigeration | Expert HVAC, Refrigeration & Automotive AC in Trinidad & Tobago', globalDescription: 'Professional HVAC, refrigeration, and automotive air conditioning services. Expert repairs, installation, maintenance, and 24/7 emergency service across Trinidad & Tobago.', keywords: 'HVAC, air conditioning, refrigeration, automotive AC, AC repair, AC installation, maintenance, Trinidad, Tobago', ogImage: '/assets/logo.png', canonicalBase: 'https://www.ndsairconditioning.com', indexable: true, sitemapEnabled: true },
+    content: { globalTitle: 'N&D\'s Air Conditioning and Refrigeration | Expert HVAC, Refrigeration & Automotive AC in Trinidad & Tobago', globalDescription: 'Professional HVAC, refrigeration, and automotive air conditioning services. Expert repairs, installation, maintenance, and 24/7 emergency service across Trinidad & Tobago.', keywords: 'HVAC, air conditioning, refrigeration, automotive AC, AC repair, AC installation, maintenance, Trinidad, Tobago', ogImage: '/assets/logo.png', canonicalBase: 'https://ndsairconditioning.com', indexable: true, sitemapEnabled: true },
   },
   social: {
     title: 'Social Media',

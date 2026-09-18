@@ -292,6 +292,8 @@ async function main() {
     const r = await anon.get('/api/public/sitemap');
     assert.strictEqual(r.status, 200);
     assert.ok(r.text.includes('<urlset'));
+    assert.ok(r.text.includes('https://ndsairconditioning.com/'));
+    assert.ok(!r.text.includes('https://www.ndsairconditioning.com'));
   });
   await test('Content routes require authentication', async () => {
     assert.strictEqual((await anon.get('/api/content')).status, 401);
