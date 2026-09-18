@@ -6,6 +6,8 @@ const cache = require('../lib/cache');
 
 const router = express.Router();
 
+const CANONICAL_ORIGIN = 'https://ndsairconditioning.com';
+
 const PAGE_PATH = {
   homepage: '/', about: '/about.html', services: '/services.html', 'products-home': '/products/index.html',
   gallery: '/gallery/index.html', testimonials: '/testimonials.html', faq: '/faq.html',
@@ -79,7 +81,8 @@ router.get('/media', asyncHandler(async (req, res) => {
 // GET /api/public/sitemap — XML sitemap combining static pages and SEO pages
 router.get('/sitemap', asyncHandler(async (req, res) => {
   const pages = await publishedPages();
-  const base = (pages.seo?.content?.canonicalBase) || 'https://www.ndsairconditioning.com';
+  const configuredBase = pages.seo?.content?.canonicalBase || CANONICAL_ORIGIN;
+  const base = configuredBase.replace(/^https?:\/\/www\.ndsairconditioning\.com(?=\/|$)/i, CANONICAL_ORIGIN).replace(/\/+$/, '');
   const [products, services, serviceItems] = await Promise.all([
     prisma.product.findMany({ where: { businessId: 'default', isActive: true }, select: { slug: true, updatedAt: true } }),
     prisma.service.findMany({ where: { businessId: 'default', isActive: true }, select: { slug: true, updatedAt: true } }),
