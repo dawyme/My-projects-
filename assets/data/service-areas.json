@@ -1,0 +1,380 @@
+{
+  "business": {
+    "name": "N&D'S Air Conditioning & Refrigeration Services",
+    "tagline": "We Come to You Across Trinidad & Tobago",
+    "url": "https://ndsairconditioning.com",
+    "telephone": "+1-868-707-4646",
+    "telephoneDisplay": "(868) 707-4646",
+    "email": "ndsairconditioning@gmail.com",
+    "mobileStatement": "N&D'S is a fully mobile service company: our equipped service vehicles and certified technicians come directly to your home, business or job site — you never have to transport equipment or visit a shop."
+  },
+  "services": [
+    { "slug": "residential-ac", "name": "Residential AC", "blurb": "Repair, installation and servicing of split systems, window units and central air for homes." },
+    { "slug": "commercial-ac", "name": "Commercial AC", "blurb": "Cooling solutions for offices, shops, restaurants, schools and industrial facilities." },
+    { "slug": "ac-installation", "name": "AC Installation", "blurb": "Correctly sized, professionally installed air conditioning systems with clean workmanship." },
+    { "slug": "ac-repairs", "name": "AC Repairs", "blurb": "Fast diagnosis and repair for all major AC brands — leaks, compressors, electrics and more." },
+    { "slug": "preventive-maintenance", "name": "Preventive Maintenance", "blurb": "Scheduled tune-ups and coil cleaning that prevent breakdowns and cut energy bills." },
+    { "slug": "refrigeration-repairs", "name": "Refrigeration Repairs", "blurb": "Commercial and domestic refrigeration diagnosis and repair, from display cases to chillers." },
+    { "slug": "walkin-coolers", "name": "Walk-In Coolers", "blurb": "Installation, repair and maintenance of walk-in coolers for food businesses." },
+    { "slug": "freezers", "name": "Freezers", "blurb": "Freezer repairs, temperature troubleshooting and maintenance for home and business." },
+    { "slug": "cold-rooms", "name": "Cold Rooms", "blurb": "Cold room installation, panel work, refrigeration units and temperature control." },
+    { "slug": "automotive-ac", "name": "Automotive AC", "blurb": "Vehicle AC diagnostics, compressor work, leak detection and refrigerant recharging." },
+    { "slug": "emergency-service", "name": "Emergency Service", "blurb": "24/7 emergency response for urgent cooling and refrigeration breakdowns." }
+  ],
+  "islands": [
+    { "slug": "trinidad", "name": "Trinidad" },
+    { "slug": "tobago", "name": "Tobago" }
+  ],
+  "regions": [
+    {
+      "slug": "port-of-spain",
+      "name": "Port of Spain",
+      "island": "trinidad",
+      "type": "city",
+      "description": "Trinidad's capital packs offices, high-rise apartments, restaurants and retail into a compact downtown. Our technicians service commercial AC fleets, rooftop units, walk-in coolers and cold rooms across Port of Spain, with fast emergency call-outs for businesses that cannot afford downtime.",
+      "why": "Downtown businesses and apartment dwellers call on N&D'S when cooling failures threaten operations, stock or comfort — and our mobile crews arrive equipped to work in tight urban spaces.",
+      "nearby": ["Woodbrook", "Belmont", "Newtown", "St James", "Cascade", "Ellerslie Park"],
+      "focus": ["commercial-ac", "cold-rooms", "ac-repairs", "emergency-service", "automotive-ac"]
+    },
+    {
+      "slug": "san-fernando",
+      "name": "San Fernando",
+      "island": "trinidad",
+      "type": "city",
+      "description": "The commercial capital of the South, home to Gulf City and busy retail corridors. Our mobile technicians handle shop, restaurant and office cooling, refrigeration repairs, residential AC and new installations across San Fernando and its surrounding districts.",
+      "why": "From Gulf City storefronts to residential streets, San Fernando customers rely on N&D'S for same-visit diagnostics and repairs on both air conditioning and refrigeration equipment.",
+      "nearby": ["Gulf City", "Corinth", "Tarouba", "Gasparillo", "Pleasantville"],
+      "focus": ["commercial-ac", "refrigeration-repairs", "residential-ac", "ac-installation", "emergency-service"]
+    },
+    {
+      "slug": "chaguanas",
+      "name": "Chaguanas",
+      "island": "trinidad",
+      "type": "town",
+      "description": "One of Trinidad's fastest-growing towns, with new residential developments, plazas and food businesses along the main corridor. We cover AC installations, preventive maintenance and commercial refrigeration for homes and businesses throughout Chaguanas.",
+      "why": "New builds in Chaguanas need correctly sized installations, while its food businesses depend on refrigeration that never quits — our crews handle both on a single mobile visit.",
+      "nearby": ["Charlieville", "Lange Park", "Montrose", "Edinburgh Village", "Carapichaima"],
+      "focus": ["ac-installation", "residential-ac", "commercial-ac", "preventive-maintenance"]
+    },
+    {
+      "slug": "arima",
+      "name": "Arima",
+      "island": "trinidad",
+      "type": "town",
+      "description": "A historic town with a mix of older homes, new builds and commercial premises. We repair, install and maintain window units, split systems and commercial cooling across Arima and nearby communities, including automotive AC for local drivers.",
+      "why": "Arima's blend of aging and new AC systems needs technicians who know both — and our mobile team services homes, businesses and vehicles without a shop visit.",
+      "nearby": ["Malabar", "Calvary", "La Horquetta", "Tumpuna Road", "Santa Rosa"],
+      "focus": ["residential-ac", "ac-repairs", "preventive-maintenance", "automotive-ac"]
+    },
+    {
+      "slug": "point-fortin",
+      "name": "Point Fortin",
+      "island": "trinidad",
+      "type": "town",
+      "description": "A coastal, energy-sector town where salt air works hard on outdoor condenser coils. Our team services homes, camps and businesses in Point Fortin with corrosion-focused maintenance, AC repairs and new installations.",
+      "why": "Salt-air corrosion shortens equipment life in Point Fortin — our preventive maintenance plans are built to protect coastal condensers and keep systems running.",
+      "nearby": ["Egypt Village", "Clifton Settlement", "Hollywood", "Vance River"],
+      "focus": ["preventive-maintenance", "ac-repairs", "residential-ac", "commercial-ac", "emergency-service"]
+    },
+    {
+      "slug": "princes-town",
+      "name": "Princes Town",
+      "island": "trinidad",
+      "type": "town",
+      "description": "A quiet southern town surrounded by residential and agricultural districts. Our mobile crews travel to homes, shops and farms around Princes Town for AC repairs, installations, refrigeration and freezer service.",
+      "why": "Households and small food producers around Princes Town call us because we bring full service to them — no long trip to a city workshop required.",
+      "nearby": ["Lengua", "Lothian", "Fifth Company", "St Mary's Village"],
+      "focus": ["residential-ac", "freezers", "ac-repairs", "ac-installation"]
+    },
+    {
+      "slug": "siparia",
+      "name": "Siparia",
+      "island": "trinidad",
+      "type": "town",
+      "description": "A growing south-western town serving a wide rural hinterland. We come to homes, businesses and community facilities across Siparia with AC installation, repairs, maintenance and refrigeration support.",
+      "why": "Siparia customers choose N&D'S because our mobile service reaches the whole south-west — installation, repair and maintenance in one convenient visit.",
+      "nearby": ["Cedros", "Los Iros", "Santa Flora", "Erin"],
+      "focus": ["residential-ac", "ac-installation", "preventive-maintenance", "refrigeration-repairs"]
+    },
+    {
+      "slug": "penal",
+      "name": "Penal",
+      "island": "trinidad",
+      "type": "town",
+      "description": "A busy southern corridor town blending residential streets, commerce and light industry. We cover Penal with residential and commercial AC service, refrigeration repairs and 24/7 emergency support.",
+      "why": "When a cooler fails or an AC quits along the Penal corridor, our emergency line and stocked mobile crews mean help arrives fast — day or night.",
+      "nearby": ["Rock Road", "Morne Diablo", "La Romaine", "La Fortune"],
+      "focus": ["residential-ac", "commercial-ac", "refrigeration-repairs", "emergency-service"]
+    },
+    {
+      "slug": "debe",
+      "name": "Debe",
+      "island": "trinidad",
+      "type": "town",
+      "description": "Part of the rapidly developing southern corridor, Debe is filled with new homes, shops and food businesses. We provide mobile AC installation, repairs and commercial refrigeration service throughout Debe and its surrounds.",
+      "why": "Debe's growing food businesses trust us with walk-in coolers and display refrigeration, while new homeowners rely on our right-sized AC installations.",
+      "nearby": ["Penal", "La Fortune", "Gasparillo", "St Mary's Village"],
+      "focus": ["ac-installation", "residential-ac", "walkin-coolers", "refrigeration-repairs"]
+    },
+    {
+      "slug": "couva",
+      "name": "Couva",
+      "island": "trinidad",
+      "type": "town",
+      "description": "Between the capital and the south, Couva mixes dense residential areas with the Point Lisas industrial estate. We service homes, factories, shops and restaurants across Couva with air conditioning and refrigeration expertise.",
+      "why": "Industrial plants and food businesses around Point Lisas need dependable commercial cooling, and our mobile teams maintain, repair and install it on site.",
+      "nearby": ["Balmain", "Point Lisas", "Claxton Bay", "California"],
+      "focus": ["commercial-ac", "preventive-maintenance", "cold-rooms", "residential-ac"]
+    },
+    {
+      "slug": "sangre-grande",
+      "name": "Sangre Grande",
+      "island": "trinidad",
+      "type": "town",
+      "description": "The commercial heart of Trinidad's east, serving farming, fishing and forestry communities. Our technicians travel across Sangre Grande and outlying districts for AC repairs, installations and refrigeration service.",
+      "why": "East-coast customers count on us because our mobile crews cover the entire Sangre Grande area — from town centre to outlying villages — without extra hassle.",
+      "nearby": ["Matura", "Cumaca", "Valencia", "Fishing Pond"],
+      "focus": ["residential-ac", "ac-repairs", "freezers", "preventive-maintenance"]
+    },
+    {
+      "slug": "rio-claro",
+      "name": "Rio Claro",
+      "island": "trinidad",
+      "type": "town",
+      "description": "A rural east-coast town surrounded by forestry and farming country. Our fully mobile team brings AC repairs, installations, freezer and refrigeration service directly to Rio Claro and nearby villages.",
+      "why": "Families and farmers around Rio Claro call N&D'S because we make the trip to them, with parts and tools ready for rural homes and food storage.",
+      "nearby": ["Mafeking", "Poole", "Navet", "Mayaro"],
+      "focus": ["residential-ac", "freezers", "ac-installation", "refrigeration-repairs"]
+    },
+    {
+      "slug": "mayaro",
+      "name": "Mayaro",
+      "island": "trinidad",
+      "type": "town",
+      "description": "Home to Trinidad's popular east-coast beaches, Mayaro's villas, guesthouses and beach bars need dependable cooling in salty air. We cover Mayaro with corrosion-aware maintenance, repairs and installations.",
+      "why": "Beachside properties in Mayaro face harsh salt air — our maintenance routines are designed to protect outdoor units and keep holiday rentals guest-ready.",
+      "nearby": ["Radix", "Los Bajos", "Rio Claro", "Guayaguayare"],
+      "focus": ["preventive-maintenance", "residential-ac", "ac-repairs", "commercial-ac"]
+    },
+    {
+      "slug": "diego-martin",
+      "name": "Diego Martin",
+      "island": "trinidad",
+      "type": "town",
+      "description": "A western valley of residential communities, apartments and small businesses just outside Port of Spain. We service every part of Diego Martin with mobile AC and refrigeration call-outs, from installs to emergency repairs.",
+      "why": "Diego Martin households appreciate that our technicians come straight to their hillside homes and apartments — no towing units across town.",
+      "nearby": ["Petit Valley", "Westmoorings", "Richplain", "Maraval"],
+      "focus": ["residential-ac", "ac-installation", "preventive-maintenance", "ac-repairs"]
+    },
+    {
+      "slug": "tunapuna",
+      "name": "Tunapuna",
+      "island": "trinidad",
+      "type": "town",
+      "description": "A central town anchored by the UWI campus and a busy commercial strip. We support rentals, offices, shops and family homes across Tunapuna with air conditioning and refrigeration service.",
+      "why": "Landlords and business owners in Tunapuna choose N&D'S for fast, scheduled mobile service that keeps tenants and customers comfortable.",
+      "nearby": ["St Augustine", "Mount Hope", "Trincity", "Tacarigua"],
+      "focus": ["commercial-ac", "residential-ac", "ac-repairs", "preventive-maintenance"]
+    },
+    {
+      "slug": "arouca",
+      "name": "Arouca",
+      "island": "trinidad",
+      "type": "town",
+      "description": "A residential area on Trinidad's east-west corridor, close to commercial and industrial zones. Our mobile technicians cover Arouca homes and businesses with AC installations, repairs and preventive maintenance.",
+      "why": "Arouca residents call us for straightforward, on-site service — installations done right and repairs completed in a single visit whenever possible.",
+      "nearby": ["La Horquetta", "St Helena", "Tacarigua", "Malabar"],
+      "focus": ["residential-ac", "ac-installation", "ac-repairs", "preventive-maintenance"]
+    },
+    {
+      "slug": "barataria",
+      "name": "Barataria",
+      "island": "trinidad",
+      "type": "town",
+      "description": "One of the busiest residential corridors between Port of Spain and San Juan. We come to homes, apartments and small businesses across Barataria for AC repairs, installations and servicing.",
+      "why": "Barataria's dense housing stock means constant demand for dependable AC care — our mobile crews keep the corridor cool with quick response times.",
+      "nearby": ["Morvant", "El Socorro", "San Juan"],
+      "focus": ["residential-ac", "ac-repairs", "ac-installation", "preventive-maintenance"]
+    },
+    {
+      "slug": "san-juan",
+      "name": "San Juan",
+      "island": "trinidad",
+      "type": "town",
+      "description": "A lively commercial and residential town with restaurants, shops and dense housing. We serve San Juan with commercial and residential AC service, refrigeration repairs and emergency response.",
+      "why": "San Juan's food outlets and retailers depend on refrigeration that keeps running — and our emergency line has their back when it doesn't.",
+      "nearby": ["El Socorro", "Barataria", "St Joseph", "Morvant"],
+      "focus": ["commercial-ac", "residential-ac", "refrigeration-repairs", "emergency-service"]
+    },
+    {
+      "slug": "marabella",
+      "name": "Marabella",
+      "island": "trinidad",
+      "type": "town",
+      "description": "A large south-central community between San Fernando and the Gulf. Our crews handle home AC, shop cooling, refrigeration repairs and emergency calls across Marabella and nearby districts.",
+      "why": "Marabella families and businesses choose N&D'S for honest diagnostics and repairs completed on site — with emergency backup when systems fail at the worst moment.",
+      "nearby": ["Gulf View City", "La Romaine", "San Fernando", "Union Village"],
+      "focus": ["residential-ac", "ac-repairs", "refrigeration-repairs", "emergency-service"]
+    },
+    {
+      "slug": "la-brea",
+      "name": "La Brea",
+      "island": "trinidad",
+      "type": "town",
+      "description": "Home to the famous Pitch Lake, La Brea blends coastal living with tourism and industry. We service homes, guesthouses and businesses in La Brea with mobile AC and refrigeration care.",
+      "why": "Coastal homes and guesthouses in La Brea need corrosion-aware upkeep, and our mobile maintenance visits keep their systems reliable year-round.",
+      "nearby": ["Siparia", "Fyzabad", "Santa Flora"],
+      "focus": ["residential-ac", "preventive-maintenance", "ac-repairs", "automotive-ac"]
+    },
+    {
+      "slug": "fyzabad",
+      "name": "Fyzabad",
+      "island": "trinidad",
+      "type": "town",
+      "description": "A historic oil-belt town in south-west Trinidad with a growing mix of homes and commerce. Our mobile team covers Fyzabad with AC installation, repairs, preventive maintenance and refrigeration service.",
+      "why": "Fyzabad households call us because we arrive equipped to finish the job on the first visit — installations, tune-ups and repairs done at your door.",
+      "nearby": ["Siparia", "La Brea", "Gopaul Village"],
+      "focus": ["residential-ac", "ac-installation", "preventive-maintenance", "refrigeration-repairs"]
+    },
+    {
+      "slug": "moruga",
+      "name": "Moruga",
+      "island": "trinidad",
+      "type": "community",
+      "description": "A rural south-coast district of fishing villages and hillside communities. Our technicians make the journey to Moruga for AC repairs, installations, freezer and refrigeration service — wherever you are.",
+      "why": "Moruga's fishers and farmers rely on freezers and cold storage that simply must work, and our mobile crews service them right in the village.",
+      "nearby": ["Fifth Company", "Rio Claro", "Princes Town"],
+      "focus": ["residential-ac", "freezers", "refrigeration-repairs", "ac-repairs"]
+    },
+    {
+      "slug": "claxton-bay",
+      "name": "Claxton Bay",
+      "island": "trinidad",
+      "type": "community",
+      "description": "A coastal community on the Churchill Roosevelt Highway corridor, popular with commuters. We serve Claxton Bay homes and businesses with mobile AC service, maintenance and refrigeration repairs.",
+      "why": "Commuter households in Claxton Bay value convenience — our technicians come to you on your schedule, keeping home cooling and refrigeration in top shape.",
+      "nearby": ["Couva", "Point Lisas", "California"],
+      "focus": ["residential-ac", "preventive-maintenance", "ac-repairs", "refrigeration-repairs"]
+    },
+    {
+      "slug": "freeport",
+      "name": "Freeport",
+      "island": "trinidad",
+      "type": "town",
+      "description": "A central residential town with easy access to industrial and commercial zones. We cover Freeport with AC installations, repairs, preventive maintenance and commercial refrigeration support.",
+      "why": "Freeport residents and nearby workplaces use our mobile service to bundle installations, servicing and repairs into visits that fit their day.",
+      "nearby": ["Couva", "Chase Village", "Chaguanas"],
+      "focus": ["ac-installation", "residential-ac", "preventive-maintenance", "commercial-ac"]
+    },
+    {
+      "slug": "carapichaima",
+      "name": "Carapichaima",
+      "island": "trinidad",
+      "type": "community",
+      "description": "A quiet central community between Chaguanas and Couva. Our mobile technicians come to Carapichaima homes and businesses for AC repairs, new installations, servicing and refrigeration work.",
+      "why": "Carapichaima customers appreciate one call for everything — cooling, refrigeration and maintenance handled at their doorstep.",
+      "nearby": ["Chaguanas", "Couva", "Freeport"],
+      "focus": ["residential-ac", "ac-repairs", "ac-installation", "refrigeration-repairs"]
+    },
+    {
+      "slug": "valencia",
+      "name": "Valencia",
+      "island": "trinidad",
+      "type": "town",
+      "description": "A fast-growing north-eastern town with new housing developments and a rural edge. We cover Valencia with residential AC installations, repairs, maintenance and freezer and refrigeration service.",
+      "why": "New homeowners in Valencia trust our right-sized installations, while established households rely on our maintenance plans to keep older systems running.",
+      "nearby": ["Sangre Grande", "Manzanilla", "Matura", "Cumaca"],
+      "focus": ["ac-installation", "residential-ac", "preventive-maintenance", "freezers"]
+    },
+    {
+      "slug": "toco",
+      "name": "Toco",
+      "island": "trinidad",
+      "type": "community",
+      "description": "A remote north-eastern fishing village on the wild Atlantic coast. Our fully mobile team travels to Toco and the surrounding coast for AC service, repairs and refrigeration support.",
+      "why": "Toco may be off the beaten path, but our mobile crews still make the trip — keeping coastal homes and catch storage properly cooled.",
+      "nearby": ["Matura", "Fishing Pond", "Salybia"],
+      "focus": ["residential-ac", "ac-repairs", "freezers", "preventive-maintenance"]
+    },
+    {
+      "slug": "scarborough",
+      "name": "Scarborough",
+      "island": "tobago",
+      "type": "town",
+      "description": "Tobago's capital and commercial centre, with shops, offices, the port and government buildings. We service businesses, guesthouses and homes across Scarborough with air conditioning and refrigeration expertise.",
+      "why": "Scarborough businesses keep cool with scheduled mobile maintenance from N&D'S — and our emergency line covers the capital when equipment fails.",
+      "nearby": ["Bacolet", "Lowlands", "Signal Hill"],
+      "focus": ["commercial-ac", "residential-ac", "refrigeration-repairs", "emergency-service"]
+    },
+    {
+      "slug": "canaan",
+      "name": "Canaan",
+      "island": "tobago",
+      "type": "town",
+      "description": "One of Tobago's fastest-growing areas along the airport corridor, full of new homes, villas and businesses. We cover Canaan and Bon Accord with AC installation, repairs and preventive maintenance.",
+      "why": "Villa owners and new homeowners along the Canaan corridor choose us for clean installations and scheduled care that protects their investment.",
+      "nearby": ["Bon Accord", "Signal Hill", "Lowlands", "Crown Point"],
+      "focus": ["ac-installation", "residential-ac", "commercial-ac", "preventive-maintenance"]
+    },
+    {
+      "slug": "crown-point",
+      "name": "Crown Point",
+      "island": "tobago",
+      "type": "town",
+      "description": "Home to the A.N.R. Robinson International Airport and a cluster of hotels and guesthouses. We keep Crown Point's hospitality and business properties cool with commercial AC service and refrigeration support.",
+      "why": "Hotels and guesthouses near the airport cannot afford cooling downtime — our commercial maintenance and emergency response keep their guests comfortable.",
+      "nearby": ["Bon Accord", "Store Bay", "Canaan", "Buccoo"],
+      "focus": ["commercial-ac", "preventive-maintenance", "refrigeration-repairs", "emergency-service"]
+    },
+    {
+      "slug": "buccoo",
+      "name": "Buccoo",
+      "island": "tobago",
+      "type": "community",
+      "description": "A beloved seaside village famous for its bay and Nylon Pool. We service Buccoo's villas, guesthouses and restaurants with corrosion-aware AC maintenance, repairs and refrigeration care.",
+      "why": "Salt air is tough on coastal cooling equipment — our maintenance visits protect Buccoo's villa and restaurant systems before failures happen.",
+      "nearby": ["Plymouth", "Grafton", "Canaan", "Great Courland Bay"],
+      "focus": ["preventive-maintenance", "residential-ac", "ac-repairs", "refrigeration-repairs"]
+    },
+    {
+      "slug": "black-rock",
+      "name": "Black Rock",
+      "island": "tobago",
+      "type": "community",
+      "description": "A west-coast community of homes, guesthouses and small farms between Plymouth and the coast road. Our mobile team covers Black Rock with AC repairs, installations and refrigeration service.",
+      "why": "Black Rock residents value our one-visit convenience — repairs, installs and refrigeration service handled at home, no ferry to Trinidad required.",
+      "nearby": ["Plymouth", "Arnos Vale", "Grafton"],
+      "focus": ["residential-ac", "ac-repairs", "ac-installation", "refrigeration-repairs"]
+    },
+    {
+      "slug": "plymouth",
+      "name": "Plymouth",
+      "island": "tobago",
+      "type": "community",
+      "description": "A historic west-coast village close to Tobago's forest reserve and heritage sites. We come to Plymouth homes, villas and businesses for AC service, maintenance and refrigeration repairs.",
+      "why": "From heritage guesthouses to family homes, Plymouth customers count on our mobile crews for dependable cooling care across the west coast.",
+      "nearby": ["Black Rock", "Arnos Vale", "Buccoo", "Tobago Plantations"],
+      "focus": ["residential-ac", "preventive-maintenance", "ac-repairs", "refrigeration-repairs"]
+    },
+    {
+      "slug": "roxborough",
+      "name": "Roxborough",
+      "island": "tobago",
+      "type": "community",
+      "description": "The main town on Tobago's scenic east coast, surrounded by fishing and farming communities. Our technicians travel to Roxborough and nearby villages for air conditioning and refrigeration service.",
+      "why": "East-coast fishers and farmers around Roxborough rely on our freezer and refrigeration service, delivered on site by our mobile teams.",
+      "nearby": ["Delaford", "Pembroke", "King's Bay", "Speyside"],
+      "focus": ["residential-ac", "freezers", "refrigeration-repairs", "ac-repairs"]
+    },
+    {
+      "slug": "charlotteville",
+      "name": "Charlotteville",
+      "island": "tobago",
+      "type": "community",
+      "description": "A remote north-Tobago village overlooking a sheltered bay, popular with villa owners and divers. Our mobile crew reaches Charlotteville for AC installations, repairs, maintenance and refrigeration support.",
+      "why": "Even in far-flung Charlotteville, our technicians arrive fully equipped — keeping villas, guesthouses and boats' provisions properly cooled.",
+      "nearby": ["Speyside", "Man-O-War Bay", "Parlatuvier", "King's Bay"],
+      "focus": ["residential-ac", "ac-installation", "preventive-maintenance", "ac-repairs"]
+    }
+  ]
+}

@@ -3,6 +3,7 @@ const prisma = require('../lib/prisma');
 const asyncHandler = require('../lib/async');
 const { notFound } = require('../lib/errors');
 const cache = require('../lib/cache');
+const { serviceAreaPaths } = require('../lib/serviceAreas');
 
 const router = express.Router();
 
@@ -94,6 +95,12 @@ router.get('/sitemap', asyncHandler(async (req, res) => {
   for (const key of Object.keys(PAGE_PATH)) if (pages[key]) push(PAGE_PATH[key]);
   push('/about.html'); push('/services.html'); push('/contact.html'); push('/gallery/index.html'); push('/testimonials.html');
   push('/products/index.html'); push('/booking.html'); push('/quote-request.html');
+  // National service-area content (Trinidad & Tobago) — see assets/data/service-areas.json
+  push('/service-areas/index.html', 'monthly', '0.8');
+  for (const loc of serviceAreaPaths()) {
+    if (loc === '/service-areas/index.html') continue;
+    push(loc, 'monthly', loc.endsWith('trinidad.html') || loc.endsWith('tobago.html') ? '0.7' : '0.6');
+  }
   for (const p of products) push(`/products/product-detail.html?slug=${encodeURIComponent(p.slug)}`, 'weekly', '0.6');
   for (const s of services) push(`/services.html#${encodeURIComponent(s.slug)}`, 'weekly', '0.7');
   for (const s of serviceItems) if (s.slug) push(`/services.html#${encodeURIComponent(s.slug)}`, 'weekly', '0.7');

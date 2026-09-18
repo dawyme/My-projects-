@@ -15,6 +15,7 @@ const SUITES = [
   ['Dispatch and reminders contract', 'dispatch-reminders-contract.test.js'],
   ['Website Content Manager', 'content.test.js'],
   ['SEO canonical host', 'seo-canonical-host.test.js'],
+  ['National service-area SEO', 'service-area-seo.test.js'],
   ['Payment gateways', 'payments.test.js'],
   ['Tilopay unit tests', 'tilopay-unit.test.js'],
   ['Universal Integration Gateway', 'integrations.test.js'],

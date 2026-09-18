@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **National Trinidad & Tobago service-area SEO foundation** — a new
+  `service-areas/` content architecture strengthening organic visibility
+  across both islands while keeping N&D'S positioned as a mobile service
+  company ("We Come to You Across Trinidad & Tobago"). Single source of
+  truth `assets/data/service-areas.json` (35 unique town/community profiles:
+  27 Trinidad + 8 Tobago) drives a deterministic generator
+  (`backend/scripts/build-service-areas.js`, `npm run build:service-areas`)
+  producing a national hub, Trinidad/Tobago island hubs and 35 unique town
+  pages. Every page carries non-www canonicals (aligned with PR #73), unique
+  titles/meta descriptions, breadcrumb + Service/HVACBusiness JSON-LD, an
+  explicit mobile-service coverage statement, nearby communities, links to
+  all 11 core service pages and booking/quote/phone CTAs. Reverse internal
+  links added to all service pages, `services.html` and `index.html`;
+  static `sitemap.xml` and the dynamic `/api/public/sitemap` now cover all
+  38 service-area URLs (new shared `backend/src/lib/serviceAreas.js`).
+  New DB-free suite `backend/tests/service-area-seo.test.js` (1,300+ checks:
+  data integrity, generator idempotency, per-page SEO contracts, hub
+  coverage, reverse links, sitemap coverage). No database, migration,
+  feature-management, auth/RBAC/tenant or platform-owner changes.
+
 - **Integrations owner-first access model (PR #71 correction)** — the
   platform surface was read-only for the owner while tenants held the
   controls; that is inverted. `Platform → Universal Integrations` is now a
