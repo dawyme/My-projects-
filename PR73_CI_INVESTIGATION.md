@@ -181,17 +181,54 @@ With PR #73's `contact.html` restored: `SEO canonical host checks passed for 33 
 
 ---
 
-## 7. Open item for approval — not done without sign-off
+## 7. SEO suite registration — **approved and applied**
 
-`backend/tests/seo-canonical-host.test.js` is **not registered in `backend/tests/run-all.js`**, so
-the new SEO check does not run under `npm test` and CI cannot enforce it (that is precisely why its
-syntax error survived review). One line would wire it in:
+`backend/tests/seo-canonical-host.test.js` was **not** registered in `backend/tests/run-all.js`, so
+the new SEO check did not run under `npm test` and CI could not enforce it (that is precisely why its
+syntax error survived review). Approved and wired in with the requested line:
 
 ```js
-  ['SEO canonical host', 'seo-canonical-host.test.js'],
+  ['Public login path', 'public-login.test.js'],
+  ['SEO canonical host', 'seo-canonical-host.test.js'],   // ← added
+  ['Public website', 'site.test.js'],
 ```
 
-This is a judgment call about PR scope, so it was **left undone** pending approval.
+A one-line insertion into the file restored by `b4faabe`; no other change to that file.
+
+## 7b. Final verified result
+
+`npm test` → **32/32 suites passed**, `All suites passed`, exit 0 — including the new
+`SEO canonical host` suite and `Admin Dashboard UI`.
+
+| Suite | Result |
+| --- | --- |
+| `npm test` (full, 32 suites) | ✓ **all passed** — `SEO canonical host` included |
+| `platform-owner-integrations.test.js` | ✓ **16/16** |
+| `tenant-entitlement-enforcement.test.js` | ✓ **31/31** |
+| `seo-canonical-host.test.js` | ✓ PASS — 33 public HTML files |
+| `site.test.js` (public website) | ✓ **44/44** |
+| `content.test.js` (sitemap canonical assertions) | ✓ **37/37** |
+
+Final diff vs `main` after registration:
+
+```
+backend/src/routes/content.js            |  2 +-
+backend/src/routes/public-content.js     |  5 +-
+backend/tests/content.test.js            |  2 +
+backend/tests/run-all.js                 |  1 +
+backend/tests/seo-canonical-host.test.js | 34 ++
+contact.html                             |  8 +-
+```
+
+No `admin/js/layout.js`. No entitlement / feature-management / integrations changes.
+No Prisma, DB or migration changes (`git diff main -- backend/prisma/` is empty).
+
+Commits on the session branch `arena/01a0b412-my-projects`:
+
+| SHA | Subject |
+| --- | --- |
+| `c080264` | SEO canonical host fix: non-www canonicals, sitemap normalisation, SEO checks |
+| `a4bc53d` | Register the SEO canonical-host suite in the test runner |
 
 ---
 
