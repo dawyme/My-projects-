@@ -1,49 +1,392 @@
-#!/usr/bin/env node
-/* Run the complete regression suite in sequence. */
-const { spawnSync } = require('child_process');
-const path = require('path');
-const SUITES = [
-  ['Admin Dashboard reliability contracts', 'admin-dashboard-reliability.test.js'],
-  ['Phase B reliability contracts', 'phase-b-reliability.test.js'],
-  ['Recurring maintenance recurrence unit contracts', 'recurring-maintenance.test.js'],
-  ['Scheduling rules unit contracts', 'scheduling-rules.test.js'],
-  ['Recurring maintenance API contract', 'recurring-maintenance-contract.test.js'],
-  ['Calendar & scheduling contract', 'calendar-scheduling-contract.test.js'],
-  ['Owner recurring + tenant team contracts', 'owner-recurring-tenant-team-contract.test.js'],
-  ['API endpoints', 'api.test.js'],
-  ['Service operations contract', 'service-operations-contract.test.js'],
-  ['Dispatch and reminders contract', 'dispatch-reminders-contract.test.js'],
-  ['Website Content Manager', 'content.test.js'],
-  ['Payment gateways', 'payments.test.js'],
-  ['Tilopay unit tests', 'tilopay-unit.test.js'],
-  ['Universal Integration Gateway', 'integrations.test.js'],
-  ['Provider Integration Framework', 'provider-framework.test.js'],
-  ['Integrations owner-first access', 'platform-owner-integrations.test.js'],
-  ['Tenant feature registry contracts', 'platform-feature-access-contract.test.js'],
-  ['Tenant entitlement enforcement', 'tenant-entitlement-enforcement.test.js'],
-  ['Universal Integrations Admin UI', 'integration-admin-ui.test.js'],
-  ['Supplier Marketplace', 'suppliers.test.js'],
-  ['POS / multi-tenant POS', 'pos.test.js'],
-  ['SaaS / multi-tenant productization', 'saas.test.js'],
-  ['Auth + plan + role logout regression', 'auth-plan-regression.test.js'],
-  ['RBAC / security foundation', 'rbac.test.js'],
-  ['Tenant portal / subscriptions', 'tenant.test.js'],
-  ['Super Admin bootstrap', 'bootstrap-super-admin.test.js'],
-  ['Admin Dashboard UI', 'ui.test.js'],
-  ['Customer contacts picker (Contact Picker API)', 'customer-contacts-picker.test.js'],
-  ['Admin health URL regression', 'admin-health.test.js'],
-  ['Public login path', 'public-login.test.js'],
-  ['Public website', 'site.test.js'],
-];
-let failed = 0;
-const summary = [];
-for (const [label, file] of SUITES) {
-  console.log(`\n▶ ${label}`);
-  const r = spawnSync(process.execPath, [path.join(__dirname, file)], { stdio: 'inherit' });
-  if (r.status !== 0) failed++;
-  summary.push([label, r.status === 0]);
-}
-console.log('\n=== SUMMARY ===');
-for (const [label, ok] of summary) console.log(`  ${ok ? '✓' : '✗'} ${label}`);
-console.log(failed ? `\n${failed} suite(s) failed.\n` : '\nAll suites passed.\n');
-process.exit(failed ? 1 : 0);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Primary Meta Tags -->
+    <title>N&amp;D's Air Conditioning and Refrigeration | Expert HVAC, Refrigeration &amp; Automotive AC in Trinidad &amp; Tobago</title>
+    <meta name="description" content="Professional HVAC, refrigeration, and automotive air conditioning services. Expert repairs, installation, maintenance, and 24/7 emergency service across Trinidad &amp; Tobago. Premium quality products and reliable service.">
+    <meta name="keywords" content="HVAC, air conditioning, refrigeration, automotive AC, AC repair, AC installation, maintenance, Trinidad, Tobago, emergency HVAC">
+    <link rel="canonical" href="https://ndsairconditioning.com/">
+
+    <!-- Performance & SEO -->
+    <meta http-equiv="Cache-Control" content="public, max-age=31536000">
+    <link rel="preload" href="assets/css/style.css" as="style">
+    <link rel="preload" href="assets/js/main.js" as="script">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://ndsairconditioning.com/">
+    <meta property="og:title" content="N&amp;D's Air Conditioning and Refrigeration - Expert HVAC Services">
+    <meta property="og:description" content="Professional HVAC, refrigeration &amp; automotive AC services. Expert repairs, installation, maintenance, and 24/7 emergency service.">
+    <meta property="og:image" content="https://ndsairconditioning.com/assets/logo.png">
+    <meta property="og:locale" content="en_US">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://ndsairconditioning.com/">
+    <meta property="twitter:title" content="N&amp;D's Air Conditioning and Refrigeration - Expert HVAC Services">
+    <meta property="twitter:description" content="Professional HVAC, refrigeration &amp; automotive AC services. Expert repairs, installation, maintenance, and 24/7 emergency service.">
+    <meta property="twitter:image" content="https://ndsairconditioning.com/assets/logo.png">
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "LocalBusiness",
+      "name": "N&D's Air Conditioning and Refrigeration",
+      "image": "https://ndsairconditioning.com/assets/logo.png",
+      "@id": "https://ndsairconditioning.com/",
+      "url": "https://ndsairconditioning.com/",
+      "telephone": "+1-868-707-4646",
+      "priceRange": "$$$",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Trinidad & Tobago",
+        "addressRegion": "Caribbean"
+      },
+      "openingHoursSpecification": [
+        {"@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday"], "opens": "08:00", "closes": "17:00"},
+        {"@type": "OpeningHoursSpecification", "dayOfWeek": ["Saturday","Sunday"], "opens": "00:00", "closes": "23:59"}
+      ]
+    }
+    </script>
+
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&amp;family=Open+Sans:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-4CPWJYXKQH"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-4CPWJYXKQH');
+</script>
+    <link rel="icon" type="image/png" sizes="64x64" href="/assets/favicon.png">
+</head>
+<body>
+    <!-- Emergency banner (dynamic) -->
+    <div class="emergency-banner" data-emergency-banner hidden>
+        <div class="container">
+            <span data-emergency-text></span>
+            <a data-emergency-link href="tel:+18687074646"><span data-emergency-label>Call Now</span></a>
+        </div>
+    </div>
+    <!-- Header / Navigation -->
+    <header class="site-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <a href="index.html"><img src="assets/logo.png" alt="N&amp;D's Air Conditioning and Refrigeration" class="site-logo" width="512" height="512"></a>
+                </div>
+                <nav class="main-nav">
+                    <button class="nav-toggle" aria-label="Toggle navigation" aria-controls="primary-menu" aria-expanded="false">
+                        <span class="hamburger"></span>
+                    </button>
+                    <ul class="nav-menu" id="primary-menu">
+                        <li><a href="index.html" class="active">Home</a></li>
+                        <li><a href="services.html">Services</a></li>
+                        <li><a href="products/index.html">Products</a></li>
+                        <li><a href="about.html">About Us</a></li>
+                        <li><a href="gallery/index.html">Gallery</a></li>
+                        <li><a href="testimonials.html">Testimonials</a></li>
+                        <li><a href="booking.html">Book Service</a></li>
+                        <li><a href="contact.html">Contact</a></li>
+                    <li><a href="login.html" class="login-link">Sign In</a></li>
+                        <li><a href="cart.html" class="cart-link"><i class="fas fa-shopping-cart"></i> <span class="cart-count">0</span></a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1 data-content="homepage.hero.title">Expert HVAC, Refrigeration &amp; Automotive AC Services</h1>
+                <p data-content="homepage.hero.subtitle">Professional solutions for homes, businesses, and vehicles across Trinidad &amp; Tobago. 24/7 Emergency Service Available.</p>
+                <div class="hero-buttons">
+                    <a href="booking.html" class="btn-primary btn-large" data-content="homepage.hero.ctaPrimary.label" data-href="homepage.hero.ctaPrimary.url">Book Service Now</a>
+                    <a href="products/index.html" class="btn-secondary btn-large" data-content="homepage.hero.ctaSecondary.label" data-href="homepage.hero.ctaSecondary.url">Browse Products</a>
+                    <a href="tel:+18687074646" class="btn-emergency" data-content="homepage.hero.ctaEmergency.label" data-href="homepage.hero.ctaEmergency.url"><i class="fas fa-phone"></i> Call (868) 707-4646</a>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat"><span class="stat-number">10+</span> <span class="stat-label">Years Experience</span></div>
+                    <div class="stat"><span class="stat-number">5,200+</span> <span class="stat-label">Jobs Completed</span></div>
+                    <div class="stat"><span class="stat-number">98%</span> <span class="stat-label">Customer Satisfaction</span></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Trust Bar -->
+    <section class="trust-bar">
+        <div class="container">
+            <div class="trust-logos">
+                <span>Trusted by</span>
+                <span>Residential • Commercial • Automotive</span>
+                <span>24/7 Emergency Response</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Services Overview -->
+    <section class="services-overview">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title" data-content="homepage.featuredServicesTitle">Our Comprehensive Services</h2>
+                <p>Full-service HVAC, refrigeration, and automotive air conditioning solutions</p>
+            </div>
+            <div class="services-grid" data-content-list="services">
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-snowflake"></i></div>
+                    <h3>Air Conditioning</h3>
+                    <p>Repair, installation, maintenance for residential &amp; commercial systems. Mini-splits, central AC, window units.</p>
+                    <a href="services.html#ac-repair" class="learn-more">Explore AC Services</a>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-warehouse"></i></div>
+                    <h3>Refrigeration</h3>
+                    <p>Commercial refrigeration, walk-in coolers, freezers, ice machines &amp; display cases. Full service &amp; repair.</p>
+                    <a href="services.html#refrigeration" class="learn-more">Explore Refrigeration</a>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-car"></i></div>
+                    <h3>Automotive AC</h3>
+                    <p>Vehicle air conditioning repair, compressor replacement, leak detection, recharging &amp; diagnostics.</p>
+                    <a href="services/automotive-ac.html" class="learn-more">Explore Automotive AC</a>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-tools"></i></div>
+                    <h3>Preventive Maintenance</h3>
+                    <p>Seasonal tune-ups, system inspections, coil cleaning &amp; performance optimization plans.</p>
+                    <a href="services/preventive-maintenance.html" class="learn-more">View Maintenance Plans</a>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <h3>Emergency Service</h3>
+                    <p>24/7 emergency response for HVAC breakdowns. Same-day service available across Trinidad &amp; Tobago.</p>
+                    <a href="services/emergency-service.html" class="learn-more">Get Emergency Help</a>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-wrench"></i></div>
+                    <h3>Installation &amp; Repairs</h3>
+                    <p>Professional installation, system upgrades, and expert repairs for all major brands.</p>
+                    <a href="services.html" class="learn-more">Learn More</a>
+                </div>
+            </div>
+            <div class="text-center mt-4">
+                <a href="services.html" class="btn-primary">View All Services</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Featured Products -->
+    <section class="featured-products">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title" data-content="homepage.featuredProductsTitle">Featured Products</h2>
+                <p>Premium HVAC, refrigeration, and automotive AC components in stock</p>
+            </div>
+            <div class="products-grid" id="featuredProducts">
+                <!-- Populated by JS -->
+            </div>
+            <div class="text-center mt-4">
+                <a href="products/index.html" class="btn-primary">Browse Full Catalog</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Why Choose Us -->
+    <section class="why-us">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Why Choose N&amp;D's?</h2>
+            </div>
+            <div class="why-grid">
+                <div class="why-item">
+                    <i class="fas fa-award"></i>
+                    <h4>10+ Years Experience</h4>
+                    <p>Licensed, insured technicians with deep expertise in all HVAC and refrigeration systems.</p>
+                </div>
+                <div class="why-item">
+                    <i class="fas fa-clock"></i>
+                    <h4>24/7 Availability</h4>
+                    <p>Emergency service around the clock. We respond fast when you need us most.</p>
+                </div>
+                <div class="why-item">
+                    <i class="fas fa-shield-alt"></i>
+                    <h4>Quality Guarantee</h4>
+                    <p>Manufacturer warranties honored. All work backed by our satisfaction guarantee.</p>
+                </div>
+                <div class="why-item">
+                    <i class="fas fa-truck"></i>
+                    <h4>Wide Service Area</h4>
+                    <p>Serving all of Trinidad &amp; Tobago with mobile service and same-day parts availability.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Preview -->
+    <section class="testimonials-preview">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">What Our Customers Say</h2>
+            </div>
+            <div class="testimonials-grid" data-content-list="testimonials">
+                <div class="testimonial-card">
+                    <div class="testimonial-content">
+                        <p>"Fast, professional service. Fixed our commercial walk-in freezer the same day. Highly recommend!"</p>
+                    </div>
+                    <div class="testimonial-author">
+                        <strong>Maria Santos</strong>
+                        <span>Owner, Santos Grocery</span>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="testimonial-content">
+                        <p>"Excellent installation of our new Mitsubishi mini-split. The team was clean, polite, and efficient."</p>
+                    </div>
+                    <div class="testimonial-author">
+                        <strong>David Williams</strong>
+                        <span>Homeowner, Port of Spain</span>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="testimonial-content">
+                        <p>"My car's AC was fixed in under 2 hours. Great price and honest diagnosis. Will return for sure."</p>
+                    </div>
+                    <div class="testimonial-author">
+                        <strong>Keisha Thomas</strong>
+                        <span>Vehicle Owner</span>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center mt-4">
+                <a href="testimonials.html" class="btn-secondary">Read More Reviews</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Banner -->
+    <section class="cta-section">
+        <div class="container">
+            <h2 data-cta-title>Need Service Today?</h2>
+            <p data-cta-subtitle>Book your appointment online or call our 24/7 emergency line.</p>
+            <div class="cta-buttons">
+                <a href="booking.html" class="btn-primary btn-large">Book Appointment</a>
+                <a href="tel:+18687074646" class="btn-emergency btn-large"><i class="fas fa-phone"></i> Call Now</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-column">
+                    <div class="footer-brand">
+                        <img src="assets/logo.png" alt="N&amp;D's" class="footer-logo" width="512" height="512">
+                        <h3>N&amp;D's Air Conditioning &amp; Refrigeration</h3>
+                    </div>
+                    <p data-footer-about>Expert HVAC, refrigeration, and automotive AC services since 2008. Serving Trinidad &amp; Tobago with pride.</p>
+                </div>
+                <div class="footer-column">
+                    <h3>Services</h3>
+                    <ul>
+                        <li><a href="services.html#ac-repair">AC Repair &amp; Installation</a></li>
+                        <li><a href="services.html#refrigeration">Commercial Refrigeration</a></li>
+                        <li><a href="services/automotive-ac.html">Automotive AC</a></li>
+                        <li><a href="services/preventive-maintenance.html">Preventive Maintenance</a></li>
+                        <li><a href="services/emergency-service.html">Emergency Service</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h3>Quick Links</h3>
+                    <ul data-footer-quicklinks>
+                        <li><a href="products/index.html">Product Catalog</a></li>
+                        <li><a href="about.html">About Us</a></li>
+                        <li><a href="gallery/index.html">Project Gallery</a></li>
+                        <li><a href="testimonials.html">Customer Reviews</a></li>
+                        <li><a href="booking.html">Book Service</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column" data-footer-contact>
+                    <h3>Contact Us</h3>
+                    <p><i class="fas fa-phone"></i> <a href="tel:+18687074646">(868) 707-4646</a></p>
+                    <p><i class="fas fa-envelope"></i> <a href="mailto:ndsairconditioning@gmail.com">ndsairconditioning@gmail.com</a></p>
+                    <p><i class="fas fa-map-marker-alt"></i> Warden Road, East Street Extension<br>Stanisclause Circ Ave, Trinidad</p>
+                    <p class="emergency-note"><strong>24/7 Emergency Service Available</strong></p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p data-footer-copyright>© 2026 N&amp;D's Air Conditioning and Refrigeration. All rights reserved. | <a href="privacy.html">Privacy</a> | <a href="terms.html">Terms</a></p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="assets/js/site-content.js"></script>
+    <script src="assets/js/main.js"></script>
+    <script>
+        // Featured products on homepage
+        function loadFeaturedProducts() {
+            const container = document.getElementById('featuredProducts');
+            if (!container) return;
+
+            // Sample featured products from our catalog
+            const featured = [
+                {id: "ac-001", name: "Mitsubishi Mini Split 12k BTU", price: 1199.99, category: "Air Conditioning", rating: 4.9},
+                {id: "ref-001", name: "Copeland Scroll Compressor", price: 1249.99, category: "Refrigeration", rating: 4.8},
+                {id: "auto-001", name: "Sanden Automotive Compressor", price: 299.99, category: "Automotive AC", rating: 4.6}
+            ];
+
+            container.innerHTML = featured.map(product => `
+                <div class="product-card">
+                    <div class="product-image">
+                        <i class="fas fa-${product.category.includes('Auto') ? 'car' : product.category.includes('Ref') ? 'snowflake' : 'snowflake'} fa-3x"></i>
+                    </div>
+                    <div class="product-info">
+                        <span class="product-category">${product.category}</span>
+                        <h4>${product.name}</h4>
+                        <div class="product-price">$${product.price}</div>
+                        <div class="product-rating">
+                            ${Array.from({length: 5}, (_, i) => `<i class="fas fa-star ${i < Math.floor(product.rating) ? '' : 'far'}"></i>`).join('')}
+                            <span>(${product.rating})</span>
+                        </div>
+                        <div class="product-actions">
+                            <a href="products/index.html" class="btn-primary btn-sm">View Details</a>
+                            <button onclick="addToCartQuick('${product.id}', '${product.name}', ${product.price})" class="btn-secondary btn-sm">Add to Cart</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addToCartQuick(id, name, price) {
+            let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+            const existing = cart.find(item => item.id === id);
+            if (existing) {
+                existing.quantity = (existing.quantity || 1) + 1;
+            } else {
+                cart.push({id, name, price, quantity: 1});
+            }
+            localStorage.setItem('cart', JSON.stringify(cart));
+            window.updateCartCount && window.updateCartCount();
+            alert(`${name} added to cart!`);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFeaturedProducts();
+            
+            // Update cart count
+            if (window.updateCartCount) window.updateCartCount();
+        });
+    </script>
+</body>
+</html>
