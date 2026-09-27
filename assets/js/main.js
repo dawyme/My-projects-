@@ -7,6 +7,33 @@
     const PHONE_HREF = 'tel:+18687074646';
     const WHATSAPP_URL = 'https://wa.me/18687074646?text=Hi%20N%26D%27s%2C%20I%20need%20HVAC%20service%20assistance.';
 
+    // Shared inline form-message helper (replaces native alert() popups)
+    window.NDSShowFormMessage = function (form, message, isError) {
+        if (!form) return;
+        var el = form.querySelector('.form-inline-message');
+        if (!el) {
+            el = document.createElement('div');
+            el.className = 'form-inline-message';
+            el.setAttribute('role', 'alert');
+            el.setAttribute('aria-live', 'polite');
+            el.style.marginTop = '12px';
+            el.style.padding = '10px 14px';
+            el.style.borderRadius = '6px';
+            el.style.fontSize = '0.95em';
+            var submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+            if (submitBtn && submitBtn.parentNode) {
+                submitBtn.insertAdjacentElement('afterend', el);
+            } else {
+                form.appendChild(el);
+            }
+        }
+        el.textContent = message;
+        el.style.background = isError ? '#fdecea' : '#e6f4ea';
+        el.style.color = isError ? '#b3261e' : '#1e7e34';
+        el.style.border = '1px solid ' + (isError ? '#f5c2c0' : '#b7dfc0');
+        el.style.display = 'block';
+    };
+
     function getRelativeRoot() {
         const parts = window.location.pathname.split('/').filter(Boolean);
         const file = parts[parts.length - 1] || '';
@@ -87,7 +114,7 @@
                 if (!isValid) {
                     const firstInvalid = form.querySelector('.field-error');
                     if (firstInvalid) firstInvalid.focus();
-                    alert('Please fill in all required fields.');
+                    window.NDSShowFormMessage(form, 'Please fill in all required fields.', true);
                     return;
                 }
 
@@ -140,7 +167,7 @@
                     thankYouMessage.focus({ preventScroll: true });
                     thankYouMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 } else {
-                    alert('Thank you. Your request has been received.');
+                    window.NDSShowFormMessage(form, 'Thank you. Your request has been received.', false);
                 }
 
                 if (submitBtn) {

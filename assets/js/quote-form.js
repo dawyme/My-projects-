@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const date = document.getElementById('quoteDate').value;
 
         if (!name || !phone || !email || !service || !message) {
-            alert('Please fill in all required fields.');
+            window.NDSShowFormMessage(quoteForm, 'Please fill in all required fields.', true);
             return;
         }
 
@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 quoteForm.reset();
             })
             .catch(function (err) {
-                alert(err.message || 'We could not submit your request right now. Please call us instead.');
+                window.NDSShowFormMessage(quoteForm, err.message || 'We could not submit your request right now. Please call us instead.', true);
             })
             .finally(function () {
                 submitButton.innerHTML = originalText;
