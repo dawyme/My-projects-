@@ -223,7 +223,12 @@
     }
     if (seo.ogImage) {
       var ogImg = document.querySelector('meta[property="og:image"]');
-      if (ogImg) ogImg.setAttribute('content', seo.ogImage);
+      if (ogImg) {
+        var absoluteOgImage = /^https?:\/\//i.test(seo.ogImage)
+          ? seo.ogImage
+          : new URL(seo.ogImage, window.location.origin).href;
+        ogImg.setAttribute('content', absoluteOgImage);
+      }
     }
     if (seo.keywords) {
       var kw = document.querySelector('meta[name="keywords"]');
