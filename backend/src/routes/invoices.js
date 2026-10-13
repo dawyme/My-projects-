@@ -117,7 +117,7 @@ router.get('/', protect, validate(listQuery, 'query'), asyncHandler(async (req, 
 router.get('/:id', protect, asyncHandler(async (req, res) => {
   const invoice = await prisma.invoice.findFirst({
     where: tenantWhere(req, { id: req.params.id }),
-    include: { customer: { select: { id: true, name: true, email: true, phone: true, address: true } } },
+    include: { customer: { select: { id: true, name: true, email: true, phone: true, address: true } }, estimate: { select: { id: true, reference: true } } },
   });
   if (!invoice) throw notFound('Invoice not found');
   res.json({ success: true, data: decorate(invoice) });
@@ -132,7 +132,6 @@ router.post('/', protect, validate(body), asyncHandler(async (req, res) => {
   });
   await audit(req, 'CREATE', 'Invoice', invoice.id, { reference: invoice.reference, total: invoice.total });
   await activity(req.user.id, 'invoice', `${req.user.name} created invoice ${invoice.reference}`);
-  cache.invalidate('stats');
   res.status(201).json({ success: true, data: decorate(invoice) });
 }));
 
@@ -146,7 +145,6 @@ router.put('/:id', protect, validate(body.partial()), asyncHandler(async (req, r
   if (data.status && data.status !== 'PAID') data.paidAt = null;
   const invoice = await prisma.invoice.update({ where: { id: existing.id }, data });
   await audit(req, 'UPDATE', 'Invoice', invoice.id, req.body);
-  cache.invalidate('stats');
   res.json({ success: true, data: decorate(invoice) });
 }));
 
