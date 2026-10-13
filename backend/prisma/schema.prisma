@@ -861,6 +861,7 @@ model Estimate {
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
   status     String   @default("DRAFT")
   subtotal   Float    @default(0)
+  taxRate    Float    @default(0)
   tax        Float    @default(0)
   discount   Float    @default(0)
   total      Float    @default(0)
@@ -869,6 +870,8 @@ model Estimate {
   notes      String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  invoice    Invoice?
 
   @@unique([businessId, reference])
   @@index([businessId])
@@ -881,9 +884,14 @@ model Invoice {
   reference  String
   customerId String
   customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  estimateId String?   @unique
+  estimate   Estimate? @relation(fields: [estimateId], references: [id], onDelete: SetNull)
   status     String    @default("PENDING")
   subtotal   Float     @default(0)
+  taxRate    Float     @default(0)
   tax        Float     @default(0)
+  discount   Float     @default(0)
+  notes      String?
   total      Float     @default(0)
   dueDate    DateTime?
   paidAt     DateTime?
