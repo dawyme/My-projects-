@@ -466,6 +466,7 @@ async function main() {
       assert.ok(hidden('#statusChart'), 'bookings chart section must hide');
       assert.ok(hidden('#trendSection') === false, 'trend section must stay (reports still enabled)');
       assert.ok(shown('#lowStock'), 'low-stock section must stay (inventory still enabled)');
+      assert.ok(await until(() => [...doc.querySelectorAll('#stats .stat')].some((c) => (c.textContent || '').includes('Service Bookings'))), 'dashboard stat cards must finish rendering before entitlement assertions');
       const cards = [...doc.querySelectorAll('#stats .stat')];
       const card = (label) => cards.find((c) => (c.textContent || '').includes(label));
       assert.ok(card('Service Bookings')?.hidden === true, 'bookings stat card must hide');

@@ -149,28 +149,36 @@ router.post('/:id/convert', protect, asyncHandler(async (req, res) => {
     throw badRequest(`Only a draft, sent or accepted estimate can be converted (status: ${existing.status})`);
   }
   const invoiceReference = existing.reference.replace(/^EST-/, 'INV-');
-  const invoice = await prisma.$transaction(async (tx) => {
-    const dupe = await tx.invoice.findFirst({ where: { businessId: req.tenantId, reference: invoiceReference } });
-    if (dupe) return dupe;
+  const result = await prisma.$transaction(async (tx) => {
+    const dupe = await tx.invoice.findFirst({
+      where: { businessId: req.tenantId, OR: [{ estimateId: existing.id }, { reference: invoiceReference }] },
+    });
+    if (dupe) return { invoice: dupe, created: false };
     const created = await tx.invoice.create({
       data: {
         businessId: req.tenantId,
         reference: invoiceReference,
+        estimateId: existing.id,
         customerId: existing.customerId,
         status: 'PENDING',
         subtotal: existing.subtotal,
+        taxRate: existing.taxRate,
         tax: existing.tax,
+        discount: existing.discount,
+        notes: existing.notes,
         total: existing.total,
         labour: existing.labour,
         parts: existing.parts,
       },
     });
     await tx.estimate.update({ where: { id: existing.id }, data: { status: 'ACCEPTED' } });
-    return created;
+    return { invoice: created, created: true };
   });
+  const invoice = result.invoice;
+  require('../lib/cache').invalidate('stats');
   await audit(req, 'CONVERT', 'Estimate', existing.id, { invoiceId: invoice.id });
   await activity(req.user.id, 'invoice', `${req.user.name} converted ${existing.reference} to invoice ${invoice.reference}`);
-  res.status(201).json({ success: true, data: invoice, message: `Invoice ${invoice.reference} created` });
+  res.status(result.created ? 201 : 200).json({ success: true, data: invoice, message: result.created ? `Invoice ${invoice.reference} created` : `Invoice ${invoice.reference} already exists` });
 }));
 
 // DELETE /api/estimates/:id

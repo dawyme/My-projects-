@@ -117,7 +117,7 @@ router.get('/', protect, validate(listQuery, 'query'), asyncHandler(async (req, 
 router.get('/:id', protect, asyncHandler(async (req, res) => {
   const invoice = await prisma.invoice.findFirst({
     where: tenantWhere(req, { id: req.params.id }),
-    include: { customer: { select: { id: true, name: true, email: true, phone: true, address: true } } },
+    include: { customer: { select: { id: true, name: true, email: true, phone: true, address: true } }, estimate: { select: { id: true, reference: true } } },
   });
   if (!invoice) throw notFound('Invoice not found');
   res.json({ success: true, data: decorate(invoice) });
