@@ -87,7 +87,7 @@ async function main() {
   });
 
   await test('enable payment methods and persist bank transfer instructions longer than 500 characters', async () => {
-    const longBankDetails = 'Bank transfer instructions with account details. '.repeat(20);
+    const longBankDetails = 'Bank transfer instructions with account details. '.repeat(20).trim();
     assert.ok(longBankDetails.length > 500 && longBankDetails.length <= 2000);
     const r = await admin.put('/api/settings/payment', {
       currency: 'USD', currencySymbol: '$', taxRate: 10,
