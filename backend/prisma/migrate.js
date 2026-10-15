@@ -25,8 +25,21 @@ const MIGRATIONS_DIR = path.join(__dirname, 'migrations');
 if (isPostgres) {
   console.log('Running Prisma schema sync for Supabase PostgreSQL...');
   const schemaPath = path.join(__dirname, 'schema.prisma');
-  const binDir = path.join(__dirname, '..', 'node_modules', '.bin');
-  const prismaBin = path.join(binDir, 'prisma');
+  // Dependencies are installed from the repository root package.json on Vercel.
+  // Prefer that binary, but retain the backend-local path for older deployments.
+  const binDirs = [
+    path.resolve(__dirname, '..', '..', 'node_modules', '.bin'),
+    path.resolve(__dirname, '..', 'node_modules', '.bin'),
+  ];
+  const prismaBin = binDirs
+    .map((dir) => path.join(dir, process.platform === 'win32' ? 'prisma.cmd' : 'prisma'))
+    .find((candidate) => fs.existsSync(candidate));
+  if (!prismaBin) {
+    throw new Error(
+      `Prisma CLI not found. Checked: ${binDirs.map((dir) => path.join(dir, process.platform === 'win32' ? 'prisma.cmd' : 'prisma')).join(', ')}`
+    );
+  }
+  const binDir = path.dirname(prismaBin);
   const env = { ...process.env };
   if (!env.DIRECT_URL && env.DATABASE_URL) {
     env.DIRECT_URL = env.DATABASE_URL;
@@ -35,7 +48,7 @@ if (isPostgres) {
   if (!env.PRISMA_SCHEMA_ENGINE_BINARY && fs.existsSync(wrapperPath)) {
     env.PRISMA_SCHEMA_ENGINE_BINARY = wrapperPath;
   }
-  const libPath = path.join(__dirname, '..', 'node_modules', '@prisma', 'client', 'runtime', 'library.js');
+  const libPath = path.join(binDir, '..', '@prisma', 'client', 'runtime', 'library.js');
   if (!env.PRISMA_QUERY_ENGINE_LIBRARY && fs.existsSync(libPath)) {
     env.PRISMA_QUERY_ENGINE_LIBRARY = libPath;
   }
@@ -43,8 +56,13 @@ if (isPostgres) {
     stdio: 'inherit',
     env,
   });
+  if (res.error) {
+    console.error('Prisma db push could not start:', res.error.message);
+    process.exit(1);
+  }
   if (res.status !== 0) {
-    console.warn('Note: Prisma db push returned status', res.status);
+    console.error(`Prisma db push failed (exit status ${res.status ?? 'unknown'}); stopping the build.`);
+    process.exit(res.status || 1);
   }
   console.log('Supabase PostgreSQL schema sync complete.');
   process.exit(0);
