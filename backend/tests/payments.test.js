@@ -86,10 +86,393 @@ async function main() {
     admin.setBearer(r.body.data.accessToken);
   });
 
-  await test('enable all payment methods via settings', async () => {
+  await test('enable all payment methods via settings and accept long bank transfer instructions', async () => {
+    const longBankDetails = 'Bank transfer instructions with account details. '.repeat(20);
+    assert.ok(longBankDetails.length > 500 && longBankDetails.length <= 2000);
     const r = await admin.put('/api/settings/payment', {
-      currency: 'USD', currencySymbol: '$', taxRate: 10,
-      bankTransfer: true, bankTransferDetails: 'ACME Bank — account 111-222-333, memo = order reference',
+      currency: 'USD', currencySymbol: '
+      cashOnDelivery: true,
+      stripeEnabled: true, stripePublicKey: 'pk_test_123', paypalEnabled: true, paypalClientId: 'test-client',
+      wipayEnabled: true, tilopayEnabled: true,
+    });
+    assert.strictEqual(r.status, 200);
+    const check = await admin.get('/api/settings');
+    assert.strictEqual(check.body.data.payment.wipayEnabled, true);
+    assert.strictEqual(check.body.data.payment.tilopayEnabled, true);
+    assert.strictEqual(check.body.data.payment.bankTransferDetails, longBankDetails);
+  });
+
+  await test('GET /api/public/settings exposes checkout config without secrets', async () => {
+    const r = await anon.get('/api/public/settings');
+    assert.strictEqual(r.body.data.payment, undefined);
+    assert.ok(r.body.data.checkout);
+    assert.strictEqual(r.body.data.checkout.taxRate, 10);
+    const ids = r.body.data.checkout.methods.map((m) => m.id);
+    for (const m of ['CASH_ON_DELIVERY', 'BANK_TRANSFER', 'STRIPE', 'PAYPAL', 'WIPAY', 'TILOPAY']) {
+      assert.ok(ids.includes(m), `missing ${m}`);
+    }
+    assert.ok(r.body.data.checkout.methods.find((m) => m.id === 'STRIPE').sandbox, 'unconfigured gateway should be marked sandbox');
+  });
+
+  // Create a dedicated product so stock assertions are isolated.
+  let productId;
+  await test('create a test product', async () => {
+    const cats = await admin.get('/api/categories');
+    const r = await admin.post('/api/products', {
+      sku: `PAY-${Date.now()}`, name: 'Payment Test Condenser', categoryId: cats.body.data[0].id,
+      price: 100, costPrice: 50, quantity: 50, lowStockLevel: 2,
+    });
+    assert.strictEqual(r.status, 201);
+    productId = r.body.data.id;
+  });
+
+  let orderId = null;
+  let orderReference = null;
+
+  await test('checkout with Cash on Delivery creates a pending order and deducts stock', async () => {
+    const r = await anon.post('/api/payments/checkout', {
+      name: 'Cod Buyer', email: `cod.${Date.now()}@example.com`, phone: '+1 555 1000',
+      address: '10 Main St', city: 'Springfield',
+      paymentMethod: 'CASH_ON_DELIVERY', items: [{ productId, quantity: 3 }],
+    });
+    assert.strictEqual(r.status, 201);
+    assert.strictEqual(r.body.data.order.status, 'PENDING');
+    assert.strictEqual(r.body.data.order.paymentStatus, 'PENDING');
+    assert.strictEqual(r.body.data.payment.action, 'manual');
+    assert.strictEqual(r.body.data.payment.sandbox, false);
+    orderId = r.body.data.order.id;
+    orderReference = r.body.data.order.reference;
+    const p = await admin.get(`/api/products/${productId}`);
+    assert.strictEqual(p.body.data.quantity, 47, 'stock should have dropped by 3');
+    // Customer order history now includes this order.
+    const c = await admin.get('/api/customers?search=cod.');
+    assert.ok(c.body.data.length >= 1, 'customer record exists');
+    const profile = await admin.get(`/api/customers/${c.body.data[0].id}`);
+    assert.ok(profile.body.data.orders.some((o) => o.reference === orderReference), 'order appears in customer history');
+  });
+
+  await test('checkout with Bank Transfer returns instructions', async () => {
+    const r = await anon.post('/api/payments/checkout', {
+      name: 'BT Buyer', email: `bt.${Date.now()}@example.com`, paymentMethod: 'BANK_TRANSFER',
+      items: [{ productId, quantity: 1 }],
+    });
+    assert.strictEqual(r.status, 201);
+    assert.strictEqual(r.body.data.payment.action, 'manual');
+    assert.match(r.body.data.payment.instructions, /ACME Bank/);
+  });
+
+  await test('checkout ignores client-supplied prices (server prices win)', async () => {
+    const r = await anon.post('/api/payments/checkout', {
+      name: 'Price Buyer', email: `price.${Date.now()}@example.com`,
+      paymentMethod: 'BANK_TRANSFER',
+      items: [{ productId, quantity: 1, unitPrice: 0.01 }],
+    });
+    assert.strictEqual(r.status, 201);
+    const o = await admin.get(`/api/orders/${r.body.data.order.id}`);
+    assert.strictEqual(o.body.data.items[0].unitPrice, 100);
+    assert.strictEqual(o.body.data.subtotal, 100);
+    assert.strictEqual(o.body.data.tax, 10, '10% tax from settings applies');
+    assert.strictEqual(o.body.data.total, 110);
+  });
+
+  await test('checkout rejects a disabled payment method', async () => {
+    await admin.put('/api/settings/payment', {
+      currency: 'USD', currencySymbol: '$', taxRate: 10, bankTransfer: true, bankTransferDetails: '',
+      cashOnDelivery: true, stripeEnabled: false, paypalEnabled: false, wipayEnabled: false, tilopayEnabled: false,
+    });
+    const r = await anon.post('/api/payments/checkout', {
+      name: 'Disabled Buyer', email: `disabled.${Date.now()}@example.com`,
+      paymentMethod: 'STRIPE', items: [{ productId, quantity: 1 }],
+    });
+    assert.strictEqual(r.status, 400);
+    assert.match(r.body.error, /disabled/i);
+    // re-enable for the rest of the suite
+    await admin.put('/api/settings/payment', {
+      currency: 'USD', currencySymbol: '$', taxRate: 10, bankTransfer: true, bankTransferDetails: 'ACME Bank — account 111-222-333, memo = order reference',
+      cashOnDelivery: true, stripeEnabled: true, stripePublicKey: 'pk_test_123', paypalEnabled: true, paypalClientId: 'test-client',
+      wipayEnabled: true, tilopayEnabled: true,
+    });
+  });
+
+  await test('checkout rejects insufficient stock', async () => {
+    const current = (await admin.get(`/api/products/${productId}`)).body.data.quantity;
+    const r = await anon.post('/api/payments/checkout', {
+      name: 'Over Buyer', email: `over.${Date.now()}@example.com`,
+      paymentMethod: 'CASH_ON_DELIVERY', items: [{ productId, quantity: current + 1 }],
+    });
+    assert.strictEqual(r.status, 400);
+    assert.match(r.body.error, /stock/i);
+  });
+
+  await test('checkout rejects an empty cart', async () => {
+    const r = await anon.post('/api/payments/checkout', {
+      name: 'Empty Buyer', email: `empty.${Date.now()}@example.com`,
+      paymentMethod: 'CASH_ON_DELIVERY', items: [],
+    });
+    assert.strictEqual(r.status, 400);
+  });
+
+  // Sandbox gateways: order is created and auto-captured (no real keys).
+  for (const [method, label] of [['STRIPE', 'Stripe'], ['PAYPAL', 'PayPal'], ['WIPAY', 'WiPay'], ['TILOPAY', 'Tilopay']]) {
+    await test(`checkout with ${label} (sandbox) auto-captures with a redirect`, async () => {
+      const r = await anon.post('/api/payments/checkout', {
+        name: `${method} Buyer`, email: `${method.toLowerCase()}.${Date.now()}@example.com`,
+        paymentMethod: method, items: [{ productId, quantity: 1 }],
+      });
+      assert.strictEqual(r.status, 201, JSON.stringify(r.body));
+      assert.strictEqual(r.body.data.payment.sandbox, true);
+      assert.strictEqual(r.body.data.payment.action, 'redirect');
+      assert.match(r.body.data.payment.url, /checkout\.html\?order=/);
+      assert.strictEqual(r.body.data.order.paymentStatus, 'PAID', 'sandbox payment captured immediately');
+      assert.strictEqual(r.body.data.order.status, 'PAID');
+      const o = await admin.get(`/api/orders/${r.body.data.order.id}`);
+      assert.match(o.body.data.paymentReference, /^sandbox_/);
+      assert.ok(o.body.data.paidAt);
+    });
+  }
+
+  // ---- webhooks
+  let webOrderId;
+  await test('prepare a pending gateway order for webhook capture', async () => {
+    const customers = await admin.get('/api/customers?limit=1');
+    const created = await admin.post('/api/orders', {
+      customerId: customers.body.data[0].id, items: [{ productId, quantity: 2 }],
+    });
+    assert.strictEqual(created.status, 201);
+    await prisma.order.update({
+      where: { id: created.body.data.id },
+      data: { paymentMethod: 'STRIPE', paymentStatus: 'PENDING', paymentReference: 'cs_test_prepared' },
+    });
+    webOrderId = created.body.data.id;
+  });
+
+  await test('webhook rejects a missing/invalid signature', async () => {
+    const r = await fetch(`${base}/api/payments/webhook/stripe`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'checkout.session.completed', data: { object: {} } }),
+    });
+    assert.strictEqual(r.status, 401);
+  });
+
+  await test('webhook rejects an unknown gateway', async () => {
+    const r = await fetch(`${base}/api/payments/webhook/nonsense`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+    });
+    assert.strictEqual(r.status, 404);
+  });
+
+  await test('webhook with a valid signature captures the order', async () => {
+    const payload = {
+      type: 'checkout.session.completed',
+      data: { object: { client_reference_id: (await admin.get(`/api/orders/${webOrderId}`)).body.data.reference, payment_intent: 'pi_live_abc123' } },
+    };
+    const r = await sandboxWebhook('stripe', payload);
+    assert.strictEqual(r.status, 200);
+    assert.strictEqual((await r.json()).handled, true);
+    const o = await admin.get(`/api/orders/${webOrderId}`);
+    assert.strictEqual(o.body.data.status, 'PAID');
+    assert.strictEqual(o.body.data.paymentStatus, 'PAID');
+    assert.strictEqual(o.body.data.paymentReference, 'pi_live_abc123');
+    assert.ok(o.body.data.paidAt);
+  });
+
+  await test('webhook replay is idempotent', async () => {
+    const payload = {
+      type: 'checkout.session.completed',
+      data: { object: { client_reference_id: (await admin.get(`/api/orders/${webOrderId}`)).body.data.reference, payment_intent: 'pi_live_abc123' } },
+    };
+    const r = await sandboxWebhook('stripe', payload);
+    assert.strictEqual(r.status, 200);
+    assert.strictEqual((await r.json()).handled, true);
+  });
+
+  await test('webhook for an unknown order is reported but not fatal', async () => {
+    const r = await sandboxWebhook('stripe', { type: 'checkout.session.completed', data: { object: { client_reference_id: 'OR-DOES-NOT-EXIST' } } });
+    assert.strictEqual(r.status, 404);
+    assert.strictEqual((await r.json()).handled, false);
+  });
+
+  await test('webhook with a valid signature but unrelated event is ignored', async () => {
+    const r = await sandboxWebhook('stripe', { type: 'payment_intent.amount_capturable_updated', data: { object: {} } });
+    assert.strictEqual(r.status, 200);
+    assert.strictEqual((await r.json()).handled, false);
+  });
+
+  await test('sandbox secret mismatch is rejected', async () => {
+    const body = JSON.stringify({ type: 'checkout.session.completed', data: { object: {} } });
+    const sig = crypto.createHmac('sha256', 'wrong-secret').update(body).digest('hex');
+    const r = await fetch(`${base}/api/payments/webhook/stripe`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-payment-signature': `sha256=${sig}` }, body,
+    });
+    assert.strictEqual(r.status, 401);
+  });
+
+  // ---- admin capture / refund
+  await test('admin captures a bank-transfer order with a transaction id', async () => {
+    const r = await anon.post('/api/payments/checkout', {
+      name: 'Capture Buyer', email: `capture.${Date.now()}@example.com`,
+      paymentMethod: 'BANK_TRANSFER', items: [{ productId, quantity: 1 }],
+    });
+    const cap = await admin.post(`/api/payments/${r.body.data.order.id}/capture`, { transactionId: 'BT-TRX-777' });
+    assert.strictEqual(cap.status, 200);
+    assert.strictEqual(cap.body.data.paymentStatus, 'PAID');
+    assert.strictEqual(cap.body.data.paymentReference, 'BT-TRX-777');
+    assert.strictEqual(cap.body.data.status, 'PAID');
+  });
+
+  await test('double capture is idempotent', async () => {
+    const r = await anon.post('/api/payments/checkout', {
+      name: 'Dbl Buyer', email: `dbl.${Date.now()}@example.com`,
+      paymentMethod: 'CASH_ON_DELIVERY', items: [{ productId, quantity: 1 }],
+    });
+    const first = await admin.post(`/api/payments/${r.body.data.order.id}/capture`, {});
+    const second = await admin.post(`/api/payments/${r.body.data.order.id}/capture`, { transactionId: 'LATE' });
+    assert.strictEqual(first.status, 200);
+    assert.strictEqual(second.status, 200);
+    assert.strictEqual(second.body.data.paymentReference, null, 'second capture must not overwrite');
+  });
+
+  await test('admin refund marks a paid order refunded', async () => {
+    const r = await anon.post('/api/payments/checkout', {
+      name: 'Refund Buyer', email: `refund.${Date.now()}@example.com`,
+      paymentMethod: 'BANK_TRANSFER', items: [{ productId, quantity: 1 }],
+    });
+    await admin.post(`/api/payments/${r.body.data.order.id}/capture`, {});
+    const refund = await admin.post(`/api/payments/${r.body.data.order.id}/refund`, {});
+    assert.strictEqual(refund.status, 200);
+    assert.strictEqual(refund.body.data.paymentStatus, 'REFUNDED');
+  });
+
+  await test('refunding an unpaid order is rejected', async () => {
+    const r = await anon.post('/api/payments/checkout', {
+      name: 'NoRef Buyer', email: `noref.${Date.now()}@example.com`,
+      paymentMethod: 'BANK_TRANSFER', items: [{ productId, quantity: 1 }],
+    });
+    const refund = await admin.post(`/api/payments/${r.body.data.order.id}/refund`, {});
+    assert.strictEqual(refund.status, 400);
+  });
+
+  await test('capture is staff-permitted, refund is admin-only', async () => {
+    const staff = makeClient();
+    await staff.get('/api/csrf-token');
+    const login = await staff.post('/api/auth/login', { email: 'staff@ndsairconditioning.com', password: 'Staff@12345' });
+    staff.setBearer(login.body.data.accessToken);
+    const r = await anon.post('/api/payments/checkout', {
+      name: 'Rbac Buyer', email: `rbac.${Date.now()}@example.com`,
+      paymentMethod: 'BANK_TRANSFER', items: [{ productId, quantity: 1 }],
+    });
+    assert.strictEqual((await staff.post(`/api/payments/${r.body.data.order.id}/capture`, {})).status, 200);
+    assert.strictEqual((await staff.post(`/api/payments/${r.body.data.order.id}/refund`, {})).status, 403);
+  });
+
+  await test('a customer role cannot capture payment for an order (RBAC, not just tenant)', async () => {
+    const email = `rbac-customer.${Date.now()}@example.com`;
+    await prisma.user.create({
+      data: { name: 'Storefront Customer', email, passwordHash: await bcrypt.hash('Customer@12345', 12), role: 'CUSTOMER', businessId: null },
+    });
+    const customer = makeClient();
+    await customer.get('/api/csrf-token');
+    const login = await customer.post('/api/auth/login', { email, password: 'Customer@12345' });
+    assert.strictEqual(login.status, 200, JSON.stringify(login.body));
+    customer.setBearer(login.body.data.accessToken);
+
+    const r = await anon.post('/api/payments/checkout', {
+      name: 'Cust RBAC Buyer', email: `custrbac.${Date.now()}@example.com`,
+      paymentMethod: 'BANK_TRANSFER', items: [{ productId, quantity: 1 }],
+    });
+    const attempt = await customer.post(`/api/payments/${r.body.data.order.id}/capture`, {});
+    assert.strictEqual(attempt.status, 403, 'a CUSTOMER-role user must not be able to capture payments merely by knowing an order id');
+    await prisma.user.delete({ where: { email } });
+  });
+
+  await test('cross-tenant capture is rejected (Business A cannot capture Business B\'s order)', async () => {
+    const otherBusiness = await prisma.business.create({
+      data: { name: `Other Tenant ${Date.now()}`, slug: `other-tenant-${Date.now()}` },
+    });
+    const otherCustomer = await prisma.customer.create({
+      data: { businessId: otherBusiness.id, name: 'Foreign Customer', email: `foreign.${Date.now()}@example.com` },
+    });
+    const foreignOrder = await prisma.order.create({
+      data: {
+        businessId: otherBusiness.id, reference: `OR-FOREIGN-${Date.now()}`, customerId: otherCustomer.id,
+        status: 'PENDING', paymentStatus: 'PENDING', paymentMethod: 'BANK_TRANSFER', subtotal: 10, tax: 0, total: 10,
+      },
+    });
+
+    const attempt = await admin.post(`/api/payments/${foreignOrder.id}/capture`, { transactionId: 'HACK-1' });
+    assert.strictEqual(attempt.status, 404, 'an order belonging to another tenant must not be discoverable/capturable');
+
+    const stillPending = await prisma.order.findUnique({ where: { id: foreignOrder.id } });
+    assert.strictEqual(stillPending.paymentStatus, 'PENDING', 'the foreign order must not have been mutated');
+
+    await prisma.order.delete({ where: { id: foreignOrder.id } });
+    await prisma.customer.delete({ where: { id: otherCustomer.id } });
+    await prisma.business.delete({ where: { id: otherBusiness.id } });
+  });
+
+  await test('cross-tenant refund is rejected (Business A admin cannot refund Business B\'s paid order)', async () => {
+    const otherBusiness = await prisma.business.create({
+      data: { name: `Other Tenant ${Date.now()}`, slug: `other-tenant-${Date.now()}-r` },
+    });
+    const otherCustomer = await prisma.customer.create({
+      data: { businessId: otherBusiness.id, name: 'Foreign Customer 2', email: `foreign2.${Date.now()}@example.com` },
+    });
+    const foreignOrder = await prisma.order.create({
+      data: {
+        businessId: otherBusiness.id, reference: `OR-FOREIGN-R-${Date.now()}`, customerId: otherCustomer.id,
+        status: 'PAID', paymentStatus: 'PAID', paymentMethod: 'BANK_TRANSFER', subtotal: 10, tax: 0, total: 10,
+      },
+    });
+
+    const attempt = await admin.post(`/api/payments/${foreignOrder.id}/refund`, {});
+    assert.strictEqual(attempt.status, 404, 'an order belonging to another tenant must not be refundable');
+
+    const stillPaid = await prisma.order.findUnique({ where: { id: foreignOrder.id } });
+    assert.strictEqual(stillPaid.paymentStatus, 'PAID', 'the foreign order must not have been refunded');
+
+    await prisma.order.delete({ where: { id: foreignOrder.id } });
+    await prisma.customer.delete({ where: { id: otherCustomer.id } });
+    await prisma.business.delete({ where: { id: otherBusiness.id } });
+  });
+
+  await test('GET /api/payments/gateways reports configuration status', async () => {
+    const r = await admin.get('/api/payments/gateways');
+    for (const gw of ['STRIPE', 'PAYPAL', 'WIPAY', 'TILOPAY']) {
+      assert.strictEqual(r.body.data[gw].configured, false, `${gw} should be unconfigured in CI`);
+    }
+  });
+
+  await test('marking an order PAID via status also records the payment', async () => {
+    const r = await anon.post('/api/payments/checkout', {
+      name: 'Status Buyer', email: `status.${Date.now()}@example.com`,
+      paymentMethod: 'CASH_ON_DELIVERY', items: [{ productId, quantity: 1 }],
+    });
+    await admin.patch(`/api/orders/${r.body.data.order.id}/status`, { status: 'PAID' });
+    const o = await admin.get(`/api/orders/${r.body.data.order.id}`);
+    assert.strictEqual(o.body.data.paymentStatus, 'PAID');
+  });
+
+  // Cleanup: remove orders created directly for webhook tests, restore stock.
+  await test('cleanup test orders', async () => {
+    await prisma.order.deleteMany({ where: { id: webOrderId } });
+    const p = await admin.get(`/api/products/${productId}`);
+    await admin.del(`/api/products/${productId}`);
+    assert.strictEqual(p.body.data.quantity >= 0, true);
+  });
+
+  server.close();
+  await prisma.$disconnect();
+
+  const pass = results.filter((r) => r[0] === 'PASS').length;
+  console.log('\nPayment gateway verification\n============================');
+  for (const [state, name] of results) console.log(`  ${state === 'PASS' ? '✔' : '✘'} ${name}`);
+  console.log(`\n${pass}/${results.length} checks passed${failures ? ` — ${failures} FAILED` : ''}\n`);
+  process.exit(failures ? 1 : 0);
+}
+
+main().catch((e) => { console.error(e); process.exit(1); });
+, taxRate: 10,
+      bankTransfer: true, bankTransferDetails: longBankDetails,
       cashOnDelivery: true,
       stripeEnabled: true, stripePublicKey: 'pk_test_123', paypalEnabled: true, paypalClientId: 'test-client',
       wipayEnabled: true, tilopayEnabled: true,
