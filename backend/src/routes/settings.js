@@ -85,7 +85,7 @@ const SCHEMAS = {
     currency: z.string().trim().length(3), currencySymbol: z.string().trim().max(4),
     taxRate: z.coerce.number().min(0).max(100).default(0),
     bankTransfer: z.coerce.boolean().default(true),
-    bankTransferDetails: z.string().trim().max(500).default(''),
+    bankTransferDetails: z.string().trim().max(2000).default(''),
     cashOnDelivery: z.coerce.boolean().default(true),
     stripeEnabled: z.coerce.boolean().default(false), stripePublicKey: z.string().trim().max(200).default(''),
     paypalEnabled: z.coerce.boolean().default(false), paypalClientId: z.string().trim().max(200).default(''),

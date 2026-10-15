@@ -131,8 +131,9 @@ export async function render(view) {
         ${check('pf-wipay', 'wipayEnabled', 'Enable WiPay (Caribbean cards &amp; vouchers)', settings.payment.wipayEnabled)}
         ${check('pf-tilopay', 'tilopayEnabled', 'Enable Tilopay', settings.payment.tilopayEnabled)}
         <div class="field" style="margin-top:12px"><label for="pf-bankDetails">Bank transfer instructions</label>
-          <textarea id="pf-bankDetails" name="bankTransferDetails" rows="3" ${disabled}>${esc(settings.payment.bankTransferDetails || '')}</textarea>
-          <span class="hint">Shown to customers who select bank transfer at checkout (account number, bank, etc.).</span></div>
+          <textarea id="pf-bankDetails" name="bankTransferDetails" rows="3" maxlength="2000" ${disabled}>${esc(settings.payment.bankTransferDetails || '')}</textarea>
+          <span class="hint">Shown to customers who select bank transfer at checkout (account number, bank, etc.).</span>
+          <span class="hint" id="pf-bankDetails-count" aria-live="polite"></span></div>
         <p class="hint" style="margin-top:14px">Gateway API keys (Stripe secret, PayPal, WiPay, Tilopay) live in the server environment — see <code>DEPLOYMENT.md</code>. A method enabled here but missing its keys runs in test mode (development only).</p>
       </form></div>`,
     seo: () => `
@@ -152,6 +153,14 @@ export async function render(view) {
   function showTab(name) {
     panel.innerHTML = PANELS[name]() + (readOnly ? '' :
       `<div class="card__foot" style="justify-content:flex-end"><button class="btn btn--primary" id="saveBtn">Save ${esc(name)} settings</button></div>`);
+
+    const bankDetailsInput = qs('#pf-bankDetails', panel);
+    const bankDetailsCount = qs('#pf-bankDetails-count', panel);
+    if (bankDetailsInput && bankDetailsCount) {
+      const updateBankDetailsCount = () => { bankDetailsCount.textContent = `${bankDetailsInput.value.length}/2000 characters`; };
+      bankDetailsInput.addEventListener('input', updateBankDetailsCount);
+      updateBankDetailsCount();
+    }
 
     if (!readOnly) {
       qs('#saveBtn', panel).onclick = async () => {

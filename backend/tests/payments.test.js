@@ -86,10 +86,12 @@ async function main() {
     admin.setBearer(r.body.data.accessToken);
   });
 
-  await test('enable all payment methods via settings', async () => {
+  await test('enable payment methods and persist bank transfer instructions longer than 500 characters', async () => {
+    const longBankDetails = 'Bank transfer instructions with account details. '.repeat(20).trim();
+    assert.ok(longBankDetails.length > 500 && longBankDetails.length <= 2000);
     const r = await admin.put('/api/settings/payment', {
       currency: 'USD', currencySymbol: '$', taxRate: 10,
-      bankTransfer: true, bankTransferDetails: 'ACME Bank — account 111-222-333, memo = order reference',
+      bankTransfer: true, bankTransferDetails: longBankDetails,
       cashOnDelivery: true,
       stripeEnabled: true, stripePublicKey: 'pk_test_123', paypalEnabled: true, paypalClientId: 'test-client',
       wipayEnabled: true, tilopayEnabled: true,
@@ -98,6 +100,15 @@ async function main() {
     const check = await admin.get('/api/settings');
     assert.strictEqual(check.body.data.payment.wipayEnabled, true);
     assert.strictEqual(check.body.data.payment.tilopayEnabled, true);
+    assert.strictEqual(check.body.data.payment.bankTransferDetails, longBankDetails);
+    const restore = await admin.put('/api/settings/payment', {
+      currency: 'USD', currencySymbol: '$', taxRate: 10,
+      bankTransfer: true, bankTransferDetails: 'ACME Bank — account 111-222-333, memo = order reference',
+      cashOnDelivery: true,
+      stripeEnabled: true, stripePublicKey: 'pk_test_123', paypalEnabled: true, paypalClientId: 'test-client',
+      wipayEnabled: true, tilopayEnabled: true,
+    });
+    assert.strictEqual(restore.status, 200);
   });
 
   await test('GET /api/public/settings exposes checkout config without secrets', async () => {
