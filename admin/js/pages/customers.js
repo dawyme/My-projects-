@@ -108,9 +108,9 @@ export async function render(view, query) {
           </div>
         </form>`,
       footer: '<button class="btn btn--ghost" data-close>Cancel</button><button class="btn btn--primary" id="saveAccount">Create login</button>',
-      onMount: ({ body, close }) => {
+      onMount: ({ root, body, close }) => {
         const form = qs('#accountForm', body);
-        const btn = qs('#saveAccount', body);
+        const btn = qs('#saveAccount', root);
         form.addEventListener('submit', (e) => { e.preventDefault(); btn.click(); });
         btn.onclick = async () => {
           btn.disabled = true;
