@@ -79,6 +79,9 @@ sales             Sale[]
   saleLineItems     SaleLineItem[]
   integrationConnections IntegrationConnection[]
   integrationEvents      IntegrationEvent[]
+  financialTransactions  FinancialTransaction[]
+  expenses               Expense[]
+  financeAuditLogs       FinanceAuditLog[]
 
 }
 
@@ -1624,4 +1627,102 @@ model ClosedDay {
 
   @@unique([businessId, date])
   @@index([businessId, date])
+}
+
+// ---------------------------------------------------------------------------
+// Financial Management — unified money ledger, expenses and finance audit trail.
+// All tables are additive. Money columns are Decimal(12,2) (exact); application
+// code works in integer cents and never in floats. Link columns to orders,
+// sales, invoices, bookings and customers are plain ids with no foreign keys so
+// deleting a legacy record can never delete or block financial history.
+// ---------------------------------------------------------------------------
+
+/// One row per real movement of money: a PAYMENT received or a REFUND paid out.
+/// Amounts are always positive; `type` gives the direction. Net receipts =
+/// payments - refunds. Corrections are made by voiding (status=VOIDED), never by
+/// editing the amount.
+model FinancialTransaction {
+  id                   String    @id @default(uuid())
+  businessId           String    @default("default")
+  business             Business  @relation(fields: [businessId], references: [id])
+  reference            String
+  type                 String    @default("PAYMENT") // PAYMENT | REFUND
+  kind                 String    @default("FULL") // FULL | DEPOSIT | PARTIAL | REFUND
+  status               String    @default("RECORDED") // RECORDED | VOIDED
+  method               String    @default("CASH") // CASH BANK_TRANSFER CARD PAYPAL STRIPE WIPAY TILOPAY OTHER
+  gateway              String? // STRIPE | PAYPAL | WIPAY | TILOPAY | MANUAL when a provider/reference is involved
+  externalReference    String? // gateway transaction id or manual receipt/bank reference
+  idempotencyKey       String? // e.g. order:<id>:payment, sale:<id>:payment — makes writes exactly-once
+  amount               Decimal   @db.Decimal(12, 2)
+  currency             String    @default("TTD")
+  paidAt               DateTime // the date the money moved (not the order/job date)
+  estimatedDate        Boolean   @default(false) // true when backfilled without a real payment date
+  source               String    @default("MANUAL") // MANUAL | ORDER | POS | INVOICE | GATEWAY | BACKFILL
+  customerId           String?
+  invoiceId            String?
+  orderId              String?
+  saleId               String?
+  bookingId            String?
+  relatedTransactionId String? // refunds point at the payment they reverse
+  notes                String?
+  createdById          String?
+  voidedAt             DateTime?
+  voidedById           String?
+  voidReason           String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@unique([businessId, reference])
+  @@unique([businessId, idempotencyKey])
+  @@unique([businessId, gateway, externalReference])
+  @@index([businessId, paidAt])
+  @@index([businessId, status])
+  @@index([invoiceId])
+  @@index([orderId])
+  @@index([saleId])
+  @@index([bookingId])
+  @@index([customerId])
+}
+
+/// A business expense (money out). Soft-deleted only.
+model Expense {
+  id              String    @id @default(uuid())
+  businessId      String    @default("default")
+  business        Business  @relation(fields: [businessId], references: [id])
+  category        String
+  amount          Decimal   @db.Decimal(12, 2)
+  currency        String    @default("TTD")
+  expenseDate     DateTime
+  method          String    @default("CASH")
+  description     String
+  payee           String?
+  referenceNumber String?
+  receiptPath     String? // path inside the private Supabase Storage bucket (never a public URL)
+  receiptMime     String?
+  createdById     String?
+  deletedAt       DateTime?
+  deletedById     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([businessId, expenseDate])
+  @@index([businessId, category])
+}
+
+/// Immutable before/after history of every finance write. Written in the same
+/// database transaction as the change it describes.
+model FinanceAuditLog {
+  id         String   @id @default(uuid())
+  businessId String   @default("default")
+  business   Business @relation(fields: [businessId], references: [id])
+  userId     String?
+  entity     String // TRANSACTION | EXPENSE
+  entityId   String
+  action     String // CREATE | UPDATE | VOID | DELETE | RECEIPT
+  before     String?
+  after      String?
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, entity, entityId])
+  @@index([createdAt])
 }
