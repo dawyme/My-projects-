@@ -8,6 +8,7 @@ const { paginationSchema, meta } = require('../lib/pagination');
 const { badRequest, notFound } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
 const { tenantWhere } = require('../lib/tenant');
+const ledger = require('../lib/finance/ledger');
 
 const router = express.Router();
 const round = (n) => Math.round(Number(n) * 100) / 100;
@@ -104,6 +105,7 @@ router.post('/sales', protect, validate(saleSchema), asyncHandler(async (req, re
           await tx.inventoryAdjustment.create({ data: { productId: line.productId, businessId, userId: req.user.id, change: -line.quantity, before: line.before, after: line.before - line.quantity, reason: `POS sale ${number}` } });
         }
         const sale = await tx.sale.create({ data: { businessId, saleNumber: number, customerId: customerId || null, cashierId: req.user.id, status: 'COMPLETED', paymentMethod, paymentReference: paymentReference || null, subtotal, tax, discount: appliedDiscount, total, location: location || null, lineItems: { create: lines.map((l) => ({ businessId, productId: l.productId, quantity: l.quantity, unitPrice: l.unitPrice, total: l.total })) } } });
+        await ledger.recordSalePayment(tx, sale, { createdById: req.user.id });
         return sale;
       });
     } catch (e) {
@@ -161,6 +163,7 @@ router.post('/refunds', protect, adminOnly, validate(refundSchema), asyncHandler
         const fresh = await tx.saleLineItem.findMany({ where: { saleId: sale.id, businessId: businessId } });
         const fully = fresh.every((x) => x.refundedQty >= x.quantity);
         await tx.sale.update({ where: { id: sale.id }, data: { status: fully ? 'REFUNDED' : 'PARTIALLY_REFUNDED' } });
+        await ledger.recordSaleRefund(tx, sale, created, { createdById: req.user.id });
         return created;
       });
     } catch (e) { if (e?.code === 'P2002') continue; throw e; }

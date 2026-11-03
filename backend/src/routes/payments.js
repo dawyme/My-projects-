@@ -13,6 +13,7 @@ const { DEFAULT_TENANT, tenantWhere } = require('../lib/tenant');
 const { sendMail } = require('../lib/mailer');
 const cache = require('../lib/cache');
 const payments = require('../lib/payments');
+const ledger = require('../lib/finance/ledger');
 const orderFlow = require('../lib/order-flow');
 const { availableStock, allocate } = require('../lib/suppliers/inventory');
 
@@ -36,8 +37,10 @@ async function captureOrder(orderId, { transactionId, actorReq, note } = {}) {
     if (order.status === 'CANCELLED') {
       throw badRequest('Cannot capture payment for a cancelled order');
     }
-    return tx.order.update({
-      where: { id: orderId },
+    // Atomic claim: only ONE concurrent capture (webhook replay, double click) can flip
+    // PENDING -> PAID. The winner also writes the ledger row in this same transaction.
+    const claimed = await tx.order.updateMany({
+      where: { id: orderId, paymentStatus: 'PENDING' },
       data: {
         status: 'PAID',
         paymentStatus: 'PAID',
@@ -46,6 +49,10 @@ async function captureOrder(orderId, { transactionId, actorReq, note } = {}) {
         ...(note ? { notes: note } : {}),
       },
     });
+    const updated = await tx.order.findUnique({ where: { id: orderId } });
+    if (claimed.count === 0) return updated;
+    await ledger.recordOrderPayment(tx, updated, { createdById: actorReq?.user?.id || null });
+    return updated;
   }).then(async (order) => {
     cache.invalidate('stats');
     if (actorReq) {
@@ -121,6 +128,11 @@ webhookRouter.post('/:gateway', asyncHandler(async (req, res) => {
   // Existing storefront order webhook path.
   const order = await prisma.order.findFirst({ where: { businessId: DEFAULT_TENANT, reference: parsed.orderReference } });
   if (!order) return res.status(404).json({ received: true, handled: false, error: 'Order not found' });
+  // The provider-reported amount must match what we billed, otherwise the ledger would record the wrong money.
+  if (parsed.amount != null && order.paymentStatus === 'PENDING' && Math.round(Number(parsed.amount) * 100) !== Math.round(Number(order.total) * 100)) {
+    await activity(null, 'payment', `Webhook amount mismatch for ${order.reference} via ${method}: expected ${order.total}, received ${parsed.amount} — not captured`);
+    return res.status(400).json({ received: true, handled: false, error: 'Amount mismatch' });
+  }
   const captured = await captureOrder(order.id, { transactionId: parsed.transactionId });
   await activity(null, 'payment', `Payment ${captured.paymentStatus === 'PAID' ? 'captured' : 'confirmed'} for ${order.reference} via ${method}`);
   res.json({ received: true, handled: true, order: order.reference, status: captured.paymentStatus });
@@ -329,9 +341,13 @@ router.post('/:orderId/refund', protect, requireFeature('orders'), adminOnly, as
   const existing = await prisma.order.findFirst({ where: tenantWhere(req, { id: req.params.orderId }) });
   if (!existing) throw notFound('Order not found');
   if (existing.paymentStatus !== 'PAID') throw badRequest('Only paid orders can be refunded');
-  const order = await prisma.order.update({
-    where: { id: existing.id },
-    data: { paymentStatus: 'REFUNDED' },
+  const order = await prisma.$transaction(async (tx) => {
+    // Atomic claim so a double-click cannot refund (and record the refund) twice.
+    const claimed = await tx.order.updateMany({ where: { id: existing.id, businessId: req.tenantId, paymentStatus: 'PAID' }, data: { paymentStatus: 'REFUNDED' } });
+    if (claimed.count === 0) throw badRequest('Only paid orders can be refunded');
+    const refunded = await tx.order.findUnique({ where: { id: existing.id } });
+    await ledger.recordOrderRefund(tx, refunded, { createdById: req.user.id });
+    return refunded;
   });
   cache.invalidate('stats');
   await audit(req, 'REFUND', 'Order', order.id, { reference: order.reference, amount: order.total });

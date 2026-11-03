@@ -1,6 +1,6 @@
 const ROLE = Object.freeze({ CUSTOMER: 'CUSTOMER', TECHNICIAN: 'TECHNICIAN', TENANT_ADMIN: 'TENANT_ADMIN', SUPER_ADMIN: 'SUPER_ADMIN' });
 
-const TENANT_ADMIN_PERMISSIONS = Object.freeze(['profile.manage','dashboard.read','customers.manage','bookings.manage','dispatch.manage','calendar.manage','service.manage','inventory.manage','pos.manage','invoices.manage','reports.read','users.manage','marketplace.manage','content.manage','settings.manage','audit.read']);
+const TENANT_ADMIN_PERMISSIONS = Object.freeze(['profile.manage','dashboard.read','customers.manage','bookings.manage','dispatch.manage','calendar.manage','service.manage','inventory.manage','pos.manage','invoices.manage','reports.read','finance.read','finance.manage','users.manage','marketplace.manage','content.manage','settings.manage','audit.read']);
 
 // Platform-only permissions that only a Super Admin should have.
 const SUPER_ADMIN_ONLY_PERMISSIONS = Object.freeze(['tenants.manage','plans.manage','subscriptions.manage','billing.manage','analytics.read','system-health.read']);

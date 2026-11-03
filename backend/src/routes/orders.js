@@ -10,6 +10,7 @@ const { audit, activity } = require('../lib/audit');
 const { tenantWhere } = require('../lib/tenant');
 const cache = require('../lib/cache');
 const orderFlow = require('../lib/order-flow');
+const ledger = require('../lib/finance/ledger');
 const { availableStock, allocate } = require('../lib/suppliers/inventory');
 const { tenantOf } = require('../lib/suppliers/tenant');
 
@@ -122,11 +123,14 @@ router.patch('/:id/status', protect, validate(z.object({ status: z.enum(STATUSES
     const paymentPatch = req.body.status === 'PAID' && existing.paymentStatus === 'PENDING'
       ? { paymentStatus: 'PAID', paidAt: existing.paidAt || new Date() }
       : {};
-    return tx.order.update({
+    const updated = await tx.order.update({
       where: { id: existing.id },
       data: { status: req.body.status, ...paymentPatch },
       include,
     });
+    // Money was just marked received: write it to the ledger in the same transaction.
+    if (paymentPatch.paymentStatus === 'PAID') await ledger.recordOrderPayment(tx, updated, { createdById: req.user.id });
+    return updated;
   });
   cache.invalidate('stats');
   await audit(req, 'STATUS_CHANGE', 'Order', order.id, { from: existing.status, to: order.status });
