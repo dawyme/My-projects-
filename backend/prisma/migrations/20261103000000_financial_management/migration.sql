@@ -79,9 +79,3 @@ CREATE TABLE "FinanceAuditLog" (
 );
 CREATE INDEX "FinanceAuditLog_businessId_entity_entityId_idx" ON "FinanceAuditLog"("businessId","entity","entityId");
 CREATE INDEX "FinanceAuditLog_createdAt_idx" ON "FinanceAuditLog"("createdAt");
-
--- Keep money tables private from the public anon/authenticated API (the app server connects with a role that bypasses RLS).
--- Already applied to the live database on 2026-11-03.
-ALTER TABLE "FinancialTransaction" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "Expense" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "FinanceAuditLog" ENABLE ROW LEVEL SECURITY;
