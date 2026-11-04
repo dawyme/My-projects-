@@ -105,8 +105,15 @@ async function api() {
   base = `http://127.0.0.1:${server.address().port}`;
   const admin = client(); const anon = client();
   let otherBusinessId = null;
+  const invoiceIds = []; let testCustomerId = null;
   const cleanup = async () => {
     await prisma.financialTransaction.deleteMany({ where: { notes: { startsWith: TAG } } });
+    if (invoiceIds.length) {
+      await prisma.financialTransaction.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
+      await prisma.financeAuditLog.deleteMany({ where: { entity: 'TRANSACTION', after: { contains: 'FINTEST-INV' } } }).catch(() => {});
+      await prisma.invoice.deleteMany({ where: { id: { in: invoiceIds } } });
+    }
+    if (testCustomerId) await prisma.customer.deleteMany({ where: { id: testCustomerId } }).catch(() => {});
     await prisma.expense.deleteMany({ where: { description: { startsWith: TAG } } });
     if (otherBusinessId) {
       await prisma.financialTransaction.deleteMany({ where: { businessId: otherBusinessId } });
@@ -249,6 +256,62 @@ async function api() {
     assert.strictEqual(toCents(rows[1].amount), toCents(saleRefund.amount), 'refund row equals the POS refund amount');
     assert.strictEqual(rows[1].relatedTransactionId, rows[0].id);
     await prisma.financialTransaction.deleteMany({ where: { saleId: sale.id } }); // keep the shared test DB tidy
+
+    // ---- invoices: deposit, partial payment, overpayment, mark-paid settles only the balance
+    r = await admin.post('/api/customers', { name: `${TAG} customer`, email: `fintest-${Date.now()}@example.com`, phone: '+1868 000 0001' });
+    assert.strictEqual(r.status, 201, JSON.stringify(r.body)); testCustomerId = r.body.data.id;
+    const newInvoice = async (extra = {}) => {
+      const res = await admin.post('/api/invoices', { customerId: testCustomerId, labour: [{ description: `${TAG}-INV service call`, quantity: 1, unitPrice: 300 }], taxRate: 0, discount: 0, ...extra });
+      assert.strictEqual(res.status, 201, JSON.stringify(res.body)); invoiceIds.push(res.body.data.id); return res.body.data;
+    };
+    const ledgerFor = (invoiceId) => prisma.financialTransaction.findMany({ where: { invoiceId }, orderBy: { createdAt: 'asc' } });
+    const invStatus = async (id) => (await prisma.invoice.findUnique({ where: { id } })).status;
+    const payInv = (invoiceId, amount, extra = {}) => admin.post('/api/finance/transactions', { type: 'PAYMENT', method: 'CASH', invoiceId, amount, paidAt: DAY, ...extra });
+
+    const inv = await newInvoice(); assert.strictEqual(Number(inv.total), 300); assert.strictEqual(inv.status, 'PENDING');
+    r = await payInv(inv.id, '200.01'); assert.strictEqual(r.status, 400, 'cannot pay more than the invoice balance');
+    r = await payInv(inv.id, '100.00'); assert.strictEqual(r.status, 201, JSON.stringify(r.body));
+    assert.strictEqual(r.body.data.kind, 'DEPOSIT', 'first part-payment is a deposit'); assert.strictEqual(r.body.data.invoiceId, inv.id);
+    assert.strictEqual(await invStatus(inv.id), 'PARTIAL');
+    r = await payInv(inv.id, '50.00'); assert.strictEqual(r.status, 201); assert.strictEqual(r.body.data.kind, 'PARTIAL');
+    assert.strictEqual(await invStatus(inv.id), 'PARTIAL');
+    r = await payInv(inv.id, '150.01'); assert.strictEqual(r.status, 400, 'overpaying the remaining 150.00 is rejected');
+    r = await admin.get('/api/finance/outstanding'); assert.strictEqual(r.status, 200);
+    const owed = r.body.data.items.find((i) => i.id === inv.id);
+    assert.ok(owed, 'part-paid invoice is listed as outstanding'); assert.strictEqual(owed.total, '300.00'); assert.strictEqual(owed.paid, '150.00'); assert.strictEqual(owed.balance, '150.00');
+
+    // mark-paid records ONLY the 150.00 still owed, so the ledger totals 300.00 (not 450.00)
+    r = await admin.post(`/api/invoices/${inv.id}/mark-paid`, { method: 'CASH' }); assert.strictEqual(r.status, 200, JSON.stringify(r.body));
+    let invRows = await ledgerFor(inv.id);
+    assert.strictEqual(invRows.length, 3); assert.strictEqual(fromCents(sumCents(invRows.map((x) => toCents(x.amount)))), '300.00');
+    assert.strictEqual(fromCents(toCents(invRows[2].amount)), '150.00'); assert.strictEqual(await invStatus(inv.id), 'PAID');
+    r = await admin.post(`/api/invoices/${inv.id}/mark-paid`, { method: 'CASH' }); assert.strictEqual(r.status, 200);
+    assert.strictEqual((await ledgerFor(inv.id)).length, 3, 'marking a paid invoice paid again records nothing new');
+    r = await payInv(inv.id, '1.00'); assert.strictEqual(r.status, 400, 'a fully paid invoice has no balance left');
+    r = await admin.get('/api/finance/outstanding'); assert.ok(!r.body.data.items.some((i) => i.id === inv.id), 'paid invoice leaves outstanding');
+
+    // voiding the settlement re-opens the balance
+    r = await admin.post(`/api/finance/transactions/${invRows[2].id}/void`, { reason: 'settlement entered in error' }); assert.strictEqual(r.status, 200);
+    assert.strictEqual(await invStatus(inv.id), 'PARTIAL', 'voiding a payment moves the invoice back to PARTIAL');
+    r = await admin.get('/api/finance/outstanding'); assert.strictEqual(r.body.data.items.find((i) => i.id === inv.id).balance, '150.00');
+
+    // refunding a payment on an invoice raises the balance again
+    r = await admin.post('/api/finance/transactions', { type: 'REFUND', paidAt: DAY, amount: '40.00', relatedTransactionId: invRows[0].id, notes: `${TAG} refund`, method: 'CASH' });
+    assert.strictEqual(r.status, 201, JSON.stringify(r.body));
+    r = await admin.get('/api/finance/outstanding'); assert.strictEqual(r.body.data.items.find((i) => i.id === inv.id).balance, '190.00');
+
+    // an invoice created already-PAID, and one switched to PAID later, each reach the ledger exactly once
+    const paidInv = await newInvoice({ status: 'PAID', labour: [{ description: `${TAG}-INV paid up front`, quantity: 1, unitPrice: 80 }] });
+    invRows = await ledgerFor(paidInv.id); assert.strictEqual(invRows.length, 1); assert.strictEqual(fromCents(toCents(invRows[0].amount)), '80.00');
+    assert.strictEqual(invRows[0].type, 'PAYMENT'); assert.strictEqual(invRows[0].source, 'INVOICE');
+    const laterInv = await newInvoice({ labour: [{ description: `${TAG}-INV paid later`, quantity: 2, unitPrice: 12.5 }] });
+    r = await admin.put(`/api/invoices/${laterInv.id}`, { status: 'PAID' }); assert.strictEqual(r.status, 200, JSON.stringify(r.body));
+    invRows = await ledgerFor(laterInv.id); assert.strictEqual(invRows.length, 1); assert.strictEqual(fromCents(toCents(invRows[0].amount)), '25.00');
+    r = await admin.put(`/api/invoices/${laterInv.id}`, { notes: 'edit only' }); assert.strictEqual(r.status, 200);
+    assert.strictEqual((await ledgerFor(laterInv.id)).length, 1, 'editing a paid invoice does not record money twice');
+    // a cancelled invoice cannot take payments
+    const dead = await newInvoice({ status: 'CANCELLED' });
+    r = await payInv(dead.id, '10.00'); assert.strictEqual(r.status, 400);
 
     // ---- tenant isolation
     otherBusinessId = `fin-iso-${Date.now()}`;
