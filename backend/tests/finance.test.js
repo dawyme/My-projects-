@@ -321,7 +321,7 @@ async function api() {
     r = await admin.get(`/api/finance/transactions?${RANGE}&limit=100`); assert.ok(!JSON.stringify(r.body).includes('foreign tenant secret'), 'transactions never leak across tenants');
     r = await admin.get(`/api/finance/expenses?${RANGE}&limit=100`); assert.ok(!JSON.stringify(r.body).includes('foreign tenant expense'));
     s = (await admin.get(`/api/finance/summary?${RANGE}`)).body.data;
-    assert.strictEqual(cents(s.totals.received) - cents(base0.received), 10010, 'foreign money not included in totals');
+    assert.strictEqual(cents(s.totals.received) - cents(base0.received), 10010 + 15000, 'foreign money not included in totals (100.10 + invoice deposit 100 + partial 50)');
     r = await admin.get(`/api/finance/transactions/${foreign.id}/history`); assert.strictEqual(r.status, 404);
     r = await admin.post(`/api/finance/transactions/${foreign.id}/void`, { reason: 'attempted cross-tenant void' }); assert.strictEqual(r.status, 404);
     r = await admin.put(`/api/finance/expenses/${foreignExp.id}`, { amount: '1.00' }); assert.strictEqual(r.status, 404);
