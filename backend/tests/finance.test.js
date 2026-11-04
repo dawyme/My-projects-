@@ -165,7 +165,8 @@ async function api() {
     const rf = r.body.data; assert.strictEqual(rf.type, 'REFUND'); assert.strictEqual(rf.amount, '20.00');
     r = await refund({ amount: '80.11', relatedTransactionId: p1.id }); assert.strictEqual(r.status, 400, 'cumulative refunds cannot exceed the payment');
     r = await refund({ amount: '80.10', relatedTransactionId: p1.id }); assert.strictEqual(r.status, 201, 'refunding exactly the remainder is allowed');
-    r = await admin.post(`/api/finance/transactions/${(await prisma.financialTransaction.findFirst({ where: { relatedTransactionId: p1.id, amount: 80.1 } })).id}/void`, { reason: 'test: undo remainder refund' });
+    const rfRest = r.body.data;
+    r = await admin.post(`/api/finance/transactions/${rfRest.id}/void`, { reason: 'test: undo remainder refund' });
     assert.strictEqual(r.status, 200);
 
     // ---- expenses
