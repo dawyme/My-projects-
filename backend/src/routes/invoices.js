@@ -39,17 +39,25 @@ const body = z.object({
 const lineTotal = (l) => round(l.amount !== undefined && l.amount !== null ? l.amount : (l.quantity || 0) * (l.unitPrice || 0));
 
 function withTotals(data, base = {}) {
+  // Stored labour/parts are JSON strings. A partial update (e.g. only `status`) falls back to the
+  // stored values, so parse them instead of treating the string as an empty list (which zeroed the total).
+  const asList = (v) => {
+    if (Array.isArray(v)) return v;
+    if (typeof v === 'string') { try { const x = JSON.parse(v); return Array.isArray(x) ? x : []; } catch { return []; } }
+    return [];
+  };
   const labour = data.labour !== undefined ? data.labour : base.labour;
   const parts = data.parts !== undefined ? data.parts : base.parts;
   const taxRate = data.taxRate !== undefined ? data.taxRate : base.taxRate ?? 0;
   const discount = data.discount !== undefined ? data.discount : base.discount ?? 0;
-  const sum = (arr) => (Array.isArray(arr) ? arr.reduce((s, l) => s + lineTotal(l), 0) : 0);
+  const sum = (arr) => asList(arr).reduce((s, l) => s + lineTotal(l), 0);
   const subtotal = round(sum(labour) + sum(parts));
   const tax = round(subtotal * ((Number(taxRate) || 0) / 100));
   return {
     ...data,
-    labour: labour === undefined ? undefined : JSON.stringify(labour || []),
-    parts: parts === undefined ? undefined : JSON.stringify(parts || []),
+    // Only write the line items when the caller sent them; otherwise keep what is stored.
+    labour: data.labour === undefined ? undefined : JSON.stringify(data.labour || []),
+    parts: data.parts === undefined ? undefined : JSON.stringify(data.parts || []),
     subtotal,
     tax,
     total: round(Math.max(0, subtotal + tax - (Number(discount) || 0))),

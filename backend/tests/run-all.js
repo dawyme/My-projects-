@@ -26,6 +26,7 @@ const SUITES = [
   ['Universal Integrations Admin UI', 'integration-admin-ui.test.js'],
   ['Supplier Marketplace', 'suppliers.test.js'],
   ['POS / multi-tenant POS', 'pos.test.js'],
+  ['Invoice partial update', 'invoice-partial-update.test.js'],
   ['SaaS / multi-tenant productization', 'saas.test.js'],
   ['Auth + plan + role logout regression', 'auth-plan-regression.test.js'],
   ['RBAC / security foundation', 'rbac.test.js'],
