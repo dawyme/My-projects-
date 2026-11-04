@@ -9,6 +9,8 @@ const { tenantWhere } = require('../lib/tenant');
 const { badRequest, notFound } = require('../lib/errors');
 const { audit, activity } = require('../lib/audit');
 const cache = require('../lib/cache');
+const ledger = require('../lib/finance/ledger');
+const methodOf = (v) => (ledger.METHODS.includes(String(v || '').toUpperCase()) ? String(v).toUpperCase() : 'OTHER');
 
 const router = express.Router();
 
@@ -134,9 +136,15 @@ router.get('/:id', protect, asyncHandler(async (req, res) => {
 // POST /api/invoices
 router.post('/', protect, validate(body), asyncHandler(async (req, res) => {
   await resolveCustomer(req, req.body.customerId);
-  const invoice = await prisma.invoice.create({
-    data: { ...withTotals(req.body), reference: reference(), businessId: req.tenantId },
-    include: { customer: { select: { id: true, name: true, email: true } } },
+  const invoice = await prisma.$transaction(async (tx) => {
+    const paidNow = req.body.status === 'PAID';
+    const created = await tx.invoice.create({
+      data: { ...withTotals(req.body), ...(paidNow ? { paidAt: new Date() } : {}), reference: reference(), businessId: req.tenantId },
+      include: { customer: { select: { id: true, name: true, email: true } } },
+    });
+    // An invoice created already-paid still has to put its money in the ledger.
+    if (paidNow) await ledger.recordInvoiceSettlement(tx, created, { method: methodOf(req.body.paymentMethod), createdById: req.user.id });
+    return created;
   });
   await audit(req, 'CREATE', 'Invoice', invoice.id, { reference: invoice.reference, total: invoice.total });
   await activity(req.user.id, 'invoice', `${req.user.name} created invoice ${invoice.reference}`);
@@ -151,7 +159,13 @@ router.put('/:id', protect, validate(body.partial()), asyncHandler(async (req, r
   const data = withTotals(req.body, existing);
   if (data.status === 'PAID' && existing.status !== 'PAID') data.paidAt = existing.paidAt || new Date();
   if (data.status && data.status !== 'PAID') data.paidAt = null;
-  const invoice = await prisma.invoice.update({ where: { id: existing.id }, data });
+  const becamePaid = data.status === 'PAID' && existing.status !== 'PAID';
+  const invoice = await prisma.$transaction(async (tx) => {
+    const updated = await tx.invoice.update({ where: { id: existing.id }, data });
+    // Flipping the status to PAID must record the money, or it would never reach financial reports.
+    if (becamePaid) await ledger.recordInvoiceSettlement(tx, updated, { method: methodOf(req.body.paymentMethod), createdById: req.user.id });
+    return updated;
+  });
   await audit(req, 'UPDATE', 'Invoice', invoice.id, req.body);
   res.json({ success: true, data: decorate(invoice) });
 }));
@@ -162,7 +176,11 @@ router.post('/:id/mark-paid', protect, asyncHandler(async (req, res) => {
   if (!existing) throw notFound('Invoice not found');
   if (existing.status === 'CANCELLED') throw badRequest('A cancelled invoice cannot be marked as paid');
   if (existing.status === 'PAID') return res.json({ success: true, data: decorate(existing), message: 'Invoice was already paid' });
-  const invoice = await prisma.invoice.update({ where: { id: existing.id }, data: { status: 'PAID', paidAt: new Date() } });
+  const invoice = await prisma.$transaction(async (tx) => {
+    // Record only what is still outstanding (earlier deposits/partials are already in the ledger).
+    await ledger.recordInvoiceSettlement(tx, existing, { method: methodOf(req.body?.method), createdById: req.user.id });
+    return tx.invoice.update({ where: { id: existing.id }, data: { status: 'PAID', paidAt: existing.paidAt || new Date() } });
+  });
   cache.invalidate('stats');
   await audit(req, 'PAYMENT', 'Invoice', invoice.id, { total: invoice.total });
   await activity(req.user.id, 'invoice', `${req.user.name} recorded payment for ${invoice.reference}`);
