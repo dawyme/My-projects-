@@ -22,5 +22,13 @@ if (process.env.VERCEL_ENV !== 'production') {
   process.exit(0);
 }
 
-console.log('Production deploy — syncing database schema...');
+// Opt-in only. By default a merge/deploy NEVER touches the database schema:
+// schema changes are applied by hand (e.g. in the Supabase SQL editor) after a backup.
+// To re-enable automatic syncing, set RUN_DB_PUSH=1 in the Vercel project environment.
+if (process.env.RUN_DB_PUSH !== '1') {
+  console.log('Skipping schema sync (RUN_DB_PUSH is not set to 1). The database was not touched.');
+  process.exit(0);
+}
+
+console.log('Production deploy — syncing database schema (RUN_DB_PUSH=1)...');
 require('../prisma/migrate.js');
