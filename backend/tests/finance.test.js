@@ -305,9 +305,9 @@ async function api() {
     invRows = await ledgerFor(paidInv.id); assert.strictEqual(invRows.length, 1); assert.strictEqual(fromCents(toCents(invRows[0].amount)), '80.00');
     assert.strictEqual(invRows[0].type, 'PAYMENT'); assert.strictEqual(invRows[0].source, 'INVOICE');
     const laterInv = await newInvoice({ labour: [{ description: `${TAG}-INV paid later`, quantity: 2, unitPrice: 12.5 }] });
-    r = await admin.put(`/api/invoices/${laterInv.id}`, { status: 'PAID' }); assert.strictEqual(r.status, 200, JSON.stringify(r.body));
+    r = await admin.put(`/api/invoices/${laterInv.id}`, { status: 'PAID', labour: [{ description: `${TAG}-INV paid later`, quantity: 2, unitPrice: 12.5 }] }); assert.strictEqual(r.status, 200, JSON.stringify(r.body));
     invRows = await ledgerFor(laterInv.id); assert.strictEqual(invRows.length, 1); assert.strictEqual(fromCents(toCents(invRows[0].amount)), '25.00');
-    r = await admin.put(`/api/invoices/${laterInv.id}`, { notes: 'edit only' }); assert.strictEqual(r.status, 200);
+    r = await admin.put(`/api/invoices/${laterInv.id}`, { notes: 'edit only', labour: [{ description: `${TAG}-INV paid later`, quantity: 2, unitPrice: 12.5 }] }); assert.strictEqual(r.status, 200);
     assert.strictEqual((await ledgerFor(laterInv.id)).length, 1, 'editing a paid invoice does not record money twice');
     // a cancelled invoice cannot take payments
     const dead = await newInvoice({ status: 'CANCELLED' });
