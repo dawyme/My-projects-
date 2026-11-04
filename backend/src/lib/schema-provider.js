@@ -105,6 +105,15 @@ function ensureSchemaProvider() {
     }
   }
 
+  // SQLite has no native column types, so Prisma rejects `@db.Decimal(12, 2)`
+  // (used by the Financial Management tables). Strip native-type attributes for
+  // the local/test SQLite flow only; PostgreSQL keeps exact Decimal(12,2).
+  // This only rewrites the working copy — never commit a SQLite-rewritten schema.
+  if (!isPostgres && /@db\.\w+/.test(schema)) {
+    schema = schema.replace(/[ \t]*@db\.\w+(\([^)]*\))?/g, "");
+    changed = true;
+  }
+
   if (changed) {
     fs.writeFileSync(schemaPath, schema, "utf8");
 

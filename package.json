@@ -21,6 +21,7 @@
     "test:ui": "node backend/tests/ui.test.js",
     "test:site": "node backend/tests/site.test.js",
     "test:payments": "node backend/tests/payments.test.js",
+    "test:finance": "node backend/tests/finance.test.js",
     "test:suppliers": "node backend/tests/suppliers.test.js"
   },
   "dependencies": {

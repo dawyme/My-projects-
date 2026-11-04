@@ -34,6 +34,7 @@ const TENANT_FEATURE_REGISTRY = [
   { key: 'invoices', name: 'Invoices', description: 'Invoice management', category: 'Operations', defaultEnabled: true, routes: ['/invoices'], apiPrefixes: ['/api/invoices'] },
   { key: 'orders', name: 'Orders', description: 'Order management', category: 'Operations', defaultEnabled: true, routes: ['/orders'], apiPrefixes: ['/api/orders'] },
   { key: 'point-of-sale', name: 'Point of Sale', description: 'Point of sale operations', category: 'Operations', defaultEnabled: true, routes: ['/pos'], apiPrefixes: ['/api/pos'] },
+  { key: 'financials', name: 'Financial Management', description: 'Money received, expenses, refunds, outstanding balances and net cash movement', category: 'Operations', defaultEnabled: true, routes: ['/finance'], apiPrefixes: ['/api/finance'] },
   { key: 'customers', name: 'Customers', description: 'Customer records and management', category: 'People', defaultEnabled: true, routes: ['/customers'], apiPrefixes: ['/api/customers'] },
   { key: 'messages', name: 'Messages', description: 'Business communications inbox', category: 'People', defaultEnabled: true, routes: ['/messages'], apiPrefixes: ['/api/messages'] },
   { key: 'technicians', name: 'Technicians', description: 'Technician records and assignments', category: 'People', defaultEnabled: true, routes: [], apiPrefixes: ['/api/technicians'] },

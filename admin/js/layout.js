@@ -26,6 +26,7 @@ const NAV = [
     { path: '/invoices', label: 'Invoices', icon: 'file' , feature: 'invoices' },
     { path: '/orders', label: 'Orders', icon: 'file' , feature: 'orders' },
     { path: '/pos', label: 'Point of Sale', icon: 'cart' , feature: 'point-of-sale' },
+    { path: '/finance', label: 'Financials', icon: 'money', feature: 'financials', adminOnly: true },
   ] },
   { group: 'People', items: [
     { path: '/customers', label: 'Customers', icon: 'users' , feature: 'customers' },
@@ -284,6 +285,7 @@ const routes = {
   '/invoices': () => import('./pages/invoices.js'),
   '/orders': () => import('./pages/orders.js'),
   '/pos': () => import('./pages/pos.js'),
+  '/finance': () => import('./pages/finance.js'),
   '/customers': () => import('./pages/customers.js'),
   '/messages': () => import('./pages/messages.js'),
   '/settings': () => import('./pages/settings.js'),
