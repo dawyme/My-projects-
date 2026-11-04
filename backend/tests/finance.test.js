@@ -269,7 +269,7 @@ async function api() {
     const payInv = (invoiceId, amount, extra = {}) => admin.post('/api/finance/transactions', { type: 'PAYMENT', method: 'CASH', invoiceId, amount, paidAt: DAY, ...extra });
 
     const inv = await newInvoice(); assert.strictEqual(Number(inv.total), 300); assert.strictEqual(inv.status, 'PENDING');
-    r = await payInv(inv.id, '200.01'); assert.strictEqual(r.status, 400, 'cannot pay more than the invoice balance');
+    r = await payInv(inv.id, '300.01'); assert.strictEqual(r.status, 400, 'cannot pay more than the invoice balance');
     r = await payInv(inv.id, '100.00'); assert.strictEqual(r.status, 201, JSON.stringify(r.body));
     assert.strictEqual(r.body.data.kind, 'DEPOSIT', 'first part-payment is a deposit'); assert.strictEqual(r.body.data.invoiceId, inv.id);
     assert.strictEqual(await invStatus(inv.id), 'PARTIAL');
